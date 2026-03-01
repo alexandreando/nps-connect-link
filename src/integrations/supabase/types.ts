@@ -633,6 +633,137 @@ export type Database = {
           },
         ]
       }
+      chat_broadcast_recipients: {
+        Row: {
+          broadcast_id: string
+          chat_room_id: string | null
+          clicked_at: string | null
+          company_contact_id: string | null
+          contact_id: string | null
+          created_at: string
+          delivered_at: string | null
+          id: string
+          sent_at: string | null
+          status: string
+          tenant_id: string | null
+        }
+        Insert: {
+          broadcast_id: string
+          chat_room_id?: string | null
+          clicked_at?: string | null
+          company_contact_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          sent_at?: string | null
+          status?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          broadcast_id?: string
+          chat_room_id?: string | null
+          clicked_at?: string | null
+          company_contact_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          sent_at?: string | null
+          status?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_broadcast_recipients_broadcast_id_fkey"
+            columns: ["broadcast_id"]
+            isOneToOne: false
+            referencedRelation: "chat_broadcasts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_broadcast_recipients_chat_room_id_fkey"
+            columns: ["chat_room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_broadcast_recipients_company_contact_id_fkey"
+            columns: ["company_contact_id"]
+            isOneToOne: false
+            referencedRelation: "company_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_broadcast_recipients_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_broadcast_recipients_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_broadcasts: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          message: string
+          scheduled_at: string | null
+          sent_at: string | null
+          status: string
+          tenant_id: string | null
+          title: string
+          total_recipients: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string
+          tenant_id?: string | null
+          title: string
+          total_recipients?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string
+          tenant_id?: string | null
+          title?: string
+          total_recipients?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_broadcasts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_business_hours: {
         Row: {
           created_at: string | null

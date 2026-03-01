@@ -22,6 +22,7 @@ import {
   Flag,
   User,
   Inbox,
+  Megaphone,
   Shield,
   Star,
   Sun,
@@ -109,7 +110,7 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
   const showCSReports = hasPermission("cs.reports.health", "view") || hasPermission("cs.reports.churn", "view") || hasPermission("cs.reports.financial", "view");
   const showChatReports = hasPermission("chat.reports", "view");
   const showReports = showCSReports || showChatReports;
-  const showChat = hasPermission("chat", "view") || hasPermission("chat.workspace", "view") || hasPermission("chat.history", "view");
+  const showChat = hasPermission("chat", "view") || hasPermission("chat.workspace", "view") || hasPermission("chat.history", "view") || hasPermission("chat.broadcasts", "view");
   const showNPS = hasPermission("nps", "view") || hasPermission("nps.dashboard", "view") || hasPermission("nps.campaigns", "view");
   const showContacts = hasPermission("contacts", "view") || hasPermission("contacts.companies", "view") || hasPermission("contacts.people", "view");
   const showHelp = hasPermission("help", "view") || hasPermission("help.articles", "view") || hasPermission("help.collections", "view");
@@ -343,6 +344,14 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
                           <SidebarMenuItem>
                             <SidebarMenuButton onClick={() => navigate("/admin/banners")} isActive={isActive("/admin/banners")} tooltip={t("banners.title")} className={cn("pl-6", isActive("/admin/banners") ? activeItemCls : "hover:bg-sidebar-accent")}>
                               <Flag className="h-4 w-4" /><span>{t("banners.title")}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        )}
+
+                        {hasPermission("chat.broadcasts", "view") && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/admin/broadcasts")} isActive={isActive("/admin/broadcasts")} tooltip={t("broadcasts.title")} className={cn("pl-6", isActive("/admin/broadcasts") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <Megaphone className="h-4 w-4" /><span>{t("broadcasts.title")}</span>
                             </SidebarMenuButton>
                           </SidebarMenuItem>
                         )}

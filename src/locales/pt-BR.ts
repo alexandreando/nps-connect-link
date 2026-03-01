@@ -953,6 +953,9 @@ export default {
   "team.submodule.chat.workspace": "Estação de Trabalho",
   "team.submodule.chat.history": "Histórico de Conversas",
   "team.submodule.chat.banners": "Banners",
+  "team.submodule.chat.broadcasts": "Mensagens em Massa",
+  "team.submodule.chat.dashboard": "Dashboard",
+  "team.submodule.chat.csat": "Relatório CSAT",
   "team.submodule.chat.reports": "Relatório Gerencial",
   "team.submodule.chat.settings.general": "Config: Geral e Regras",
   "team.submodule.chat.settings.widget": "Config: Widget",
@@ -1120,6 +1123,12 @@ export default {
   "chat.settings.widgetPosition": "Posição do Widget",
   "chat.settings.posRight": "Direita",
   "chat.settings.posLeft": "Esquerda",
+
+  // Broadcasts
+  "broadcasts.title": "Mensagens em Massa",
+  "broadcasts.subtitle": "Envie mensagens proativas para múltiplos contatos",
+  "broadcasts.new": "Nova Mensagem em Massa",
+  "broadcasts.empty": "Nenhuma mensagem em massa criada",
 
   // Banners
   "banners.title": "Banners",
