@@ -818,6 +818,7 @@ export type Database = {
           content: string
           created_at: string | null
           id: string
+          is_private: boolean
           shortcut: string | null
           tenant_id: string | null
           title: string
@@ -829,6 +830,7 @@ export type Database = {
           content: string
           created_at?: string | null
           id?: string
+          is_private?: boolean
           shortcut?: string | null
           tenant_id?: string | null
           title: string
@@ -840,6 +842,7 @@ export type Database = {
           content?: string
           created_at?: string | null
           id?: string
+          is_private?: boolean
           shortcut?: string | null
           tenant_id?: string | null
           title?: string

@@ -17,6 +17,8 @@ interface Macro {
   title: string;
   content: string;
   shortcut: string | null;
+  is_private?: boolean;
+  user_id?: string;
 }
 
 interface ChatInputProps {
@@ -44,12 +46,19 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
   const lastTypingBroadcast = useRef<number>(0);
 
   useEffect(() => {
-    supabase
-      .from("chat_macros")
-      .select("id, title, content, shortcut")
-      .then(({ data }) => {
-        if (data) setMacros(data as Macro[]);
-      });
+    const fetchMacros = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      let query = supabase.from("chat_macros").select("id, title, content, shortcut");
+      if (userId) {
+        query = query.or(`is_private.eq.false,user_id.eq.${userId}`);
+      } else {
+        query = query.eq("is_private", false);
+      }
+      const { data } = await query;
+      if (data) setMacros(data as Macro[]);
+    };
+    fetchMacros();
   }, []);
 
   const adjustHeight = useCallback(() => {
