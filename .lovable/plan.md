@@ -1,83 +1,48 @@
 
 
-# Corrigir Hierarquia de URLs do Help Center (Atualizado)
-
-## Problema Atual
-
-As URLs publicas do Help Center estao sendo geradas sem o slug do tenant. Por exemplo:
-- Atual: `jornadacliente.com.br/help/a/artigo-xyz`
-- Correto: `jornadacliente.com.br/teste-do-zerooo/help/a/artigo-xyz`
-
-Cada tenant deve ter seu proprio Help Center com URLs hierarquicas:
-
-```text
-/EMPRESA/help                    -> Home do Help Center
-/EMPRESA/help/c/colecao-slug     -> Colecao
-/EMPRESA/help/a/artigo-slug      -> Artigo
-```
-
-As rotas ja existem no React Router (`/:tenantSlug/help/...`), mas a pagina admin gera links sem o slug do tenant. Alem disso, links antigos ja publicados/compartilhados no formato `/help/a/slug` precisam continuar funcionando via redirecionamento.
-
-## Mudancas
-
-### 1. Migration SQL - RLS publica na tabela `tenants`
-
-A tabela `tenants` so permite SELECT para usuarios autenticados. Visitantes anonimos nao conseguem resolver o slug do tenant, quebrando todas as paginas publicas do Help Center.
-
-Adicionar politica PERMISSIVE de SELECT para acesso anonimo (somente leitura de id e slug):
-
-```sql
-CREATE POLICY "Public can view tenant slugs"
-  ON public.tenants
-  FOR SELECT
-  USING (true);
-```
-
-Isso e seguro: a tabela contem apenas id, slug e nome. Nao permite escrita.
-
-### 2. Redirecionamento retroativo de links antigos
-
-Links ja publicados e compartilhados no formato `/help/a/:articleSlug` (sem tenant slug) precisam continuar funcionando. Em vez de mostrar o artigo diretamente nessa URL, o componente `HelpPublicArticle` (quando acessado sem `tenantSlug`) vai:
-
-1. Buscar o artigo pelo slug
-2. Resolver o slug do tenant dono do artigo
-3. Fazer um redirect 301 (replace) para `/:tenantSlug/help/a/:articleSlug`
-
-Mesma logica para `HelpPublicHome` e `HelpPublicCollection` sem slug: resolver e redirecionar.
-
-Isso garante que:
-- Links antigos continuam funcionando
-- O usuario acaba na URL canonica correta
-- SEO e mantido com redirect permanente
-
-### 3. `src/pages/HelpPublicArticle.tsx`
-- Quando `tenantSlug` nao estiver na URL, apos resolver o tenant do artigo, redirecionar para `/${resolvedSlug}/help/a/${articleSlug}` com `replace: true`
-- Manter a logica atual para quando `tenantSlug` ja esta presente
-
-### 4. `src/pages/HelpPublicHome.tsx`
-- Quando acessado via `/help` (sem tenant slug), resolver o tenant e redirecionar para `/${resolvedSlug}/help`
-
-### 5. `src/pages/HelpPublicCollection.tsx`
-- Quando acessado via `/help/c/:slug` (sem tenant slug), resolver o tenant e redirecionar para `/${resolvedSlug}/help/c/:slug`
-
-### 6. `src/pages/HelpArticles.tsx`
-- Ja corrigido: busca o slug do tenant e gera URLs corretas
-- Sem mudancas adicionais necessarias
-
-### 7. `src/pages/HelpArticleEditor.tsx`
-- Atualizar o link de "copiar URL publica" (se existir) para incluir o slug do tenant
+# Macros Privadas vs Publicas
 
 ## Resumo
 
-| Item | Mudanca |
-|------|---------|
-| Migration SQL | Adicionar politica SELECT publica na tabela `tenants` |
-| `HelpPublicArticle.tsx` | Redirecionar `/help/a/:slug` para `/:tenant/help/a/:slug` |
-| `HelpPublicHome.tsx` | Redirecionar `/help` para `/:tenant/help` |
-| `HelpPublicCollection.tsx` | Redirecionar `/help/c/:slug` para `/:tenant/help/c/:slug` |
-| `HelpArticleEditor.tsx` | Corrigir link de copia se existente |
+Adicionar um campo `is_private` na tabela `chat_macros` para distinguir macros pessoais (visíveis apenas ao criador) de macros públicas (visíveis a todo o tenant). A criação/edição de macros ganha um toggle "Macro particular" no dialog. A listagem no admin e no workspace filtra de acordo.
 
-## Compatibilidade retroativa
+## Mudancas
 
-Links antigos no formato sem tenant slug continuarao funcionando indefinidamente gracas ao redirecionamento automatico. Nenhuma acao manual e necessaria para corrigir links ja compartilhados.
+### 1. Migration SQL - Adicionar coluna `is_private`
+
+```sql
+ALTER TABLE public.chat_macros ADD COLUMN is_private boolean NOT NULL DEFAULT false;
+```
+
+Nenhuma mudanca de RLS necessaria - a politica atual ja filtra por tenant. A filtragem privada sera feita no codigo (queries com filtro `user_id` ou `is_private = false`).
+
+### 2. `src/pages/AdminSettings.tsx` - CRUD de macros
+
+- Adicionar campo `is_private` ao `macroForm` state (default: `false`)
+- No dialog de criacao/edicao, adicionar um Switch/Checkbox "Macro particular" com descricao "Visível apenas para você"
+- No `saveMacro`, incluir `is_private` no insert/update
+- Na query `fetchAll`, buscar tambem `is_private` e `user_id`
+- Na listagem de macros, mostrar badge "Particular" ou "Publica" em cada macro
+- Filtrar: mostrar macros publicas do tenant + macros privadas apenas do usuario logado
+- Alterar a query para: `.or('is_private.eq.false,user_id.eq.{userId}')` apos obter o userId da sessao
+
+### 3. `src/components/chat/ChatInput.tsx` - Macros no workspace
+
+- Alterar a query de macros para filtrar: macros publicas do tenant + macros privadas do usuario logado
+- Obter o `userId` da sessao via `supabase.auth.getSession()`
+- Query: `.or('is_private.eq.false,user_id.eq.{userId}')`
+
+### 4. Interface do Macro (tipo)
+
+Na Macro interface dos dois arquivos, adicionar `is_private?: boolean` e `user_id?: string`.
+
+## Detalhes tecnicos
+
+| Arquivo | Mudanca |
+|---------|---------|
+| Migration SQL | `ALTER TABLE chat_macros ADD COLUMN is_private boolean NOT NULL DEFAULT false` |
+| `AdminSettings.tsx` | Toggle no dialog, filtro na query, badge na listagem |
+| `ChatInput.tsx` | Filtro na query de macros |
+
+Macros existentes terao `is_private = false` (publicas) por default, mantendo compatibilidade retroativa.
 
