@@ -33,6 +33,8 @@ interface Macro {
   content: string;
   shortcut: string | null;
   category: string | null;
+  is_private: boolean;
+  user_id: string;
 }
 
 interface BusinessHour {
@@ -90,7 +92,7 @@ const AdminSettings = () => {
   const [macroSearch, setMacroSearch] = useState("");
   const [macroDialog, setMacroDialog] = useState(false);
   const [editingMacro, setEditingMacro] = useState<Macro | null>(null);
-  const [macroForm, setMacroForm] = useState({ title: "", content: "", shortcut: "", category: "" });
+  const [macroForm, setMacroForm] = useState({ title: "", content: "", shortcut: "", category: "", is_private: false });
 
   // Business Hours
   const [hours, setHours] = useState<BusinessHour[]>([]);
@@ -138,12 +140,13 @@ const AdminSettings = () => {
       setHasUnsavedChanges(false);
     }
 
-    // Macros
+    // Macros - show public macros + own private macros
     const { data: macrosData } = await supabase
       .from("chat_macros")
-      .select("id, title, content, shortcut, category")
+      .select("id, title, content, shortcut, category, is_private, user_id")
+      .or(`is_private.eq.false,user_id.eq.${session.user.id}`)
       .order("created_at");
-    setMacros(macrosData ?? []);
+    setMacros((macrosData as Macro[]) ?? []);
 
     // Business Hours
     const { data: hoursData } = await supabase
@@ -253,10 +256,10 @@ const AdminSettings = () => {
   const openMacroDialog = (macro?: Macro) => {
     if (macro) {
       setEditingMacro(macro);
-      setMacroForm({ title: macro.title, content: macro.content, shortcut: macro.shortcut ?? "", category: macro.category ?? "" });
+      setMacroForm({ title: macro.title, content: macro.content, shortcut: macro.shortcut ?? "", category: macro.category ?? "", is_private: macro.is_private ?? false });
     } else {
       setEditingMacro(null);
-      setMacroForm({ title: "", content: "", shortcut: "", category: "" });
+      setMacroForm({ title: "", content: "", shortcut: "", category: "", is_private: false });
     }
     setMacroDialog(true);
   };
@@ -271,7 +274,8 @@ const AdminSettings = () => {
         content: macroForm.content,
         shortcut: macroForm.shortcut || null,
         category: macroForm.category || null,
-      }).eq("id", editingMacro.id);
+        is_private: macroForm.is_private,
+      } as any).eq("id", editingMacro.id);
     } else {
       await supabase.from("chat_macros").insert({
         user_id: session.user.id,
@@ -279,7 +283,8 @@ const AdminSettings = () => {
         content: macroForm.content,
         shortcut: macroForm.shortcut || null,
         category: macroForm.category || null,
-      });
+        is_private: macroForm.is_private,
+      } as any);
     }
 
     setMacroDialog(false);
@@ -773,7 +778,14 @@ const AdminSettings = () => {
                         })
                         .map((m) => (
                         <TableRow key={m.id}>
-                          <TableCell className="font-medium">{m.title}</TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              {m.title}
+                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${m.is_private ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400" : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"}`}>
+                                {m.is_private ? "Particular" : "Pública"}
+                              </span>
+                            </div>
+                          </TableCell>
                           <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">{m.content.slice(0, 80)}</TableCell>
                           <TableCell className="font-mono text-sm">{m.shortcut ?? "—"}</TableCell>
                           <TableCell>{m.category ?? "—"}</TableCell>
@@ -950,6 +962,17 @@ const AdminSettings = () => {
                     onChange={(e) => setMacroForm({ ...macroForm, category: e.target.value })}
                   />
                 </div>
+              </div>
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label htmlFor="macro-private">Macro particular</Label>
+                  <p className="text-xs text-muted-foreground">Visível apenas para você</p>
+                </div>
+                <Switch
+                  id="macro-private"
+                  checked={macroForm.is_private}
+                  onCheckedChange={(v) => setMacroForm({ ...macroForm, is_private: v })}
+                />
               </div>
             </div>
             <DialogFooter>
