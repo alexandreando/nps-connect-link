@@ -44,6 +44,7 @@ interface Permission {
 }
 
 type Action = "view" | "edit" | "delete" | "manage";
+type Level = "none" | "view" | "edit" | "delete" | "manage";
 
 interface PermNode {
   key: string;
@@ -153,6 +154,35 @@ PERMISSION_TREE.forEach((g) => {
   g.children?.forEach((c) => ALL_MODULE_KEYS.push(c.key));
 });
 
+// ─── Level helpers ────────────────────────────────────────────────────────────
+const LEVEL_HIERARCHY: Level[] = ["none", "view", "edit", "delete", "manage"];
+
+function getLevel(perm: Permission): Level {
+  if (perm.can_manage) return "manage";
+  if (perm.can_delete) return "delete";
+  if (perm.can_edit) return "edit";
+  if (perm.can_view) return "view";
+  return "none";
+}
+
+function levelToPerms(level: Level): Omit<Permission, "module"> {
+  return {
+    can_view: ["view", "edit", "delete", "manage"].includes(level),
+    can_edit: ["edit", "delete", "manage"].includes(level),
+    can_delete: ["delete", "manage"].includes(level),
+    can_manage: level === "manage",
+  };
+}
+
+function availableLevels(actions: Action[]): Level[] {
+  const levels: Level[] = ["none"];
+  if (actions.includes("view")) levels.push("view");
+  if (actions.includes("edit")) levels.push("edit");
+  if (actions.includes("delete")) levels.push("delete");
+  if (actions.includes("manage")) levels.push("manage");
+  return levels;
+}
+
 // ─── Preset Profiles ──────────────────────────────────────────────────────────
 type PermMap = Record<string, { can_view: boolean; can_edit: boolean; can_delete: boolean; can_manage: boolean }>;
 
@@ -229,7 +259,7 @@ const PRESET_PROFILES: PresetProfile[] = [
   { id: "viewer", labelKey: "team.profile.viewer", isAdmin: false, perms: allView() },
   {
     id: "custom", labelKey: "team.profile.custom", isAdmin: false,
-    perms: {} as PermMap, // no-op, just means manual
+    perms: {} as PermMap,
   },
 ];
 
@@ -356,40 +386,21 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
     toast({ title: t("team.permsCopied") });
   };
 
-  const togglePerm = (module: string, field: keyof Permission) => {
+  const setModuleLevel = (moduleKey: string, level: Level) => {
     setSelectedProfile("custom");
     setPermissions((prev) => {
       const next = new Map(prev);
-      const cur = next.get(module) ?? { module, can_view: false, can_edit: false, can_delete: false, can_manage: false };
-      const updated = { ...cur, [field]: !cur[field] };
-      if (field === "can_manage" && updated.can_manage) {
-        updated.can_view = true;
-        updated.can_edit = true;
-        updated.can_delete = true;
-      }
-      if (field === "can_view" && !updated.can_view) {
-        updated.can_edit = false;
-        updated.can_delete = false;
-        updated.can_manage = false;
-      }
-      next.set(module, updated);
-      return next;
-    });
-  };
+      const permsData = levelToPerms(level);
+      next.set(moduleKey, { module: moduleKey, ...permsData });
 
-  const toggleGroupAll = (group: PermNode, enable: boolean) => {
-    setSelectedProfile("custom");
-    setPermissions((prev) => {
-      const next = new Map(prev);
-      const keysToSet = [group.key, ...(group.children ?? []).map((c) => c.key)];
-      keysToSet.forEach((key) => {
-        const cur = next.get(key) ?? { module: key, can_view: false, can_edit: false, can_delete: false, can_manage: false };
-        if (enable) {
-          next.set(key, { ...cur, can_view: true });
-        } else {
-          next.set(key, { ...cur, can_view: false, can_edit: false, can_delete: false, can_manage: false });
-        }
-      });
+      // If setting a parent to "none", also set all children to "none"
+      const parentNode = PERMISSION_TREE.find((g) => g.key === moduleKey);
+      if (parentNode && level === "none") {
+        (parentNode.children ?? []).forEach((child) => {
+          next.set(child.key, { module: child.key, can_view: false, can_edit: false, can_delete: false, can_manage: false });
+        });
+      }
+
       return next;
     });
   };
@@ -477,22 +488,13 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
     ? profile.display_name.slice(0, 2).toUpperCase()
     : profile?.email?.slice(0, 2).toUpperCase() ?? "?";
 
-  const ALL_ACTIONS: Action[] = ["view", "edit", "delete", "manage"];
-  const fieldMap: Record<Action, keyof Permission> = { view: "can_view", edit: "can_edit", delete: "can_delete", manage: "can_manage" };
-
-  const groupHasAnyView = (group: PermNode): boolean => {
-    const parent = permissions.get(group.key);
-    if (parent?.can_view) return true;
-    return (group.children ?? []).some((c) => permissions.get(c.key)?.can_view);
-  };
-
   const activeProfile = PRESET_PROFILES.find((p) => p.id === selectedProfile);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-h-[94vh] flex flex-col p-0 gap-0">
+      <DialogContent className="sm:max-w-2xl max-h-[94vh] flex flex-col p-0 gap-0 overflow-hidden">
         {/* Header */}
-        <div className="px-6 pt-6 pb-4 border-b border-border">
+        <div className="px-6 pt-6 pb-4 border-b border-border shrink-0">
           <DialogHeader className="mb-0">
             <DialogTitle className="sr-only">{t("team.editPermissions")}</DialogTitle>
             <DialogDescription className="sr-only">{t("team.editPermissionsDesc")}</DialogDescription>
@@ -516,7 +518,7 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
         ) : (
           <>
             {/* Action bar: Admin + Profile + Copy */}
-            <div className="px-6 py-3 bg-muted/30 border-b border-border">
+            <div className="px-6 py-3 bg-muted/30 border-b border-border shrink-0">
               <div className="flex flex-wrap items-center gap-3">
                 {/* Admin toggle */}
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background">
@@ -531,20 +533,18 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
                 </div>
 
                 {/* Profile selector */}
-                <div className="flex items-center gap-2">
-                  <Select value={selectedProfile} onValueChange={applyPreset}>
-                    <SelectTrigger className="h-9 w-[200px] text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PRESET_PROFILES.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {t(p.labelKey)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <Select value={selectedProfile} onValueChange={applyPreset}>
+                  <SelectTrigger className="h-9 w-[200px] text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRESET_PROFILES.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {t(p.labelKey)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
                 {/* Copy from user */}
                 <Popover open={copyPopoverOpen} onOpenChange={setCopyPopoverOpen}>
@@ -594,7 +594,7 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
             </div>
 
             {/* Scrollable body */}
-            <ScrollArea className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               <div className="px-6 py-4 space-y-4">
 
                 {/* CS Info - collapsible */}
@@ -631,99 +631,86 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
 
                 {/* Permissions Table */}
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground mb-2">{t("team.modulePermissions")}</p>
-
-                  {/* Table header */}
-                  <div className="grid grid-cols-[1fr_56px_56px_56px_56px] gap-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-3 pb-1 sticky top-0 bg-background z-10">
-                    <span>{t("team.module")}</span>
-                    {ALL_ACTIONS.map((a) => (
-                      <span key={a} className="text-center">{t(`team.perm.${a}`)}</span>
-                    ))}
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-muted-foreground">{t("team.modulePermissions")}</p>
+                    <p className="text-xs text-muted-foreground">{t("team.permLevel")}</p>
                   </div>
 
-                  {/* Permission groups - flat table */}
+                  {/* Permission groups */}
                   <div className="space-y-2">
                     {PERMISSION_TREE.map((group) => {
                       const parentPerm = permissions.get(group.key) ?? { module: group.key, can_view: false, can_edit: false, can_delete: false, can_manage: false };
-                      const anyActive = groupHasAnyView(group);
+                      const parentLevel = isAdminToggle ? "manage" : getLevel(parentPerm);
+                      const parentDisabled = parentLevel === "none";
                       const meta = GROUP_META[group.key];
                       const Icon = meta?.icon ?? Settings;
+                      const parentLevels = availableLevels(group.actions);
 
                       return (
                         <div key={group.key} className="rounded-lg border border-border overflow-hidden">
-                          {/* Group header */}
+                          {/* Group header row */}
                           <div className={cn("flex items-center gap-2 px-3 py-2", meta?.color || "bg-muted")}>
                             <Icon className="h-4 w-4 shrink-0" />
                             <span className="text-sm font-semibold flex-1">{t(group.labelKey)}</span>
-                            <button
-                              type="button"
-                              onClick={() => !isAdminToggle && toggleGroupAll(group, !anyActive)}
+                            <Select
+                              value={isAdminToggle ? "manage" : parentLevel}
+                              onValueChange={(val) => setModuleLevel(group.key, val as Level)}
                               disabled={isAdminToggle}
-                              className={cn(
-                                "px-2 py-0.5 text-[10px] font-medium rounded-full transition-colors",
-                                anyActive || isAdminToggle
-                                  ? "bg-primary/20 text-primary"
-                                  : "bg-background/60 text-muted-foreground hover:bg-background"
-                              )}
                             >
-                              {anyActive || isAdminToggle ? t("team.perm.enabled") : t("team.perm.enableAll")}
-                            </button>
-                            {/* Parent switches */}
-                            <div className="grid grid-cols-4 gap-1 ml-2">
-                              {ALL_ACTIONS.map((action) => {
-                                const isRelevant = group.actions.includes(action);
-                                const isDisabled = isAdminToggle || (action !== "view" && action !== "manage" && !parentPerm.can_view);
-                                return (
-                                  <div key={action} className="flex justify-center w-[56px]">
-                                    {isRelevant ? (
-                                      <Switch
-                                        checked={isAdminToggle || (parentPerm[fieldMap[action]] as boolean)}
-                                        onCheckedChange={() => togglePerm(group.key, fieldMap[action])}
-                                        disabled={isDisabled}
-                                        className="scale-[0.65]"
-                                      />
-                                    ) : (
-                                      <div className="w-9 h-5" />
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
+                              <SelectTrigger className="h-7 w-[140px] text-xs bg-background/80 border-border/50">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {parentLevels.map((lvl) => (
+                                  <SelectItem key={lvl} value={lvl} className="text-xs">
+                                    {t(`team.level.${lvl}`)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
 
                           {/* Children rows */}
                           <div className="divide-y divide-border/50">
                             {(group.children ?? []).map((child) => {
                               const childPerm = permissions.get(child.key) ?? { module: child.key, can_view: false, can_edit: false, can_delete: false, can_manage: false };
-
-                              const isDisabledAction = (action: Action): boolean => {
-                                if (isAdminToggle) return true;
-                                if (action === "edit" || action === "delete") return !childPerm.can_view;
-                                return false;
-                              };
+                              const childLevel = isAdminToggle ? "manage" : getLevel(childPerm);
+                              const childDisabled = isAdminToggle || parentDisabled;
+                              const childLevels = availableLevels(child.actions);
 
                               return (
-                                <div key={child.key} className="grid grid-cols-[1fr_56px_56px_56px_56px] gap-1 items-center px-3 py-1.5 hover:bg-muted/30 transition-colors">
-                                  <span className="text-sm text-muted-foreground pl-6">
+                                <div
+                                  key={child.key}
+                                  className={cn(
+                                    "flex items-center gap-2 px-3 py-1.5 transition-colors",
+                                    childDisabled && !isAdminToggle ? "opacity-40" : "hover:bg-muted/30"
+                                  )}
+                                >
+                                  <span className={cn(
+                                    "text-sm flex-1 pl-6",
+                                    childDisabled && !isAdminToggle ? "text-muted-foreground/50" : "text-muted-foreground"
+                                  )}>
                                     {t(child.labelKey)}
                                   </span>
-                                  {ALL_ACTIONS.map((action) => {
-                                    const isRelevant = child.actions.includes(action);
-                                    return (
-                                      <div key={action} className="flex justify-center">
-                                        {isRelevant ? (
-                                          <Switch
-                                            checked={isAdminToggle || (childPerm[fieldMap[action]] as boolean)}
-                                            onCheckedChange={() => togglePerm(child.key, fieldMap[action])}
-                                            disabled={isDisabledAction(action)}
-                                            className="scale-[0.65]"
-                                          />
-                                        ) : (
-                                          <div className="w-9 h-5" />
-                                        )}
-                                      </div>
-                                    );
-                                  })}
+                                  <Select
+                                    value={childDisabled && !isAdminToggle ? "none" : (isAdminToggle ? "manage" : childLevel)}
+                                    onValueChange={(val) => setModuleLevel(child.key, val as Level)}
+                                    disabled={childDisabled}
+                                  >
+                                    <SelectTrigger className={cn(
+                                      "h-7 w-[140px] text-xs",
+                                      childDisabled && !isAdminToggle && "bg-muted/50"
+                                    )}>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {childLevels.map((lvl) => (
+                                        <SelectItem key={lvl} value={lvl} className="text-xs">
+                                          {t(`team.level.${lvl}`)}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
                                 </div>
                               );
                             })}
@@ -734,10 +721,10 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
                   </div>
                 </div>
               </div>
-            </ScrollArea>
+            </div>
 
             {/* Footer */}
-            <div className="px-6 py-3 border-t border-border flex justify-end gap-2 bg-background">
+            <div className="px-6 py-3 border-t border-border flex justify-end gap-2 bg-background shrink-0">
               <Button variant="outline" onClick={() => onOpenChange(false)}>{t("team.cancel")}</Button>
               <Button onClick={handleSave} disabled={saving}>
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

@@ -993,6 +993,12 @@ export default {
   "team.permsCopied": "Permissões copiadas com sucesso",
   "team.noOtherUsers": "Nenhum outro usuário disponível",
   "team.perm.enabled": "Ativo",
+  "team.level.none": "Nenhum",
+  "team.level.view": "Visualizar",
+  "team.level.edit": "Editar",
+  "team.level.delete": "Excluir",
+  "team.level.manage": "Gerenciar",
+  "team.permLevel": "Nível",
 
   // Help Center
   "help.title": "Help Center",
