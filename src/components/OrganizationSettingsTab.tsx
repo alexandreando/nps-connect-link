@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, Building2, Users, Send, Calendar } from "lucide-react";
+import { slugify } from "@/utils/helpSlug";
 
 const OrganizationSettingsTab = () => {
   const { t } = useLanguage();
@@ -60,9 +61,32 @@ const OrganizationSettingsTab = () => {
     if (!tenantId) return;
     setSaving(true);
     try {
+      const finalSlug = slug ? slugify(slug) : null;
+
+      if (finalSlug) {
+        const { data: existing } = await supabase
+          .from("tenants")
+          .select("id")
+          .eq("slug", finalSlug)
+          .neq("id", tenantId)
+          .maybeSingle();
+
+        if (existing) {
+          toast({
+            title: t("common.error"),
+            description: t("organization.slugInUse"),
+            variant: "destructive",
+          });
+          setSaving(false);
+          return;
+        }
+      }
+
+      setSlug(finalSlug || "");
+
       const { error } = await supabase
         .from("tenants")
-        .update({ name, slug: slug || null })
+        .update({ name, slug: finalSlug })
         .eq("id", tenantId);
 
       if (error) throw error;
@@ -122,10 +146,14 @@ const OrganizationSettingsTab = () => {
             id="org-slug"
             value={slug}
             onChange={(e) => setSlug(e.target.value)}
+            onBlur={() => setSlug(slug ? slugify(slug) : "")}
             placeholder={t("organization.slugPlaceholder")}
             className="mt-2"
             disabled={!isAdmin}
           />
+          <p className="text-xs text-muted-foreground mt-1">
+            {t("organization.slugDescription")}
+          </p>
         </div>
 
         {createdAt && (

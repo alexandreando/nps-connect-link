@@ -1121,6 +1121,8 @@ export default {
   "organization.namePlaceholder": "Your company name",
   "organization.slug": "Identifier (Slug)",
   "organization.slugPlaceholder": "my-company",
+  "organization.slugInUse": "This slug is already in use by another organization. Please choose another.",
+  "organization.slugDescription": "The slug is used in your Help Center public URLs (e.g. /my-company/help).",
   "organization.createdAt": "Created at",
   "organization.members": "Members",
   "organization.companies": "Companies",
