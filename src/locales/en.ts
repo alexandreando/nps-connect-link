@@ -972,6 +972,12 @@ export default {
   "team.permsCopied": "Permissions copied successfully",
   "team.noOtherUsers": "No other users available",
   "team.perm.enabled": "Active",
+  "team.level.none": "None",
+  "team.level.view": "View",
+  "team.level.edit": "Edit",
+  "team.level.delete": "Delete",
+  "team.level.manage": "Manage",
+  "team.permLevel": "Level",
 
   // Help Center
   "help.title": "Help Center",
