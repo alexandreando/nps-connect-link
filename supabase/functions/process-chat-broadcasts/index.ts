@@ -40,13 +40,20 @@ Deno.serve(async (req) => {
     let totalProcessed = 0;
 
     for (const broadcast of broadcasts) {
+      // Fetch sender's attendant profile
+      const { data: senderAtt } = await supabase
+        .from("attendant_profiles")
+        .select("id, display_name")
+        .eq("user_id", broadcast.user_id)
+        .maybeSingle();
+
       // Get pending recipients
       const { data: recipients, error: rErr } = await supabase
         .from("chat_broadcast_recipients")
         .select("id, company_contact_id, contact_id")
         .eq("broadcast_id", broadcast.id)
         .eq("status", "pending")
-        .limit(50); // Process in batches
+        .limit(50);
 
       if (rErr) {
         console.error(`Error fetching recipients for ${broadcast.id}:`, rErr);
@@ -54,7 +61,6 @@ Deno.serve(async (req) => {
       }
 
       if (!recipients || recipients.length === 0) {
-        // All recipients processed, mark as completed
         await supabase
           .from("chat_broadcasts")
           .update({
@@ -67,7 +73,6 @@ Deno.serve(async (req) => {
 
       for (const recipient of recipients) {
         try {
-          // Get company contact info
           const { data: contact } = await supabase
             .from("company_contacts")
             .select("id, name, email, company_id, chat_visitor_id")
@@ -139,12 +144,13 @@ Deno.serve(async (req) => {
               .eq("id", contact.id);
           }
 
-          // Create chat room
+          // Create chat room with attendant assigned
           const { data: room } = await supabase
             .from("chat_rooms")
             .insert({
               visitor_id: visitorId,
               owner_user_id: broadcast.user_id,
+              attendant_id: senderAtt?.id ?? null,
               company_contact_id: contact.id,
               contact_id: contact.company_id,
               status: "active",
@@ -163,11 +169,12 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          // Insert initial message
+          // Insert initial message as attendant (not system)
           await supabase.from("chat_messages").insert({
             room_id: room.id,
-            sender_type: "system",
-            sender_name: "Broadcast",
+            sender_type: senderAtt ? "attendant" : "system",
+            sender_id: senderAtt?.id ?? null,
+            sender_name: senderAtt?.display_name ?? "Broadcast",
             content: broadcast.message,
             metadata: { broadcast_id: broadcast.id },
           });

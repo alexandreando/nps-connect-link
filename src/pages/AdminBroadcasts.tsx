@@ -244,12 +244,15 @@ export default function AdminBroadcasts() {
 
     // Insert recipients
     if (selectedContactIds.size > 0 && broadcastId) {
+      const { data: profileData } = await supabase.from("user_profiles").select("tenant_id").eq("user_id", user!.id).maybeSingle();
+      const userTenantId = profileData?.tenant_id ?? null;
       const recipientRows = Array.from(selectedContactIds).map((contactId) => {
         const contact = contacts.find((c) => c.id === contactId);
         return {
           broadcast_id: broadcastId!,
           company_contact_id: contactId,
-          contact_id: contact?.company_id ?? "",
+          contact_id: contact?.company_id || null,
+          tenant_id: userTenantId,
           status: "pending",
         };
       });
