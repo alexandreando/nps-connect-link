@@ -1,84 +1,118 @@
 
 
-# Componente Universal de Upload de Imagens
+# Atalho de Artigos do Help Center no Workspace de Chat
 
-## Problema
+## Resumo
 
-Varios locais do sistema usam inputs de texto para URLs de imagens (HelpSettings, TenantManagement), enquanto outros (BrandSettingsTab, MyProfile, TeamSettingsTab) tem upload funcional mas com codigo duplicado. Nao ha um componente padrao reutilizavel.
+Adicionar um botao de atalho no ChatInput do workspace para buscar e inserir artigos do Help Center como mensagens formatadas. No widget do visitante, o artigo sera renderizado como um card visual clicavel (titulo + subtitulo) que abre o artigo em nova aba.
 
-## Solucao
+## Arquitetura
 
-Criar um componente `ImageUploadField` reutilizavel e substituir todos os inputs de URL de imagem por ele em todo o sistema.
+O artigo sera enviado como uma mensagem normal com `message_type: "help_article"` e metadata contendo os dados do artigo:
 
-### Componente `ImageUploadField`
-
-Props:
-- `value` - URL atual da imagem
-- `onChange` - callback com nova URL
-- `label` - nome do campo
-- `bucket` - bucket do storage (default: `help-images`)
-- `folder` - subpasta (ex: `hero`, `logo`, `favicon`)
-- `dimensions` - texto descritivo (ex: "1920x400px recomendado")
-- `maxSizeMB` - limite de tamanho (default: 2)
-- `accept` - tipos aceitos (default: `.png,.jpg,.webp,.svg`)
-- `hint` - texto adicional
-- `previewMode` - `contain` (logos) ou `cover` (hero/banners)
-- `previewHeight` - altura do preview (default: `h-20`)
-
-Layout:
-
-```text
-[Label]
-[Requisitos: 1920x400px | Max: 2MB | PNG, JPG, WebP, SVG]
-+---------------------------------------------+
-| [Preview da imagem se existir]              |
-|                                             |
-| [Botao Upload]  [Input URL manual]          |
-| [Botao Remover]                             |
-+---------------------------------------------+
+```json
+{
+  "article_id": "uuid",
+  "article_title": "Como configurar...",
+  "article_subtitle": "Guia passo a passo para...",
+  "article_url": "https://app.com/tenant-slug/help/a/article-slug",
+  "article_slug": "article-slug",
+  "tenant_slug": "tenant-slug"
+}
 ```
 
-Funcionalidades:
-- Drag-and-drop de arquivo na area
-- Click para abrir file picker
-- Input de URL manual como alternativa (toggle)
-- Preview inline da imagem
-- Validacao de tipo e tamanho no client
-- Spinner durante upload
-- Botao de remover (limpa o valor)
-- Exibicao dos requisitos (dimensoes, tamanho, formatos)
+## Mudancas
 
-### Locais de Substituicao
+### 1. ChatInput.tsx - Botao e popup de busca de artigos
 
-| Local | Campo | Bucket | Folder | Dimensoes | Max |
-|-------|-------|--------|--------|-----------|-----|
-| HelpSettings | Logo | `help-images` | `logo` | 200x60px, fundo transparente | 1MB |
-| HelpSettings | Hero image | `help-images` | `hero` | 1920x400px | 5MB |
-| HelpSettings | Favicon | `help-images` | `favicon` | 32x32 ou 64x64px | 500KB |
-| HelpSettings | Footer logo | `help-images` | `footer-logo` | 200x60px | 1MB |
-| BrandSettingsTab | Logo NPS | `logos` | (manter path atual) | 400x120px | 2MB |
-| TeamSettingsTab | Avatar | `logos` | (manter path atual) | 200x200px, quadrado | 1MB |
-| MyProfile | Avatar | `logos` | (manter path atual) | 200x200px, quadrado | 1MB |
-| TenantManagement | Logo tenant | `logos` | `tenants` | 200x60px | 1MB |
+- Adicionar novo estado `articlesOpen` e `articles` (lista carregada)
+- Adicionar botao com icone `BookOpen` na barra de acoes (ao lado de macros/emoji)
+- Ao clicar, abrir popup similar ao de macros com campo de busca (Command/CommandList)
+- Buscar artigos publicados do tenant logado: `help_articles` com `status = 'published'`
+- Cada item mostra titulo + subtitulo truncado
+- Ao selecionar, chamar `onSend` com `message_type: "help_article"` e metadata do artigo
+- Precisa do `tenantId` (via useAuth) para filtrar artigos e do `tenant slug` para montar a URL publica
 
-### Arquivos
+### 2. Atualizar `onSend` signature no ChatInput e AdminWorkspace
+
+- A prop `onSend` ja aceita metadata, mas precisa aceitar tambem `message_type` customizado
+- Atualizar a interface ChatInputProps para permitir passar `message_type` opcional
+- AdminWorkspace: ao receber `message_type: "help_article"`, inserir a mensagem com `message_type = "help_article"` e a metadata do artigo
+
+### 3. ChatMessageList.tsx - Renderizar card de artigo no workspace
+
+- Detectar `message_type === "help_article"` e `metadata.article_url`
+- Renderizar um card estilizado dentro da bolha: icone BookOpen + titulo em negrito + subtitulo + link "Abrir artigo"
+- O card sera clicavel e abre em nova aba
+
+### 4. ChatWidget.tsx - Renderizar card visual para o visitante
+
+- Na area de renderizacao de mensagens (linhas ~1463), detectar `message_type === "help_article"`
+- Renderizar um card/botao visual bonito com:
+  - Icone de artigo (BookOpen ou FileText)
+  - Titulo do artigo em negrito
+  - Subtitulo em texto secundario
+  - Botao "Ler artigo" que abre `metadata.article_url` em `window.open(..., '_blank')`
+- Estilo: borda arredondada, fundo suave, hover effect
+
+### 5. Detalhes tecnicos
+
+**Busca de artigos no ChatInput:**
+- Query: `help_articles` com join em `help_collections` para contexto
+- Filtro: `tenant_id = tenantId` (do useAuth) + `status = 'published'`
+- Select: `id, title, subtitle, slug, collection_id`
+- Busca client-side por titulo/subtitulo (filtragem no popup)
+- Carregar no mount (lazy, ao abrir popup pela primeira vez)
+
+**Montagem da URL publica:**
+- Precisa do tenant slug: buscar `tenants.slug` onde `id = tenantId`
+- URL: `{origin}/{tenantSlug}/help/a/{articleSlug}`
+
+**Formato da mensagem enviada:**
+- `content`: titulo do artigo (fallback textual para contexto)
+- `message_type`: `"help_article"`
+- `metadata`: `{ article_id, article_title, article_subtitle, article_url, article_slug, tenant_slug }`
+
+## Arquivos modificados
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/components/ui/image-upload-field.tsx` | **NOVO** - Componente reutilizavel |
-| `src/pages/HelpSettings.tsx` | Substituir 4 inputs por ImageUploadField |
-| `src/components/BrandSettingsTab.tsx` | Substituir upload inline por ImageUploadField |
-| `src/components/TeamSettingsTab.tsx` | Substituir upload inline por ImageUploadField |
-| `src/pages/MyProfile.tsx` | Substituir upload inline por ImageUploadField |
-| `src/components/backoffice/TenantManagement.tsx` | Substituir input URL por ImageUploadField |
-| `src/locales/pt-BR.ts` | Labels: upload, arrastar, requisitos, remover |
+| `src/components/chat/ChatInput.tsx` | Botao BookOpen + popup de busca de artigos + envio com message_type |
+| `src/pages/AdminWorkspace.tsx` | Ajustar handleSendMessage para aceitar message_type da metadata |
+| `src/components/chat/ChatMessageList.tsx` | Renderizar card de artigo quando message_type = help_article |
+| `src/pages/ChatWidget.tsx` | Renderizar card visual clicavel para o visitante |
+| `src/locales/pt-BR.ts` | Labels: buscar artigo, ler artigo, nenhum artigo |
 | `src/locales/en.ts` | Labels em ingles |
 
-### Detalhes Tecnicos
+## UX do popup de artigos
 
-- Upload usa `supabase.storage.from(bucket).upload(path, file)`
-- Path gerado: `{folder}/{timestamp}-{random}.{ext}` (ou path customizado via prop)
-- Validacao client-side: verifica `file.type` contra lista de aceitos e `file.size` contra `maxSizeMB`
-- O componente fica em `src/components/ui/` para ser acessivel globalmente
-- Sem migration de banco - usa buckets existentes (`logos`, `help-images`)
+```text
++---------------------------------------------+
+| [Buscar artigos...]                         |
++---------------------------------------------+
+| BookOpen  Como configurar o widget          |
+|           Guia passo a passo para...        |
+|-------------------------------------------- |
+| BookOpen  Primeiros passos                  |
+|           Aprenda a configurar sua conta... |
++---------------------------------------------+
+```
+
+Navegacao: setas cima/baixo + Enter para selecionar (mesmo padrao das macros).
+
+## UX do card no widget (visitante)
+
+```text
++---------------------------------------------+
+| +-------------------------------------------+|
+| | [BookOpen]                                ||
+| | **Como configurar o widget**              ||
+| | Guia passo a passo para integrar...       ||
+| |                                           ||
+| | [Ler artigo ->]                           ||
+| +-------------------------------------------+|
++---------------------------------------------+
+```
+
+Card com borda, fundo claro, hover com sombra, botao que abre em nova aba.
 
