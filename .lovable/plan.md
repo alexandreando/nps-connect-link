@@ -1,118 +1,79 @@
 
-
-# Atalho de Artigos do Help Center no Workspace de Chat
+# Fila de Outros Times + Menus Colapsiveis
 
 ## Resumo
 
-Adicionar um botao de atalho no ChatInput do workspace para buscar e inserir artigos do Help Center como mensagens formatadas. No widget do visitante, o artigo sera renderizado como um card visual clicavel (titulo + subtitulo) que abre o artigo em nova aba.
+Duas mudancas: (1) adicionar uma nova secao "Fila de outros times" no submenu do Workspace mostrando atendentes que nao pertencem aos times do usuario logado, e (2) tornar todas as secoes de menu da sidebar colapsiveis com estado persistido em localStorage.
 
-## Arquitetura
+## 1. SidebarDataContext - Separar atendentes por time
 
-O artigo sera enviado como uma mensagem normal com `message_type: "help_article"` e metadata contendo os dados do artigo:
+Atualmente o contexto carrega apenas os atendentes do mesmo time (para nao-admins). Precisamos tambem carregar os atendentes de **outros times** do tenant.
 
-```json
-{
-  "article_id": "uuid",
-  "article_title": "Como configurar...",
-  "article_subtitle": "Guia passo a passo para...",
-  "article_url": "https://app.com/tenant-slug/help/a/article-slug",
-  "article_slug": "article-slug",
-  "tenant_slug": "tenant-slug"
-}
+**Mudancas no `initializeData`:**
+- Para usuarios nao-admin com time: alem de buscar `teamAttendants` (atendentes dos mesmos times), fazer uma segunda query buscando **todos** os atendentes do tenant (`tenant_id = currentTenantId`) e filtrar removendo os IDs ja presentes em `teamAttendants`
+- Armazenar em novo state `otherTeamAttendants: TeamAttendant[]`
+- Calcular `otherTeamsTotalChats` para o badge
+- Expor via contexto: `otherTeamAttendants`, `otherTeamsTotalChats`
+
+**Logica de separacao:**
+```
+myTeamIds = chat_team_members WHERE attendant_id = myProfile.id -> team_ids
+myTeamAttendantIds = chat_team_members WHERE team_id IN myTeamIds -> attendant_ids (atual)
+allTenantAttendants = attendant_profiles WHERE tenant_id = tenantId
+otherTeamAttendants = allTenantAttendants FILTER id NOT IN myTeamAttendantIds
 ```
 
-## Mudancas
+Para admins/master: `otherTeamAttendants` fica vazio (ja veem todos na lista principal).
 
-### 1. ChatInput.tsx - Botao e popup de busca de artigos
+**Realtime e resync:** os handlers existentes (`handleRoomChange`, `handleAttendantChange`, `resyncCounts`) precisam atualizar tambem o `otherTeamAttendants` state com a mesma logica de patch.
 
-- Adicionar novo estado `articlesOpen` e `articles` (lista carregada)
-- Adicionar botao com icone `BookOpen` na barra de acoes (ao lado de macros/emoji)
-- Ao clicar, abrir popup similar ao de macros com campo de busca (Command/CommandList)
-- Buscar artigos publicados do tenant logado: `help_articles` com `status = 'published'`
-- Cada item mostra titulo + subtitulo truncado
-- Ao selecionar, chamar `onSend` com `message_type: "help_article"` e metadata do artigo
-- Precisa do `tenantId` (via useAuth) para filtrar artigos e do `tenant slug` para montar a URL publica
+## 2. AppSidebar - Nova secao "Fila de outros times"
 
-### 2. Atualizar `onSend` signature no ChatInput e AdminWorkspace
+Adicionar logo abaixo da lista de `teamAttendants` no submenu do Workspace:
 
-- A prop `onSend` ja aceita metadata, mas precisa aceitar tambem `message_type` customizado
-- Atualizar a interface ChatInputProps para permitir passar `message_type` opcional
-- AdminWorkspace: ao receber `message_type: "help_article"`, inserir a mensagem com `message_type = "help_article"` e a metadata do artigo
+```text
+Workspace [badge total]
+  |- Nao Atribuido [badge]
+  |- (eu) Joao [badge]
+  |- Maria [badge]
+  |
+  |- Outros times [badge total outros] [v]  <-- NOVO, colapsivel
+  |    |- Carlos [badge]
+  |    |- Ana [badge]
+```
 
-### 3. ChatMessageList.tsx - Renderizar card de artigo no workspace
+- Novo estado `otherTeamsOpen` com localStorage persistence (`sidebar-other-teams-open`)
+- Usa Collapsible igual ao padrao existente
+- Cada atendente de outro time funciona igual: click navega para `?attendant={id}` no workspace
+- Badge mostra total de chats ativos dos outros times
 
-- Detectar `message_type === "help_article"` e `metadata.article_url`
-- Renderizar um card estilizado dentro da bolha: icone BookOpen + titulo em negrito + subtitulo + link "Abrir artigo"
-- O card sera clicavel e abre em nova aba
+## 3. Todos os menus colapsiveis
 
-### 4. ChatWidget.tsx - Renderizar card visual para o visitante
+As secoes que hoje NAO sao colapsiveis (CS, Cadastros, Help Center, Backoffice) passam a ser, usando o mesmo padrao de Collapsible ja usado em NPS/Chat/Reports:
 
-- Na area de renderizacao de mensagens (linhas ~1463), detectar `message_type === "help_article"`
-- Renderizar um card/botao visual bonito com:
-  - Icone de artigo (BookOpen ou FileText)
-  - Titulo do artigo em negrito
-  - Subtitulo em texto secundario
-  - Botao "Ler artigo" que abre `metadata.article_url` em `window.open(..., '_blank')`
-- Estilo: borda arredondada, fundo suave, hover effect
+| Secao | Estado localStorage |
+|-------|-------------------|
+| Backoffice | `sidebar-backoffice-open` |
+| Customer Success | `sidebar-cs-open` |
+| Cadastros | `sidebar-contacts-open` |
+| Help Center | `sidebar-help-open` |
 
-### 5. Detalhes tecnicos
+Cada um tera:
+- Estado `useState` com default `true` (aberto)
+- Persist em localStorage
+- ChevronDown/ChevronRight no label
+- Mesmo estilo visual dos colapsiveis existentes (NPS, Chat, Reports)
 
-**Busca de artigos no ChatInput:**
-- Query: `help_articles` com join em `help_collections` para contexto
-- Filtro: `tenant_id = tenantId` (do useAuth) + `status = 'published'`
-- Select: `id, title, subtitle, slug, collection_id`
-- Busca client-side por titulo/subtitulo (filtragem no popup)
-- Carregar no mount (lazy, ao abrir popup pela primeira vez)
+## 4. Localizacao
 
-**Montagem da URL publica:**
-- Precisa do tenant slug: buscar `tenants.slug` onde `id = tenantId`
-- URL: `{origin}/{tenantSlug}/help/a/{articleSlug}`
-
-**Formato da mensagem enviada:**
-- `content`: titulo do artigo (fallback textual para contexto)
-- `message_type`: `"help_article"`
-- `metadata`: `{ article_id, article_title, article_subtitle, article_url, article_slug, tenant_slug }`
+Adicionar labels em `pt-BR.ts` e `en.ts`:
+- `chat.workspace.otherTeams`: "Outros times" / "Other teams"
 
 ## Arquivos modificados
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/components/chat/ChatInput.tsx` | Botao BookOpen + popup de busca de artigos + envio com message_type |
-| `src/pages/AdminWorkspace.tsx` | Ajustar handleSendMessage para aceitar message_type da metadata |
-| `src/components/chat/ChatMessageList.tsx` | Renderizar card de artigo quando message_type = help_article |
-| `src/pages/ChatWidget.tsx` | Renderizar card visual clicavel para o visitante |
-| `src/locales/pt-BR.ts` | Labels: buscar artigo, ler artigo, nenhum artigo |
-| `src/locales/en.ts` | Labels em ingles |
-
-## UX do popup de artigos
-
-```text
-+---------------------------------------------+
-| [Buscar artigos...]                         |
-+---------------------------------------------+
-| BookOpen  Como configurar o widget          |
-|           Guia passo a passo para...        |
-|-------------------------------------------- |
-| BookOpen  Primeiros passos                  |
-|           Aprenda a configurar sua conta... |
-+---------------------------------------------+
-```
-
-Navegacao: setas cima/baixo + Enter para selecionar (mesmo padrao das macros).
-
-## UX do card no widget (visitante)
-
-```text
-+---------------------------------------------+
-| +-------------------------------------------+|
-| | [BookOpen]                                ||
-| | **Como configurar o widget**              ||
-| | Guia passo a passo para integrar...       ||
-| |                                           ||
-| | [Ler artigo ->]                           ||
-| +-------------------------------------------+|
-+---------------------------------------------+
-```
-
-Card com borda, fundo claro, hover com sombra, botao que abre em nova aba.
-
+| `src/contexts/SidebarDataContext.tsx` | Adicionar `otherTeamAttendants` e `otherTeamsTotalChats` ao contexto; query separada para atendentes de outros times; atualizar handlers de realtime e resync |
+| `src/components/AppSidebar.tsx` | Nova secao colapsivel "Outros times" no submenu Workspace; tornar CS, Cadastros, Help Center e Backoffice colapsiveis com persist em localStorage |
+| `src/locales/pt-BR.ts` | Label "Outros times" |
+| `src/locales/en.ts` | Label "Other teams" |
