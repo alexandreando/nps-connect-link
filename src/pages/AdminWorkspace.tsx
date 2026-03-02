@@ -318,7 +318,8 @@ const AdminWorkspace = () => {
   const handleSendMessage = async (
     content: string,
     isInternal = false,
-    metadata?: { file_url: string; file_name: string; file_type: string; file_size: number }
+    metadata?: Record<string, any>,
+    messageType?: string
   ) => {
     if (!selectedRoomId || !user) return;
     let finalContent = content;
@@ -326,11 +327,21 @@ const AdminWorkspace = () => {
       const quotedLines = replyTarget.content.split("\n").map((l) => `> ${l}`).join("\n");
       finalContent = `${quotedLines}\n\n${content}`;
     }
-    await supabase.from("chat_messages").insert({
+
+    const insertData: Record<string, any> = {
       room_id: selectedRoomId, sender_type: "attendant", sender_id: user.id,
       sender_name: userDisplayName || user.email?.split("@")[0] || "Atendente", content: finalContent, is_internal: isInternal,
-      ...(metadata ? { message_type: "file", metadata: metadata as any } : {}),
-    });
+    };
+
+    if (messageType) {
+      insertData.message_type = messageType;
+      insertData.metadata = metadata as any;
+    } else if (metadata && (metadata as any).file_url) {
+      insertData.message_type = "file";
+      insertData.metadata = metadata as any;
+    }
+
+    await supabase.from("chat_messages").insert(insertData as any);
     setReplyTarget(null);
   };
 

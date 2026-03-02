@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, BookOpen, ExternalLink } from "lucide-react";
 import { FileMessage } from "@/components/chat/FileMessage";
 import { renderTextWithLinks } from "@/utils/chatUtils";
 import { format, isToday, isYesterday } from "date-fns";
@@ -13,12 +13,7 @@ interface ChatMessage {
   is_internal: boolean;
   created_at: string;
   message_type?: string | null;
-  metadata?: {
-    file_url?: string;
-    file_name?: string;
-    file_type?: string;
-    file_size?: number;
-  } | null;
+  metadata?: Record<string, any> | null;
 }
 
 interface ChatMessageListProps {
@@ -155,7 +150,31 @@ export function ChatMessageList({ messages, loading, onReply, hasMore, loadingMo
                   </div>
                 )}
 
-                {isFile ? (
+                {msg.message_type === "help_article" && msg.metadata?.article_url ? (
+                  <a
+                    href={(msg.metadata as any).article_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`block rounded-lg border p-3 mt-1 transition-shadow hover:shadow-md ${
+                      isOwn ? "bg-primary-foreground/10 border-primary-foreground/20" : "bg-background/60 border-border"
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <BookOpen className={`h-4 w-4 shrink-0 mt-0.5 ${isOwn ? "text-primary-foreground/70" : "text-primary"}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-xs">{(msg.metadata as any).article_title}</p>
+                        {(msg.metadata as any).article_subtitle && (
+                          <p className={`text-[10px] mt-0.5 truncate ${isOwn ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
+                            {(msg.metadata as any).article_subtitle}
+                          </p>
+                        )}
+                        <span className={`inline-flex items-center gap-1 text-[10px] mt-1.5 ${isOwn ? "text-primary-foreground/70" : "text-primary"}`}>
+                          <ExternalLink className="h-3 w-3" /> Abrir artigo
+                        </span>
+                      </div>
+                    </div>
+                  </a>
+                ) : isFile ? (
                   <>
                     <FileMessage
                       metadata={msg.metadata as { file_url: string; file_name: string; file_type: string; file_size?: number }}

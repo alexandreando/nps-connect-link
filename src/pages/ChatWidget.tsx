@@ -28,7 +28,7 @@ interface ChatMsg {
   sender_name: string | null;
   created_at: string;
   message_type?: string | null;
-  metadata?: { file_url?: string; file_name?: string; file_type?: string; file_size?: number } | null;
+  metadata?: Record<string, any> | null;
 }
 
 import { MAX_FILE_SIZE, isImage, formatFileSize, uploadChatFile, type FileMetadata } from "@/utils/chatUtils";
@@ -1460,7 +1460,30 @@ const ChatWidget = () => {
                           <span style={{ whiteSpace: 'pre-wrap' }}>{quoteText}</span>
                         </div>
                       )}
-                      {msg.message_type === "file" && msg.metadata?.file_url
+                      {msg.message_type === "help_article" && msg.metadata?.article_url
+                        ? (
+                          <button
+                            onClick={() => window.open((msg.metadata as any).article_url, '_blank')}
+                            className="block w-full text-left rounded-xl border border-border/50 bg-background/80 p-3 mt-1 transition-all hover:shadow-lg hover:border-border group"
+                          >
+                            <div className="flex items-start gap-2.5">
+                              <div className="shrink-0 w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-xs text-foreground leading-snug">{(msg.metadata as any).article_title}</p>
+                                {(msg.metadata as any).article_subtitle && (
+                                  <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{(msg.metadata as any).article_subtitle}</p>
+                                )}
+                                <span className="inline-flex items-center gap-1 text-[11px] text-primary font-medium mt-2 group-hover:underline">
+                                  Ler artigo
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                                </span>
+                              </div>
+                            </div>
+                          </button>
+                        )
+                        : msg.message_type === "file" && msg.metadata?.file_url
                         ? <>
                             {renderFileMessage(msg)}
                             {msg.content && msg.content !== msg.metadata.file_name && (
