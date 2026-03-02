@@ -20,6 +20,7 @@ export interface DashboardStats {
   chatsByHour: { hour: number; count: number }[];
   avgWaitMinutes: number | null;
   abandonmentRate: number | null;
+  topTags: { name: string; color: string; count: number }[];
 }
 
 export interface DashboardFilters {
@@ -53,6 +54,7 @@ export function useDashboardStats(filters: DashboardFilters) {
     chatsByHour: [],
     avgWaitMinutes: null,
     abandonmentRate: null,
+    topTags: [],
   });
   const [loading, setLoading] = useState(true);
 
@@ -128,7 +130,7 @@ export function useDashboardStats(filters: DashboardFilters) {
           resolutionDistribution: [], activeChats: 0, waitingChats: 0,
           onlineAttendants: 0, avgFirstResponseMinutes: null, unresolvedChats: 0,
           csatByDay: [], attendantPerformance: [], chatsByHour: [],
-          avgWaitMinutes: null, abandonmentRate: null,
+          avgWaitMinutes: null, abandonmentRate: null, topTags: [],
         });
         setLoading(false);
         return;
@@ -163,7 +165,7 @@ export function useDashboardStats(filters: DashboardFilters) {
         resolutionDistribution: [], activeChats: 0, waitingChats: 0,
         onlineAttendants, avgFirstResponseMinutes: null, unresolvedChats: 0,
         csatByDay: [], attendantPerformance: [], chatsByHour: [],
-        avgWaitMinutes: null, abandonmentRate: null,
+        avgWaitMinutes: null, abandonmentRate: null, topTags: [],
       });
       setLoading(false);
       return;
@@ -328,12 +330,49 @@ export function useDashboardStats(filters: DashboardFilters) {
       ? Math.round((closedWithoutAttendant / closedRooms.length) * 100)
       : null;
 
+    // Top Tags - fetch tags for the filtered rooms
+    let topTags: { name: string; color: string; count: number }[] = [];
+    if (roomIds.length > 0) {
+      const tagBatchSize = 100;
+      const allRoomTags: { tag_id: string }[] = [];
+      for (let i = 0; i < Math.min(roomIds.length, 500); i += tagBatchSize) {
+        const batch = roomIds.slice(i, i + tagBatchSize);
+        const { data: rt } = await supabase
+          .from("chat_room_tags")
+          .select("tag_id")
+          .in("room_id", batch);
+        if (rt) allRoomTags.push(...rt);
+      }
+
+      if (allRoomTags.length > 0) {
+        // Count by tag_id
+        const tagCounts: Record<string, number> = {};
+        allRoomTags.forEach(rt => {
+          tagCounts[rt.tag_id] = (tagCounts[rt.tag_id] ?? 0) + 1;
+        });
+
+        // Fetch tag details
+        const uniqueTagIds = Object.keys(tagCounts);
+        const { data: tagDetails } = await supabase
+          .from("chat_tags")
+          .select("id, name, color")
+          .in("id", uniqueTagIds);
+
+        if (tagDetails) {
+          topTags = tagDetails
+            .map(t => ({ name: t.name, color: t.color ?? "#6366f1", count: tagCounts[t.id] ?? 0 }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
+        }
+      }
+    }
+
     setStats({
       totalChats, chatsToday, avgCsat, resolutionRate, avgResolutionMinutes,
       chartData, chatsByAttendant, resolutionDistribution, activeChats,
       waitingChats, onlineAttendants, avgFirstResponseMinutes, unresolvedChats,
       csatByDay, attendantPerformance, chatsByHour,
-      avgWaitMinutes, abandonmentRate,
+      avgWaitMinutes, abandonmentRate, topTags,
     });
     setLoading(false);
   }, [filters.period, filters.attendantId, filters.status, filters.priority, filters.categoryId, filters.tagId, filters.contactId, filters.companyContactId]);

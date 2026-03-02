@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -18,6 +18,7 @@ export default function SidebarLayout() {
   const [isDark, setIsDark] = useState(
     () => localStorage.getItem("journey-theme") !== "light"
   );
+  const attendantIdRef = useRef<string | null>(null);
 
   const toggleTheme = () => {
     setIsDark((prev) => {
@@ -36,6 +37,89 @@ export default function SidebarLayout() {
       }
     }
   }, [user, loading, userDataLoading, tenantId, isAdmin, navigate, needsTenantSelection]);
+
+  // Auto-offline on tab close, restore status on mount
+  useEffect(() => {
+    if (!user) return;
+
+    const restoreStatus = async () => {
+      const { data: profile } = await supabase
+        .from("attendant_profiles")
+        .select("id, status, previous_status")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!profile) return;
+      attendantIdRef.current = profile.id;
+
+      // Restore previous status if exists
+      if ((profile as any).previous_status && (profile as any).previous_status !== "offline") {
+        await supabase.from("attendant_profiles").update({
+          status: (profile as any).previous_status,
+          previous_status: null,
+        } as any).eq("id", profile.id);
+      }
+    };
+
+    restoreStatus();
+
+    const goOffline = () => {
+      if (!attendantIdRef.current) return;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const url = `${supabaseUrl}/rest/v1/attendant_profiles?id=eq.${attendantIdRef.current}`;
+      const body = JSON.stringify({ previous_status: null, status: "offline" });
+      // Use sendBeacon with fetch keepalive as fallback
+      const headers = {
+        "Content-Type": "application/json",
+        "apikey": supabaseKey,
+        "Authorization": `Bearer ${supabaseKey}`,
+        "Prefer": "return=minimal",
+      };
+      try {
+        const blob = new Blob([body], { type: "application/json" });
+        // sendBeacon doesn't support custom headers, so use fetch with keepalive
+        fetch(url, { method: "PATCH", headers, body, keepalive: true }).catch(() => {});
+      } catch {
+        // silent
+      }
+    };
+
+    // Save current status before going offline
+    const handleBeforeUnload = async () => {
+      if (!attendantIdRef.current) return;
+      // First save current status to previous_status, then set offline
+      const { data: current } = await supabase
+        .from("attendant_profiles")
+        .select("status")
+        .eq("id", attendantIdRef.current)
+        .maybeSingle();
+      if (current && current.status !== "offline") {
+        // We need to do this synchronously, so use the beacon approach
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        const url = `${supabaseUrl}/rest/v1/attendant_profiles?id=eq.${attendantIdRef.current}`;
+        const body = JSON.stringify({ previous_status: current.status, status: "offline" });
+        fetch(url, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": supabaseKey,
+            "Authorization": `Bearer ${supabaseKey}`,
+            "Prefer": "return=minimal",
+          },
+          body,
+          keepalive: true,
+        }).catch(() => {});
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [user]);
 
   // Polling for time-based auto rules (every 5 min)
   useEffect(() => {

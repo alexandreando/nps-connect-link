@@ -73,6 +73,7 @@ export type Database = {
           display_name: string
           id: string
           max_conversations: number | null
+          previous_status: string | null
           skill_level: string | null
           sound_enabled: boolean | null
           status: string | null
@@ -88,6 +89,7 @@ export type Database = {
           display_name: string
           id?: string
           max_conversations?: number | null
+          previous_status?: string | null
           skill_level?: string | null
           sound_enabled?: boolean | null
           status?: string | null
@@ -103,6 +105,7 @@ export type Database = {
           display_name?: string
           id?: string
           max_conversations?: number | null
+          previous_status?: string | null
           skill_level?: string | null
           sound_enabled?: boolean | null
           status?: string | null
@@ -764,6 +767,98 @@ export type Database = {
           },
         ]
       }
+      chat_business_hour_breaks: {
+        Row: {
+          business_hour_id: string
+          created_at: string
+          end_time: string
+          id: string
+          message: string | null
+          start_time: string
+          tenant_id: string | null
+        }
+        Insert: {
+          business_hour_id: string
+          created_at?: string
+          end_time?: string
+          id?: string
+          message?: string | null
+          start_time?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          business_hour_id?: string
+          created_at?: string
+          end_time?: string
+          id?: string
+          message?: string | null
+          start_time?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_business_hour_breaks_business_hour_id_fkey"
+            columns: ["business_hour_id"]
+            isOneToOne: false
+            referencedRelation: "chat_business_hours"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_business_hour_breaks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_business_hour_overrides: {
+        Row: {
+          created_at: string
+          end_time: string | null
+          id: string
+          is_closed: boolean
+          label: string | null
+          offline_message: string | null
+          override_date: string
+          start_time: string | null
+          tenant_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          is_closed?: boolean
+          label?: string | null
+          offline_message?: string | null
+          override_date: string
+          start_time?: string | null
+          tenant_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          is_closed?: boolean
+          label?: string | null
+          offline_message?: string | null
+          override_date?: string
+          start_time?: string | null
+          tenant_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_business_hour_overrides_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_business_hours: {
         Row: {
           created_at: string | null
@@ -1248,6 +1343,7 @@ export type Database = {
           all_busy_title: string | null
           allow_file_attachments: boolean
           allow_multiple_chats: boolean
+          allow_reopen_resolved: boolean
           auto_assignment: boolean | null
           business_hours: Json | null
           created_at: string | null
@@ -1279,6 +1375,7 @@ export type Database = {
           all_busy_title?: string | null
           allow_file_attachments?: boolean
           allow_multiple_chats?: boolean
+          allow_reopen_resolved?: boolean
           auto_assignment?: boolean | null
           business_hours?: Json | null
           created_at?: string | null
@@ -1310,6 +1407,7 @@ export type Database = {
           all_busy_title?: string | null
           allow_file_attachments?: boolean
           allow_multiple_chats?: boolean
+          allow_reopen_resolved?: boolean
           auto_assignment?: boolean | null
           business_hours?: Json | null
           created_at?: string | null

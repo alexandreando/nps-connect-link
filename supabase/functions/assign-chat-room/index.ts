@@ -67,6 +67,7 @@ Deno.serve(async (req) => {
     const now = new Date(nowSaoPaulo);
     const dow = now.getDay(); // 0=Sun
     const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
     // Fetch the room first to get tenant info
     const { data: room, error: roomError } = await supabase
@@ -82,22 +83,53 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check business hours for this tenant
+    // Check overrides first
     let outsideHours = false;
-    const { data: bhRows } = await supabase
-      .from("chat_business_hours")
-      .select("is_active, start_time, end_time, day_of_week")
-      .eq("tenant_id", room.tenant_id);
+    const { data: override } = await supabase
+      .from("chat_business_hour_overrides")
+      .select("is_closed, start_time, end_time")
+      .eq("tenant_id", room.tenant_id)
+      .eq("override_date", dateStr)
+      .maybeSingle();
 
-    if (bhRows && bhRows.length > 0) {
-      const activeWindow = bhRows.find(
-        (bh: any) =>
-          bh.day_of_week === dow &&
-          bh.is_active === true &&
-          bh.start_time <= timeStr &&
-          bh.end_time >= timeStr
-      );
-      outsideHours = !activeWindow;
+    if (override) {
+      if (override.is_closed) {
+        outsideHours = true;
+      } else if (override.start_time && override.end_time) {
+        outsideHours = timeStr < override.start_time || timeStr > override.end_time;
+      }
+    } else {
+      // No override, check normal business hours
+      const { data: bhRows } = await supabase
+        .from("chat_business_hours")
+        .select("id, is_active, start_time, end_time, day_of_week")
+        .eq("tenant_id", room.tenant_id);
+
+      if (bhRows && bhRows.length > 0) {
+        const activeWindow = bhRows.find(
+          (bh: any) =>
+            bh.day_of_week === dow &&
+            bh.is_active === true &&
+            bh.start_time <= timeStr &&
+            bh.end_time >= timeStr
+        );
+        outsideHours = !activeWindow;
+
+        // Check breaks if within hours
+        if (!outsideHours && activeWindow) {
+          const { data: breakRows } = await supabase
+            .from("chat_business_hour_breaks")
+            .select("start_time, end_time")
+            .eq("business_hour_id", activeWindow.id);
+
+          if (breakRows) {
+            const inBreak = breakRows.some(
+              (b: any) => timeStr >= b.start_time && timeStr < b.end_time
+            );
+            if (inBreak) outsideHours = true;
+          }
+        }
+      }
     }
 
     // Send welcome message for any new room (regardless of assignment)

@@ -45,6 +45,24 @@ interface BusinessHour {
   is_active: boolean;
 }
 
+interface BusinessHourBreak {
+  id?: string;
+  business_hour_id: string;
+  start_time: string;
+  end_time: string;
+  message: string;
+}
+
+interface BusinessHourOverride {
+  id?: string;
+  override_date: string;
+  is_closed: boolean;
+  start_time: string;
+  end_time: string;
+  label: string;
+  offline_message: string;
+}
+
 
 const DAY_NAMES_PT = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 const DAY_NAMES_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -96,7 +114,10 @@ const AdminSettings = () => {
 
   // Business Hours
   const [hours, setHours] = useState<BusinessHour[]>([]);
-
+  const [breaks, setBreaks] = useState<BusinessHourBreak[]>([]);
+  const [overrides, setOverrides] = useState<BusinessHourOverride[]>([]);
+  const [newOverride, setNewOverride] = useState<BusinessHourOverride>({ override_date: "", is_closed: true, start_time: "08:00", end_time: "18:00", label: "", offline_message: "" });
+  const [allowReopenResolved, setAllowReopenResolved] = useState(false);
   const fetchAll = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
@@ -138,6 +159,7 @@ const AdminSettings = () => {
       setSettings(loaded);
       savedSettingsRef.current = loaded;
       setHasUnsavedChanges(false);
+      setAllowReopenResolved(s.allow_reopen_resolved ?? false);
     }
 
     // Macros - show public macros + own private macros
@@ -156,6 +178,14 @@ const AdminSettings = () => {
 
     if (hoursData && hoursData.length > 0) {
       setHours(hoursData);
+
+      // Fetch breaks for existing hours
+      const hourIds = hoursData.map(h => h.id);
+      const { data: breaksData } = await supabase
+        .from("chat_business_hour_breaks")
+        .select("id, business_hour_id, start_time, end_time, message")
+        .in("business_hour_id", hourIds);
+      setBreaks((breaksData as BusinessHourBreak[]) ?? []);
     } else {
       const defaults: BusinessHour[] = Array.from({ length: 7 }, (_, i) => ({
         day_of_week: i,
@@ -164,8 +194,16 @@ const AdminSettings = () => {
         is_active: i >= 1 && i <= 5,
       }));
       setHours(defaults);
+      setBreaks([]);
     }
 
+    // Overrides (ausências/feriados)
+    const { data: overridesData } = await supabase
+      .from("chat_business_hour_overrides")
+      .select("id, override_date, is_closed, start_time, end_time, label, offline_message")
+      .gte("override_date", new Date().toISOString().slice(0, 10))
+      .order("override_date");
+    setOverrides((overridesData as BusinessHourOverride[]) ?? []);
 
     setLoading(false);
   }, []);
@@ -325,6 +363,62 @@ const AdminSettings = () => {
     toast({ title: t("chat.settings.saved") });
     setSaving(false);
     fetchAll();
+  };
+
+  // Save a break
+  const addBreak = async (businessHourId: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    await supabase.from("chat_business_hour_breaks").insert({
+      business_hour_id: businessHourId,
+      tenant_id: null, // will be set by trigger
+      start_time: "12:00",
+      end_time: "13:00",
+      message: "Estamos em intervalo. Retornaremos em breve.",
+    } as any);
+    fetchAll();
+  };
+
+  const deleteBreak = async (breakId: string) => {
+    await supabase.from("chat_business_hour_breaks").delete().eq("id", breakId);
+    fetchAll();
+  };
+
+  const updateBreak = async (breakId: string, field: string, value: string) => {
+    await supabase.from("chat_business_hour_breaks").update({ [field]: value } as any).eq("id", breakId);
+  };
+
+  // Overrides (ausências)
+  const addOverride = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session || !newOverride.override_date) return;
+    await supabase.from("chat_business_hour_overrides").insert({
+      user_id: session.user.id,
+      override_date: newOverride.override_date,
+      is_closed: newOverride.is_closed,
+      start_time: newOverride.is_closed ? null : newOverride.start_time,
+      end_time: newOverride.is_closed ? null : newOverride.end_time,
+      label: newOverride.label || null,
+      offline_message: newOverride.offline_message || null,
+    } as any);
+    setNewOverride({ override_date: "", is_closed: true, start_time: "08:00", end_time: "18:00", label: "", offline_message: "" });
+    toast({ title: "Ausência cadastrada!" });
+    fetchAll();
+  };
+
+  const deleteOverride = async (id: string) => {
+    await supabase.from("chat_business_hour_overrides").delete().eq("id", id);
+    toast({ title: "Ausência removida" });
+    fetchAll();
+  };
+
+  // Allow reopen resolved toggle
+  const toggleAllowReopenResolved = async (value: boolean) => {
+    setAllowReopenResolved(value);
+    if (settings.id) {
+      await supabase.from("chat_settings").update({ allow_reopen_resolved: value } as any).eq("id", settings.id);
+      toast({ title: t("chat.settings.saved") });
+    }
   };
 
   const dayNames = language === "pt-BR" ? DAY_NAMES_PT : DAY_NAMES_EN;
@@ -724,6 +818,23 @@ const AdminSettings = () => {
           {/* ===== Msgs Automáticas Tab ===== */}
           <TabsContent value="rules" className="space-y-4 mt-4">
             <AutoMessagesTab />
+
+            {/* Reopen resolved config */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Reabrir Chats Resolvidos</CardTitle>
+                <CardDescription>Permite que atendentes reabram conversas já finalizadas para tratar assuntos pendentes. Ao encerrar novamente, uma nova avaliação CSAT será solicitada e substituirá a nota anterior.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <Label>Permitir reabrir chats resolvidos</Label>
+                  <Switch
+                    checked={allowReopenResolved}
+                    onCheckedChange={toggleAllowReopenResolved}
+                  />
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* ===== Macros & Tags Tab ===== */}
@@ -838,50 +949,42 @@ const AdminSettings = () => {
                 </div>
               );
             })()}
+
+            {/* Weekly hours */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">{t("chat.settings.hours.title")}</CardTitle>
                 <CardDescription>{t("chat.settings.hours.description")}</CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("chat.settings.hours.day")}</TableHead>
-                      <TableHead>{t("chat.settings.hours.start")}</TableHead>
-                      <TableHead>{t("chat.settings.hours.end")}</TableHead>
-                      <TableHead>{t("chat.settings.hours.active")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {hours.map((h, i) => (
-                      <TableRow key={h.day_of_week}>
-                        <TableCell className="font-medium">{dayNames[h.day_of_week]}</TableCell>
-                        <TableCell>
+                <div className="space-y-3">
+                  {hours.map((h, i) => {
+                    const hourBreaks = h.id ? breaks.filter(b => b.business_hour_id === h.id) : [];
+                    return (
+                      <div key={h.day_of_week} className="space-y-2">
+                        <div className="flex items-center gap-3">
+                          <span className="w-24 text-sm font-medium">{dayNames[h.day_of_week]}</span>
                           <Input
                             type="time"
                             value={h.start_time}
-                            className="w-[120px]"
+                            className="w-[110px]"
                             onChange={(e) => {
                               const updated = [...hours];
                               updated[i] = { ...updated[i], start_time: e.target.value };
                               setHours(updated);
                             }}
                           />
-                        </TableCell>
-                        <TableCell>
+                          <span className="text-muted-foreground text-xs">às</span>
                           <Input
                             type="time"
                             value={h.end_time}
-                            className="w-[120px]"
+                            className="w-[110px]"
                             onChange={(e) => {
                               const updated = [...hours];
                               updated[i] = { ...updated[i], end_time: e.target.value };
                               setHours(updated);
                             }}
                           />
-                        </TableCell>
-                        <TableCell>
                           <Switch
                             checked={h.is_active}
                             onCheckedChange={(v) => {
@@ -890,11 +993,45 @@ const AdminSettings = () => {
                               setHours(updated);
                             }}
                           />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                          {h.id && h.is_active && (
+                            <Button variant="ghost" size="sm" className="text-xs" onClick={() => addBreak(h.id!)}>
+                              <Plus className="h-3 w-3 mr-1" />
+                              Intervalo
+                            </Button>
+                          )}
+                        </div>
+                        {/* Breaks for this day */}
+                        {hourBreaks.map((brk) => (
+                          <div key={brk.id} className="ml-28 flex items-center gap-2 pl-3 border-l-2 border-muted">
+                            <span className="text-xs text-muted-foreground">Intervalo:</span>
+                            <Input
+                              type="time"
+                              defaultValue={brk.start_time}
+                              className="w-[100px] h-8 text-xs"
+                              onBlur={(e) => brk.id && updateBreak(brk.id, "start_time", e.target.value)}
+                            />
+                            <span className="text-xs text-muted-foreground">–</span>
+                            <Input
+                              type="time"
+                              defaultValue={brk.end_time}
+                              className="w-[100px] h-8 text-xs"
+                              onBlur={(e) => brk.id && updateBreak(brk.id, "end_time", e.target.value)}
+                            />
+                            <Input
+                              defaultValue={brk.message ?? ""}
+                              placeholder="Mensagem do intervalo"
+                              className="h-8 text-xs flex-1 max-w-[250px]"
+                              onBlur={(e) => brk.id && updateBreak(brk.id, "message", e.target.value)}
+                            />
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => brk.id && deleteBreak(brk.id)}>
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
                 <div className="flex items-center gap-3 mt-4">
                   <Button onClick={saveBusinessHours} disabled={saving}>
                     <Save className="h-4 w-4 mr-2" />
@@ -917,6 +1054,102 @@ const AdminSettings = () => {
                     Copiar horário para todos
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Ausências / Feriados */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Ausências e Feriados</CardTitle>
+                <CardDescription>Cadastre datas específicas onde o horário semanal não se aplica (feriados, recesso, etc.).</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Add override form */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-3 rounded-lg border bg-muted/30">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Data</Label>
+                    <Input
+                      type="date"
+                      value={newOverride.override_date}
+                      onChange={(e) => setNewOverride({ ...newOverride, override_date: e.target.value })}
+                      min={new Date().toISOString().slice(0, 10)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Descrição</Label>
+                    <Input
+                      value={newOverride.label}
+                      onChange={(e) => setNewOverride({ ...newOverride, label: e.target.value })}
+                      placeholder="Ex: Feriado Nacional"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Mensagem offline</Label>
+                    <Input
+                      value={newOverride.offline_message}
+                      onChange={(e) => setNewOverride({ ...newOverride, offline_message: e.target.value })}
+                      placeholder="Mensagem para o visitante"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 mt-1">
+                      <Switch
+                        checked={newOverride.is_closed}
+                        onCheckedChange={(v) => setNewOverride({ ...newOverride, is_closed: v })}
+                      />
+                      <Label className="text-xs">{newOverride.is_closed ? "Sem expediente" : "Horário especial"}</Label>
+                    </div>
+                    {!newOverride.is_closed && (
+                      <div className="flex items-center gap-1">
+                        <Input type="time" value={newOverride.start_time} className="w-[90px] h-7 text-xs" onChange={(e) => setNewOverride({ ...newOverride, start_time: e.target.value })} />
+                        <span className="text-xs">–</span>
+                        <Input type="time" value={newOverride.end_time} className="w-[90px] h-7 text-xs" onChange={(e) => setNewOverride({ ...newOverride, end_time: e.target.value })} />
+                      </div>
+                    )}
+                    <Button size="sm" onClick={addOverride} disabled={!newOverride.override_date}>
+                      <Plus className="h-3 w-3 mr-1" />
+                      Adicionar
+                    </Button>
+                  </div>
+                </div>
+
+                {/* List of overrides */}
+                {overrides.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">Nenhuma ausência cadastrada.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Descrição</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Mensagem</TableHead>
+                        <TableHead className="w-[60px]" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {overrides.map((ov) => (
+                        <TableRow key={ov.id}>
+                          <TableCell className="font-medium">{new Date(ov.override_date + "T12:00:00").toLocaleDateString("pt-BR")}</TableCell>
+                          <TableCell>{ov.label || "—"}</TableCell>
+                          <TableCell>
+                            {ov.is_closed ? (
+                              <span className="text-xs text-destructive font-medium">Sem expediente</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">{ov.start_time}–{ov.end_time}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">{ov.offline_message || "—"}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => ov.id && deleteOverride(ov.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
