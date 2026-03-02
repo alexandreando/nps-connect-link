@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Eye, Loader2, Paperclip, X, FileText, Zap, Keyboard } from "lucide-react";
+import { Send, Eye, Loader2, Paperclip, X, FileText, Zap, Keyboard, BookOpen } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -21,11 +22,19 @@ interface Macro {
   user_id?: string;
 }
 
+interface HelpArticle {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  slug: string;
+}
+
 interface ChatInputProps {
   onSend: (
     content: string,
     isInternal?: boolean,
-    metadata?: { file_url: string; file_name: string; file_type: string; file_size: number }
+    metadata?: Record<string, any>,
+    messageType?: string
   ) => Promise<void>;
   roomId?: string | null;
   senderName?: string | null;
@@ -33,6 +42,7 @@ interface ChatInputProps {
 
 export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
   const { t } = useLanguage();
+  const { tenantId } = useAuth();
   const [value, setValue] = useState("");
   const [isInternal, setIsInternal] = useState(false);
   const [sending, setSending] = useState(false);
@@ -41,6 +51,11 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
   const [uploading, setUploading] = useState(false);
   const [macros, setMacros] = useState<Macro[]>([]);
   const [macrosOpen, setMacrosOpen] = useState(false);
+  const [articlesOpen, setArticlesOpen] = useState(false);
+  const [articles, setArticles] = useState<HelpArticle[]>([]);
+  const [articlesLoaded, setArticlesLoaded] = useState(false);
+  const [articleFilter, setArticleFilter] = useState("");
+  const [tenantSlug, setTenantSlug] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastTypingBroadcast = useRef<number>(0);
@@ -60,6 +75,53 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
     };
     fetchMacros();
   }, []);
+
+  // Fetch tenant slug for article URL
+  useEffect(() => {
+    if (!tenantId) return;
+    supabase.from("tenants").select("slug").eq("id", tenantId).maybeSingle().then(({ data }) => {
+      if (data) setTenantSlug((data as any).slug);
+    });
+  }, [tenantId]);
+
+  const loadArticles = useCallback(async () => {
+    if (articlesLoaded || !tenantId) return;
+    const { data } = await supabase
+      .from("help_articles")
+      .select("id, title, subtitle, slug")
+      .eq("tenant_id", tenantId)
+      .eq("status", "published")
+      .order("title");
+    if (data) setArticles(data);
+    setArticlesLoaded(true);
+  }, [tenantId, articlesLoaded]);
+
+  const handleOpenArticles = () => {
+    loadArticles();
+    setArticleFilter("");
+    setArticlesOpen(true);
+  };
+
+  const handleSelectArticle = (article: HelpArticle) => {
+    const articleUrl = `${window.location.origin}/${tenantSlug}/help/a/${article.slug}`;
+    const metadata = {
+      article_id: article.id,
+      article_title: article.title,
+      article_subtitle: article.subtitle || "",
+      article_url: articleUrl,
+      article_slug: article.slug,
+      tenant_slug: tenantSlug,
+    };
+    setArticlesOpen(false);
+    onSend(article.title, false, metadata, "help_article");
+  };
+
+  const filteredArticles = articleFilter
+    ? articles.filter(a =>
+        a.title.toLowerCase().includes(articleFilter.toLowerCase()) ||
+        (a.subtitle && a.subtitle.toLowerCase().includes(articleFilter.toLowerCase()))
+      )
+    : articles;
 
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current;
@@ -137,8 +199,39 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
   };
 
   const commandListRef = useRef<HTMLDivElement>(null);
+  const articleListRef = useRef<HTMLDivElement>(null);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // When articles popup is open, delegate navigation
+    if (articlesOpen) {
+      if (e.key === "Escape") { e.preventDefault(); setArticlesOpen(false); return; }
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const cmdList = articleListRef.current;
+        if (cmdList) {
+          const items = Array.from(cmdList.querySelectorAll("[cmdk-item]")) as HTMLElement[];
+          const selected = cmdList.querySelector("[data-selected='true']") as HTMLElement | null;
+          let idx = selected ? items.indexOf(selected) : -1;
+          if (e.key === "ArrowDown") idx = Math.min(idx + 1, items.length - 1);
+          else idx = Math.max(idx - 1, 0);
+          items.forEach(item => item.setAttribute("data-selected", "false"));
+          if (items[idx]) { items[idx].setAttribute("data-selected", "true"); items[idx].scrollIntoView({ block: "nearest" }); }
+        }
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const cmdList = articleListRef.current;
+        if (cmdList) {
+          const selected = cmdList.querySelector("[data-selected='true']") as HTMLElement | null;
+          if (selected) { selected.click(); return; }
+        }
+        setArticlesOpen(false);
+        return;
+      }
+      return;
+    }
+
     // When macros popup is open, delegate navigation keys
     if (macrosOpen) {
       if (e.key === "Escape") {
@@ -148,7 +241,6 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
       }
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
-        // Dispatch the key event to the cmdk Command component
         const cmdList = commandListRef.current;
         if (cmdList) {
           const items = cmdList.querySelectorAll("[cmdk-item]");
@@ -159,7 +251,6 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
           if (e.key === "ArrowDown") currentIdx = Math.min(currentIdx + 1, itemsArr.length - 1);
           else currentIdx = Math.max(currentIdx - 1, 0);
           
-          // Deselect all, select target
           itemsArr.forEach(item => item.setAttribute("data-selected", "false"));
           if (itemsArr[currentIdx]) {
             itemsArr[currentIdx].setAttribute("data-selected", "true");
@@ -178,7 +269,6 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
             return;
           }
         }
-        // If no macro selected, close and send
         setMacrosOpen(false);
         handleSend();
         return;
@@ -198,7 +288,6 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
     const v = e.target.value;
     setValue(v);
 
-    // Broadcast typing event (throttled to every 2s)
     if (roomId && senderName && Date.now() - lastTypingBroadcast.current > 2000) {
       lastTypingBroadcast.current = Date.now();
       supabase.channel(`typing-${roomId}`).send({
@@ -314,6 +403,47 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
         );
       })()}
 
+      {/* Articles popup */}
+      {articlesOpen && (
+        <div className="rounded-md border bg-popover shadow-md max-h-56 overflow-hidden flex flex-col" ref={articleListRef}>
+          <Command shouldFilter={false}>
+            <div className="flex items-center border-b px-3 py-1.5">
+              <BookOpen className="mr-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <input
+                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                placeholder={t("chat.articles.search")}
+                value={articleFilter}
+                onChange={(e) => setArticleFilter(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <CommandList className="max-h-44 overflow-auto">
+              <CommandEmpty className="text-xs p-3 text-center text-muted-foreground">{t("chat.articles.empty")}</CommandEmpty>
+              <CommandGroup>
+                {filteredArticles.map((article, idx) => (
+                  <CommandItem
+                    key={article.id}
+                    onSelect={() => handleSelectArticle(article)}
+                    className="text-xs cursor-pointer px-3 py-2"
+                    data-selected={idx === 0 ? "true" : "false"}
+                  >
+                    <div className="flex items-start gap-2 w-full">
+                      <BookOpen className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium text-foreground">{article.title}</span>
+                        {article.subtitle && (
+                          <p className="text-muted-foreground truncate text-[10px] mt-0.5">{article.subtitle}</p>
+                        )}
+                      </div>
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </div>
+      )}
+
       <div className="flex gap-2 items-end">
         <Button
           size="icon"
@@ -364,6 +494,16 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
             </Button>
           </PopoverTrigger>
         </Popover>
+
+        <Button
+          size="icon"
+          variant="ghost"
+          className="shrink-0 h-9 w-9"
+          onClick={handleOpenArticles}
+          title={t("chat.articles.title")}
+        >
+          <BookOpen className="h-4 w-4" />
+        </Button>
 
         <Popover>
           <PopoverTrigger asChild>

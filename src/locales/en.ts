@@ -1524,4 +1524,11 @@ export default {
   "imageUpload.success": "Image uploaded successfully",
   "imageUpload.error": "Error uploading image",
   "imageUpload.transparentBg": "Transparent background recommended",
+
+  // Help Articles in Chat
+  "chat.articles.title": "Send article",
+  "chat.articles.search": "Search articles...",
+  "chat.articles.empty": "No published articles found",
+  "chat.articles.open": "Open article",
+  "chat.articles.read": "Read article",
 };
