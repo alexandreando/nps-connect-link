@@ -9,7 +9,7 @@ import { useDashboardStats, type DashboardFilters } from "@/hooks/useDashboardSt
 import { useAttendants } from "@/hooks/useAttendants";
 import { supabase } from "@/integrations/supabase/client";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { MessageSquare, CalendarDays, Star, CheckCircle, Clock, AlertTriangle, Zap } from "lucide-react";
+import { MessageSquare, CalendarDays, Star, CheckCircle, Clock, AlertTriangle, Zap, Tag } from "lucide-react";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { MetricCard } from "@/components/ui/metric-card";
@@ -182,6 +182,34 @@ const AdminDashboardGerencial = () => {
                     <span className="text-2xl font-semibold tabular-nums">{item.count}</span>
                   </div>
                 ))}
+              </div>
+            </ChartCard>
+
+            {/* Top Tags */}
+            <ChartCard title="Top Tags" isEmpty={stats.topTags.length === 0} emptyText={t("chat.gerencial.no_data")}>
+              <div className="space-y-2 overflow-y-auto h-full py-1">
+                {stats.topTags.map((tag, i) => {
+                  const maxCount = stats.topTags[0]?.count ?? 1;
+                  return (
+                    <div key={tag.name} className="flex items-center gap-3">
+                      <span className="text-xs text-muted-foreground w-5 text-right tabular-nums">{i + 1}</span>
+                      <div
+                        className="h-2 w-2 rounded-full shrink-0"
+                        style={{ backgroundColor: tag.color }}
+                      />
+                      <span className="text-sm truncate flex-1">{tag.name}</span>
+                      <div className="flex-1 max-w-[120px]">
+                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{ width: `${(tag.count / maxCount) * 100}%`, backgroundColor: tag.color }}
+                          />
+                        </div>
+                      </div>
+                      <span className="text-sm font-semibold tabular-nums w-8 text-right">{tag.count}</span>
+                    </div>
+                  );
+                })}
               </div>
             </ChartCard>
           </div>

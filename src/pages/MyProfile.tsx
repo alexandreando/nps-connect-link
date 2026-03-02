@@ -119,7 +119,8 @@ export default function MyProfile() {
     if (!attendantId) return;
     setSavingStatus(true);
     setChatStatus(newStatus);
-    await supabase.from("attendant_profiles").update({ status: newStatus }).eq("id", attendantId);
+    // Clear previous_status on manual change (intentional choice)
+    await supabase.from("attendant_profiles").update({ status: newStatus, previous_status: null } as any).eq("id", attendantId);
     setSavingStatus(false);
     toast({ title: `Status de chat: ${CHAT_STATUS_OPTIONS.find(s => s.value === newStatus)?.label}` });
   };
