@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Eye, MessageSquare } from "lucide-react";
+import { Send, Eye, MessageSquare, RotateCcw } from "lucide-react";
 import { useChatMessages } from "@/hooks/useChatRealtime";
 import { ChatMessageList } from "@/components/chat/ChatMessageList";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,9 +15,11 @@ interface ReadOnlyChatDialogProps {
   visitorName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  resolutionStatus?: string | null;
+  onReopen?: (roomId: string) => void;
 }
 
-export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange }: ReadOnlyChatDialogProps) {
+export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange, resolutionStatus, onReopen }: ReadOnlyChatDialogProps) {
   const { t } = useLanguage();
   const { user } = useAuth();
   const { messages, loading } = useChatMessages(open ? roomId : null);
@@ -43,10 +45,26 @@ export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange }: 
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-lg flex flex-col">
         <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" />
-            {visitorName}
-          </SheetTitle>
+          <div className="flex items-center justify-between">
+            <SheetTitle className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              {visitorName}
+            </SheetTitle>
+            {onReopen && roomId && (resolutionStatus === "pending" || resolutionStatus === "resolved") && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1"
+                onClick={() => {
+                  onReopen(roomId);
+                  onOpenChange(false);
+                }}
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Reabrir
+              </Button>
+            )}
+          </div>
         </SheetHeader>
 
         <ScrollArea className="flex-1 my-4">
