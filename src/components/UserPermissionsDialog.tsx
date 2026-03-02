@@ -8,11 +8,17 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Loader2, ShieldCheck, ChevronDown } from "lucide-react";
+import {
+  Loader2, ShieldCheck, ChevronDown, Copy, Users, BarChart3, MessageSquare,
+  Headphones, Settings, BookOpen, UserCheck, Eye
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SPECIALTIES = ["implementacao", "onboarding", "acompanhamento", "churn"];
@@ -37,10 +43,6 @@ interface Permission {
   can_manage: boolean;
 }
 
-// ─── Permission Tree Definition ───────────────────────────────────────────────
-// Each node represents a permission group. Children are sub-permissions.
-// "actions" controls which toggles are shown for that row.
-
 type Action = "view" | "edit" | "delete" | "manage";
 
 interface PermNode {
@@ -50,17 +52,29 @@ interface PermNode {
   children?: PermNode[];
 }
 
+// ─── Group icons & colors ─────────────────────────────────────────────────────
+const GROUP_META: Record<string, { icon: typeof BarChart3; color: string }> = {
+  cs: { icon: BarChart3, color: "text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-950" },
+  nps: { icon: Users, color: "text-violet-600 bg-violet-50 dark:text-violet-400 dark:bg-violet-950" },
+  chat: { icon: MessageSquare, color: "text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-950" },
+  contacts: { icon: UserCheck, color: "text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-950" },
+  settings: { icon: Settings, color: "text-slate-600 bg-slate-50 dark:text-slate-400 dark:bg-slate-950" },
+  help: { icon: BookOpen, color: "text-rose-600 bg-rose-50 dark:text-rose-400 dark:bg-rose-950" },
+};
+
 const PERMISSION_TREE: PermNode[] = [
   {
     key: "cs",
     labelKey: "team.module.cs",
     actions: ["view", "edit", "delete", "manage"],
     children: [
-      { key: "cs.kanban",           labelKey: "team.submodule.cs.kanban",           actions: ["view", "edit"] },
-      { key: "cs.trails",           labelKey: "team.submodule.cs.trails",           actions: ["view", "edit", "delete"] },
-      { key: "cs.reports.health",   labelKey: "team.submodule.cs.reports.health",   actions: ["view"] },
-      { key: "cs.reports.churn",    labelKey: "team.submodule.cs.reports.churn",    actions: ["view"] },
-      { key: "cs.reports.financial",labelKey: "team.submodule.cs.reports.financial",actions: ["view"] },
+      { key: "cs.dashboard",          labelKey: "team.submodule.cs.dashboard",          actions: ["view"] },
+      { key: "cs.kanban",             labelKey: "team.submodule.cs.kanban",              actions: ["view", "edit"] },
+      { key: "cs.trails",             labelKey: "team.submodule.cs.trails",              actions: ["view", "edit", "delete"] },
+      { key: "cs.csms",               labelKey: "team.submodule.cs.csms",                actions: ["view", "manage"] },
+      { key: "cs.reports.health",     labelKey: "team.submodule.cs.reports.health",      actions: ["view"] },
+      { key: "cs.reports.churn",      labelKey: "team.submodule.cs.reports.churn",       actions: ["view"] },
+      { key: "cs.reports.financial",  labelKey: "team.submodule.cs.reports.financial",   actions: ["view"] },
     ],
   },
   {
@@ -78,20 +92,24 @@ const PERMISSION_TREE: PermNode[] = [
     labelKey: "team.module.chat",
     actions: ["view", "edit", "delete", "manage"],
     children: [
-      { key: "chat.workspace",            labelKey: "team.submodule.chat.workspace",            actions: ["view"] },
-      { key: "chat.history",              labelKey: "team.submodule.chat.history",              actions: ["view"] },
-      { key: "chat.banners",              labelKey: "team.submodule.chat.banners",              actions: ["view", "edit", "delete", "manage"] },
-      { key: "chat.broadcasts",           labelKey: "team.submodule.chat.broadcasts",           actions: ["view", "edit", "delete", "manage"] },
-      { key: "chat.dashboard",            labelKey: "team.submodule.chat.dashboard",            actions: ["view"] },
-      { key: "chat.csat",                 labelKey: "team.submodule.chat.csat",                 actions: ["view"] },
-      { key: "chat.reports",              labelKey: "team.submodule.chat.reports",              actions: ["view"] },
-      { key: "chat.settings.general",     labelKey: "team.submodule.chat.settings.general",     actions: ["view", "manage"] },
-      { key: "chat.settings.widget",      labelKey: "team.submodule.chat.settings.widget",      actions: ["view", "manage"] },
-      { key: "chat.settings.macros",      labelKey: "team.submodule.chat.settings.macros",      actions: ["view", "edit", "delete"] },
-      { key: "chat.settings.attendants",  labelKey: "team.submodule.chat.settings.attendants",  actions: ["view", "manage"] },
-      { key: "chat.settings.teams",       labelKey: "team.submodule.chat.settings.teams",       actions: ["view", "manage"] },
-      { key: "chat.settings.categories",  labelKey: "team.submodule.chat.settings.categories",  actions: ["view", "manage"] },
-      { key: "chat.settings.apikeys",     labelKey: "team.submodule.chat.settings.apikeys",     actions: ["view", "manage"] },
+      { key: "chat.workspace",              labelKey: "team.submodule.chat.workspace",              actions: ["view"] },
+      { key: "chat.history",                labelKey: "team.submodule.chat.history",                actions: ["view"] },
+      { key: "chat.banners",                labelKey: "team.submodule.chat.banners",                actions: ["view", "edit", "delete", "manage"] },
+      { key: "chat.broadcasts",             labelKey: "team.submodule.chat.broadcasts",             actions: ["view", "edit", "delete", "manage"] },
+      { key: "chat.dashboard",              labelKey: "team.submodule.chat.dashboard",              actions: ["view"] },
+      { key: "chat.csat",                   labelKey: "team.submodule.chat.csat",                   actions: ["view"] },
+      { key: "chat.reports",                labelKey: "team.submodule.chat.reports",                actions: ["view"] },
+      { key: "chat.settings.general",       labelKey: "team.submodule.chat.settings.general",       actions: ["view", "manage"] },
+      { key: "chat.settings.widget",        labelKey: "team.submodule.chat.settings.widget",        actions: ["view", "manage"] },
+      { key: "chat.settings.macros",        labelKey: "team.submodule.chat.settings.macros",        actions: ["view", "edit", "delete"] },
+      { key: "chat.settings.attendants",    labelKey: "team.submodule.chat.settings.attendants",    actions: ["view", "manage"] },
+      { key: "chat.settings.teams",         labelKey: "team.submodule.chat.settings.teams",         actions: ["view", "manage"] },
+      { key: "chat.settings.categories",    labelKey: "team.submodule.chat.settings.categories",    actions: ["view", "manage"] },
+      { key: "chat.settings.apikeys",       labelKey: "team.submodule.chat.settings.apikeys",       actions: ["view", "manage"] },
+      { key: "chat.settings.custom_fields", labelKey: "team.submodule.chat.settings.custom_fields", actions: ["view", "manage"] },
+      { key: "chat.settings.auto_rules",    labelKey: "team.submodule.chat.settings.auto_rules",    actions: ["view", "manage"] },
+      { key: "chat.settings.business_hours",labelKey: "team.submodule.chat.settings.business_hours",actions: ["view", "manage"] },
+      { key: "chat.settings.assignment",    labelKey: "team.submodule.chat.settings.assignment",    actions: ["view", "manage"] },
     ],
   },
   {
@@ -118,91 +136,109 @@ const PERMISSION_TREE: PermNode[] = [
     labelKey: "team.module.help",
     actions: ["view", "edit", "delete", "manage"],
     children: [
-      { key: "help.articles",    labelKey: "team.submodule.help.articles",    actions: ["view", "edit", "delete", "manage"] },
-      { key: "help.collections", labelKey: "team.submodule.help.collections", actions: ["view", "edit", "delete"] },
-      { key: "help.settings",    labelKey: "team.submodule.help.settings",    actions: ["view", "manage"] },
-      { key: "help.analytics",   labelKey: "team.submodule.help.analytics",   actions: ["view"] },
-      { key: "help.import",      labelKey: "team.submodule.help.import",      actions: ["manage"] },
+      { key: "help.overview",     labelKey: "team.submodule.help.overview",     actions: ["view"] },
+      { key: "help.articles",     labelKey: "team.submodule.help.articles",     actions: ["view", "edit", "delete", "manage"] },
+      { key: "help.collections",  labelKey: "team.submodule.help.collections",  actions: ["view", "edit", "delete"] },
+      { key: "help.settings",     labelKey: "team.submodule.help.settings",     actions: ["view", "manage"] },
+      { key: "help.analytics",    labelKey: "team.submodule.help.analytics",    actions: ["view"] },
+      { key: "help.import",       labelKey: "team.submodule.help.import",       actions: ["manage"] },
     ],
   },
 ];
 
-// All unique module keys (parent + children)
+// All unique module keys
 const ALL_MODULE_KEYS: string[] = [];
 PERMISSION_TREE.forEach((g) => {
   ALL_MODULE_KEYS.push(g.key);
   g.children?.forEach((c) => ALL_MODULE_KEYS.push(c.key));
 });
 
+// ─── Preset Profiles ──────────────────────────────────────────────────────────
+type PermMap = Record<string, { can_view: boolean; can_edit: boolean; can_delete: boolean; can_manage: boolean }>;
+
+function allTrue(): PermMap {
+  const m: PermMap = {};
+  ALL_MODULE_KEYS.forEach((k) => { m[k] = { can_view: true, can_edit: true, can_delete: true, can_manage: true }; });
+  return m;
+}
+
+function allView(): PermMap {
+  const m: PermMap = {};
+  ALL_MODULE_KEYS.forEach((k) => { m[k] = { can_view: true, can_edit: false, can_delete: false, can_manage: false }; });
+  return m;
+}
+
+function buildProfile(keys: string[], actions: Partial<Record<string, Action[]>>): PermMap {
+  const m: PermMap = {};
+  ALL_MODULE_KEYS.forEach((k) => { m[k] = { can_view: false, can_edit: false, can_delete: false, can_manage: false }; });
+  keys.forEach((k) => {
+    const a = actions[k] || ["view"];
+    m[k] = {
+      can_view: a.includes("view"),
+      can_edit: a.includes("edit"),
+      can_delete: a.includes("delete"),
+      can_manage: a.includes("manage"),
+    };
+  });
+  return m;
+}
+
+interface PresetProfile {
+  id: string;
+  labelKey: string;
+  isAdmin: boolean;
+  perms: PermMap;
+}
+
+const PRESET_PROFILES: PresetProfile[] = [
+  { id: "admin", labelKey: "team.profile.admin", isAdmin: true, perms: allTrue() },
+  {
+    id: "cs_manager", labelKey: "team.profile.csManager", isAdmin: false,
+    perms: buildProfile(
+      ["cs", "cs.dashboard", "cs.kanban", "cs.trails", "cs.csms", "cs.reports.health", "cs.reports.churn", "cs.reports.financial",
+       "nps", "nps.dashboard", "nps.campaigns", "nps.settings",
+       "contacts", "contacts.companies", "contacts.people"],
+      {
+        cs: ["view", "edit", "delete", "manage"],
+        "cs.dashboard": ["view"], "cs.kanban": ["view", "edit"], "cs.trails": ["view", "edit", "delete"],
+        "cs.csms": ["view", "manage"],
+        "cs.reports.health": ["view"], "cs.reports.churn": ["view"], "cs.reports.financial": ["view"],
+        nps: ["view", "edit", "manage"], "nps.dashboard": ["view"], "nps.campaigns": ["view", "edit"], "nps.settings": ["view", "manage"],
+        contacts: ["view", "edit"], "contacts.companies": ["view", "edit"], "contacts.people": ["view", "edit"],
+      }
+    ),
+  },
+  {
+    id: "chat_attendant", labelKey: "team.profile.chatAttendant", isAdmin: false,
+    perms: buildProfile(
+      ["chat", "chat.workspace", "chat.history", "chat.settings.macros", "chat.banners", "chat.dashboard"],
+      {
+        chat: ["view"], "chat.workspace": ["view"], "chat.history": ["view"],
+        "chat.settings.macros": ["view", "edit"],
+        "chat.banners": ["view"], "chat.dashboard": ["view"],
+      }
+    ),
+  },
+  {
+    id: "nps_analyst", labelKey: "team.profile.npsAnalyst", isAdmin: false,
+    perms: buildProfile(
+      ["nps", "nps.dashboard", "nps.campaigns"],
+      { nps: ["view", "edit"], "nps.dashboard": ["view"], "nps.campaigns": ["view", "edit"] }
+    ),
+  },
+  { id: "viewer", labelKey: "team.profile.viewer", isAdmin: false, perms: allView() },
+  {
+    id: "custom", labelKey: "team.profile.custom", isAdmin: false,
+    perms: {} as PermMap, // no-op, just means manual
+  },
+];
+
+// ─── Props ────────────────────────────────────────────────────────────────────
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   profile: UserProfile | null;
   onSaved: () => void;
-}
-
-// ─── Tiny PermRow component ────────────────────────────────────────────────────
-function PermRow({
-  node,
-  perm,
-  isAdminToggle,
-  onToggle,
-  isChild,
-}: {
-  node: PermNode;
-  perm: Permission;
-  isAdminToggle: boolean;
-  onToggle: (module: string, field: keyof Permission) => void;
-  isChild?: boolean;
-}) {
-  const { t } = useLanguage();
-  const ALL_ACTIONS: Action[] = ["view", "edit", "delete", "manage"];
-  const fieldMap: Record<Action, keyof Permission> = {
-    view: "can_view",
-    edit: "can_edit",
-    delete: "can_delete",
-    manage: "can_manage",
-  };
-
-  const isDisabled = (action: Action): boolean => {
-    if (isAdminToggle) return true;
-    if (action === "edit" || action === "delete") return !perm.can_view;
-    return false;
-  };
-
-  const isChecked = (action: Action): boolean => {
-    if (isAdminToggle) return true;
-    return perm[fieldMap[action]] as boolean;
-  };
-
-  return (
-    <div className={cn(
-      "grid items-center gap-2 py-2 px-3 rounded-md",
-      isChild ? "grid-cols-[1fr_auto_auto_auto_auto] ml-4 border-l-2 border-sidebar-border bg-muted/20" : "grid-cols-[1fr_auto_auto_auto_auto] border rounded-md"
-    )}>
-      <span className={cn("text-sm", isChild ? "text-muted-foreground" : "font-medium")}>
-        {isChild && <span className="mr-1 text-muted-foreground/40">└</span>}
-        {t(node.labelKey)}
-      </span>
-      {ALL_ACTIONS.map((action) => {
-        const isRelevant = node.actions.includes(action);
-        return (
-          <div key={action} className="flex justify-center w-10">
-            {isRelevant ? (
-              <Switch
-                checked={isChecked(action)}
-                onCheckedChange={() => onToggle(node.key, fieldMap[action])}
-                disabled={isDisabled(action)}
-                className="scale-75"
-              />
-            ) : (
-              <div className="w-9 h-5" />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
 }
 
 // ─── Main Dialog ──────────────────────────────────────────────────────────────
@@ -213,11 +249,17 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
   const [permissions, setPermissions] = useState<Map<string, Permission>>(new Map());
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [selectedProfile, setSelectedProfile] = useState("custom");
+  const [csOpen, setCsOpen] = useState(false);
 
   // CS fields
   const [csPhone, setCsPhone] = useState("");
   const [csDepartment, setCsDepartment] = useState("");
   const [csSpecialty, setCsSpecialty] = useState<string[]>([]);
+
+  // Copy from user
+  const [tenantUsers, setTenantUsers] = useState<UserProfile[]>([]);
+  const [copyPopoverOpen, setCopyPopoverOpen] = useState(false);
 
   useEffect(() => {
     if (open && profile) loadData();
@@ -226,6 +268,7 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
   const loadData = async () => {
     if (!profile || !profile.user_id) return;
     setLoading(true);
+    setSelectedProfile("custom");
 
     const { data: roles } = await supabase
       .from("user_roles")
@@ -239,11 +282,9 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
       .eq("user_id", profile.user_id);
 
     const permMap = new Map<string, Permission>();
-    // Initialize all known modules with defaults
     ALL_MODULE_KEYS.forEach((key) => {
       permMap.set(key, { module: key, can_view: false, can_edit: false, can_delete: false, can_manage: false });
     });
-    // Overlay with actual data from DB
     (perms ?? []).forEach((p) => {
       permMap.set(p.module, {
         module: p.module,
@@ -258,35 +299,86 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
     setCsPhone(profile.phone || "");
     setCsDepartment(profile.department || "");
     setCsSpecialty(profile.specialty || []);
+
+    // Load tenant users for "copy from"
+    const { data: users } = await supabase
+      .from("user_profiles")
+      .select("id, user_id, email, display_name, avatar_url, is_active")
+      .neq("user_id", profile.user_id);
+    setTenantUsers((users ?? []) as UserProfile[]);
+
     setLoading(false);
   };
 
+  const applyPreset = (profileId: string) => {
+    setSelectedProfile(profileId);
+    const preset = PRESET_PROFILES.find((p) => p.id === profileId);
+    if (!preset || profileId === "custom") return;
+
+    setIsAdminToggle(preset.isAdmin);
+    const permMap = new Map<string, Permission>();
+    ALL_MODULE_KEYS.forEach((key) => {
+      const p = preset.perms[key] || { can_view: false, can_edit: false, can_delete: false, can_manage: false };
+      permMap.set(key, { module: key, ...p });
+    });
+    setPermissions(permMap);
+  };
+
+  const copyFromUser = async (userId: string) => {
+    setCopyPopoverOpen(false);
+
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    setIsAdminToggle(roles?.some((r) => r.role === "admin") ?? false);
+
+    const { data: perms } = await supabase
+      .from("user_permissions")
+      .select("module, can_view, can_edit, can_delete, can_manage")
+      .eq("user_id", userId);
+
+    const permMap = new Map<string, Permission>();
+    ALL_MODULE_KEYS.forEach((key) => {
+      permMap.set(key, { module: key, can_view: false, can_edit: false, can_delete: false, can_manage: false });
+    });
+    (perms ?? []).forEach((p) => {
+      permMap.set(p.module, {
+        module: p.module,
+        can_view: p.can_view ?? false,
+        can_edit: p.can_edit ?? false,
+        can_delete: p.can_delete ?? false,
+        can_manage: p.can_manage ?? false,
+      });
+    });
+    setPermissions(permMap);
+    setSelectedProfile("custom");
+    toast({ title: t("team.permsCopied") });
+  };
+
   const togglePerm = (module: string, field: keyof Permission) => {
+    setSelectedProfile("custom");
     setPermissions((prev) => {
       const next = new Map(prev);
       const cur = next.get(module) ?? { module, can_view: false, can_edit: false, can_delete: false, can_manage: false };
       const updated = { ...cur, [field]: !cur[field] };
-
-      // Logic: enabling manage → enable view/edit/delete
       if (field === "can_manage" && updated.can_manage) {
         updated.can_view = true;
         updated.can_edit = true;
         updated.can_delete = true;
       }
-      // Logic: disabling view → disable edit/delete/manage
       if (field === "can_view" && !updated.can_view) {
         updated.can_edit = false;
         updated.can_delete = false;
         updated.can_manage = false;
       }
-
       next.set(module, updated);
       return next;
     });
   };
 
-  // Enable/disable all children of a parent group
   const toggleGroupAll = (group: PermNode, enable: boolean) => {
+    setSelectedProfile("custom");
     setPermissions((prev) => {
       const next = new Map(prev);
       const keysToSet = [group.key, ...(group.children ?? []).map((c) => c.key)];
@@ -313,7 +405,6 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
     setSaving(true);
 
     try {
-      // Admin role
       const { data: currentRoles } = await supabase
         .from("user_roles")
         .select("id, role")
@@ -327,7 +418,6 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
         await supabase.from("user_roles").delete().eq("user_id", profile.user_id).eq("role", "admin");
       }
 
-      // Upsert all permissions (including sub-permissions)
       const permsArray = Array.from(permissions.values());
       for (const perm of permsArray) {
         await supabase.from("user_permissions").upsert(
@@ -343,13 +433,11 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
         );
       }
 
-      // Update CS fields on user_profiles
       await supabase
         .from("user_profiles")
         .update({ phone: csPhone || null, department: csDepartment || null, specialty: csSpecialty } as any)
         .eq("id", profile.id);
 
-      // Sync with csms table — always create/update CSM so user can be enabled as attendant
       const { data: existingCsm } = await supabase
         .from("csms")
         .select("id")
@@ -390,178 +478,273 @@ export default function UserPermissionsDialog({ open, onOpenChange, profile, onS
     : profile?.email?.slice(0, 2).toUpperCase() ?? "?";
 
   const ALL_ACTIONS: Action[] = ["view", "edit", "delete", "manage"];
+  const fieldMap: Record<Action, keyof Permission> = { view: "can_view", edit: "can_edit", delete: "can_delete", manage: "can_manage" };
 
-  // Check if a group has any permission active (for the group's "all enabled" indicator)
   const groupHasAnyView = (group: PermNode): boolean => {
     const parent = permissions.get(group.key);
     if (parent?.can_view) return true;
     return (group.children ?? []).some((c) => permissions.get(c.key)?.can_view);
   };
 
+  const activeProfile = PRESET_PROFILES.find((p) => p.id === selectedProfile);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[92vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{t("team.editPermissions")}</DialogTitle>
-          <DialogDescription>{t("team.editPermissionsDesc")}</DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-3xl max-h-[94vh] flex flex-col p-0 gap-0">
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 border-b border-border">
+          <DialogHeader className="mb-0">
+            <DialogTitle className="sr-only">{t("team.editPermissions")}</DialogTitle>
+            <DialogDescription className="sr-only">{t("team.editPermissionsDesc")}</DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-3">
+            <Avatar className="h-11 w-11 ring-2 ring-primary/10">
+              <AvatarImage src={profile?.avatar_url ?? undefined} />
+              <AvatarFallback className="bg-primary/10 text-primary font-semibold">{initials}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-base truncate">{profile?.display_name || profile?.email}</p>
+              <p className="text-sm text-muted-foreground truncate">{profile?.email}</p>
+            </div>
+          </div>
+        </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin" />
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="space-y-5">
-            {/* User info */}
-            <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={profile?.avatar_url ?? undefined} />
-                <AvatarFallback>{initials}</AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="font-medium">{profile?.display_name || profile?.email}</p>
-                <p className="text-sm text-muted-foreground">{profile?.email}</p>
+          <>
+            {/* Action bar: Admin + Profile + Copy */}
+            <div className="px-6 py-3 bg-muted/30 border-b border-border">
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Admin toggle */}
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background">
+                  <ShieldCheck className="h-4 w-4 text-primary" />
+                  <Label htmlFor="admin-toggle" className="text-sm font-medium cursor-pointer">{t("team.administrator")}</Label>
+                  <Switch
+                    id="admin-toggle"
+                    checked={isAdminToggle}
+                    onCheckedChange={(v) => { setIsAdminToggle(v); setSelectedProfile(v ? "admin" : "custom"); }}
+                    className="scale-90"
+                  />
+                </div>
+
+                {/* Profile selector */}
+                <div className="flex items-center gap-2">
+                  <Select value={selectedProfile} onValueChange={applyPreset}>
+                    <SelectTrigger className="h-9 w-[200px] text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PRESET_PROFILES.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {t(p.labelKey)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Copy from user */}
+                <Popover open={copyPopoverOpen} onOpenChange={setCopyPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-9 gap-2 text-sm">
+                      <Copy className="h-3.5 w-3.5" />
+                      {t("team.copyFromUser")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-2" align="start">
+                    <p className="text-xs font-medium text-muted-foreground mb-2 px-2">{t("team.selectUserToCopy")}</p>
+                    <ScrollArea className="max-h-48">
+                      <div className="space-y-0.5">
+                        {tenantUsers.map((u) => (
+                          <button
+                            key={u.id}
+                            onClick={() => u.user_id && copyFromUser(u.user_id)}
+                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-sm hover:bg-accent transition-colors"
+                          >
+                            <Avatar className="h-6 w-6">
+                              <AvatarFallback className="text-[10px] bg-muted">
+                                {(u.display_name || u.email).slice(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm">{u.display_name || u.email}</p>
+                            </div>
+                          </button>
+                        ))}
+                        {tenantUsers.length === 0 && (
+                          <p className="text-xs text-muted-foreground text-center py-3">{t("team.noOtherUsers")}</p>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </PopoverContent>
+                </Popover>
+
+                {/* Active profile badge */}
+                {selectedProfile !== "custom" && activeProfile && (
+                  <Badge variant="secondary" className="text-xs gap-1">
+                    {selectedProfile === "admin" && <ShieldCheck className="h-3 w-3" />}
+                    {selectedProfile === "viewer" && <Eye className="h-3 w-3" />}
+                    {t(activeProfile.labelKey)}
+                  </Badge>
+                )}
               </div>
             </div>
 
-            <Separator />
+            {/* Scrollable body */}
+            <ScrollArea className="flex-1 min-h-0">
+              <div className="px-6 py-4 space-y-4">
 
-            {/* Admin toggle */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-primary" />
-                <Label htmlFor="admin-toggle" className="font-medium">{t("team.administrator")}</Label>
-              </div>
-              <Switch id="admin-toggle" checked={isAdminToggle} onCheckedChange={setIsAdminToggle} />
-            </div>
-            {isAdminToggle && (
-              <Badge variant="secondary" className="text-xs">{t("team.adminFullAccess")}</Badge>
-            )}
-
-            <Separator />
-
-            {/* CS Fields */}
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-muted-foreground">{t("team.csInfo")}</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>{t("cs.csms.phone")}</Label>
-                  <Input value={csPhone} onChange={(e) => setCsPhone(e.target.value)} placeholder={t("cs.csms.phonePlaceholder")} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>{t("cs.csms.department")}</Label>
-                  <Input value={csDepartment} onChange={(e) => setCsDepartment(e.target.value)} placeholder={t("cs.csms.departmentPlaceholder")} />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label>{t("cs.csms.specialties")}</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {SPECIALTIES.map((spec) => (
-                    <div key={spec} className="flex items-center space-x-2">
-                      <Checkbox id={`cs-${spec}`} checked={csSpecialty.includes(spec)} onCheckedChange={() => toggleCsSpecialty(spec)} />
-                      <label htmlFor={`cs-${spec}`} className="text-sm cursor-pointer">{t(`cs.status.${spec}`)}</label>
+                {/* CS Info - collapsible */}
+                <Collapsible open={csOpen} onOpenChange={setCsOpen}>
+                  <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors w-full">
+                    <ChevronDown className={cn("h-4 w-4 transition-transform", csOpen && "rotate-180")} />
+                    {t("team.csInfo")}
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-3 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">{t("cs.csms.phone")}</Label>
+                        <Input value={csPhone} onChange={(e) => setCsPhone(e.target.value)} placeholder={t("cs.csms.phonePlaceholder")} className="h-8 text-sm" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">{t("cs.csms.department")}</Label>
+                        <Input value={csDepartment} onChange={(e) => setCsDepartment(e.target.value)} placeholder={t("cs.csms.departmentPlaceholder")} className="h-8 text-sm" />
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{t("cs.csms.specialties")}</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {SPECIALTIES.map((spec) => (
+                          <div key={spec} className="flex items-center space-x-2">
+                            <Checkbox id={`cs-${spec}`} checked={csSpecialty.includes(spec)} onCheckedChange={() => toggleCsSpecialty(spec)} />
+                            <label htmlFor={`cs-${spec}`} className="text-xs cursor-pointer">{t(`cs.status.${spec}`)}</label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <Separator />
+                  </CollapsibleContent>
+                </Collapsible>
 
-            <Separator />
+                {/* Permissions Table */}
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground mb-2">{t("team.modulePermissions")}</p>
 
-            {/* Module Permissions — Accordion */}
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-muted-foreground">{t("team.modulePermissions")}</p>
+                  {/* Table header */}
+                  <div className="grid grid-cols-[1fr_56px_56px_56px_56px] gap-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-3 pb-1 sticky top-0 bg-background z-10">
+                    <span>{t("team.module")}</span>
+                    {ALL_ACTIONS.map((a) => (
+                      <span key={a} className="text-center">{t(`team.perm.${a}`)}</span>
+                    ))}
+                  </div>
 
-              {/* Column header */}
-              <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-3 pb-1">
-                <span>{t("team.module")}</span>
-                {ALL_ACTIONS.map((a) => (
-                  <span key={a} className="text-center w-10">{t(`team.perm.${a}`)}</span>
-                ))}
-              </div>
+                  {/* Permission groups - flat table */}
+                  <div className="space-y-2">
+                    {PERMISSION_TREE.map((group) => {
+                      const parentPerm = permissions.get(group.key) ?? { module: group.key, can_view: false, can_edit: false, can_delete: false, can_manage: false };
+                      const anyActive = groupHasAnyView(group);
+                      const meta = GROUP_META[group.key];
+                      const Icon = meta?.icon ?? Settings;
 
-              <Accordion type="multiple" defaultValue={PERMISSION_TREE.map((g) => g.key)} className="space-y-1">
-                {PERMISSION_TREE.map((group) => {
-                  const parentPerm = permissions.get(group.key) ?? { module: group.key, can_view: false, can_edit: false, can_delete: false, can_manage: false };
-                  const anyActive = groupHasAnyView(group);
+                      return (
+                        <div key={group.key} className="rounded-lg border border-border overflow-hidden">
+                          {/* Group header */}
+                          <div className={cn("flex items-center gap-2 px-3 py-2", meta?.color || "bg-muted")}>
+                            <Icon className="h-4 w-4 shrink-0" />
+                            <span className="text-sm font-semibold flex-1">{t(group.labelKey)}</span>
+                            <button
+                              type="button"
+                              onClick={() => !isAdminToggle && toggleGroupAll(group, !anyActive)}
+                              disabled={isAdminToggle}
+                              className={cn(
+                                "px-2 py-0.5 text-[10px] font-medium rounded-full transition-colors",
+                                anyActive || isAdminToggle
+                                  ? "bg-primary/20 text-primary"
+                                  : "bg-background/60 text-muted-foreground hover:bg-background"
+                              )}
+                            >
+                              {anyActive || isAdminToggle ? t("team.perm.enabled") : t("team.perm.enableAll")}
+                            </button>
+                            {/* Parent switches */}
+                            <div className="grid grid-cols-4 gap-1 ml-2">
+                              {ALL_ACTIONS.map((action) => {
+                                const isRelevant = group.actions.includes(action);
+                                const isDisabled = isAdminToggle || (action !== "view" && action !== "manage" && !parentPerm.can_view);
+                                return (
+                                  <div key={action} className="flex justify-center w-[56px]">
+                                    {isRelevant ? (
+                                      <Switch
+                                        checked={isAdminToggle || (parentPerm[fieldMap[action]] as boolean)}
+                                        onCheckedChange={() => togglePerm(group.key, fieldMap[action])}
+                                        disabled={isDisabled}
+                                        className="scale-[0.65]"
+                                      />
+                                    ) : (
+                                      <div className="w-9 h-5" />
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
 
-                  return (
-                    <AccordionItem key={group.key} value={group.key} className="border rounded-lg overflow-hidden">
-                      <div className="flex items-center">
-                        {/* Toggle all button */}
-                        <button
-                          type="button"
-                          onClick={() => !isAdminToggle && toggleGroupAll(group, !anyActive)}
-                          disabled={isAdminToggle}
-                          className={cn(
-                            "px-2 py-1 text-[10px] font-medium rounded-sm m-1.5 transition-colors shrink-0",
-                            anyActive || isAdminToggle
-                              ? "bg-primary/10 text-primary hover:bg-primary/20"
-                              : "bg-muted text-muted-foreground hover:bg-muted/70"
-                          )}
-                        >
-                          {t("team.perm.enableAll")}
-                        </button>
+                          {/* Children rows */}
+                          <div className="divide-y divide-border/50">
+                            {(group.children ?? []).map((child) => {
+                              const childPerm = permissions.get(child.key) ?? { module: child.key, can_view: false, can_edit: false, can_delete: false, can_manage: false };
 
-                        {/* Parent perm row inside trigger */}
-                        <AccordionTrigger className="flex-1 px-2 py-2 hover:no-underline [&>svg]:ml-auto">
-                          <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 items-center flex-1 mr-2">
-                            <span className="text-sm font-semibold text-left">{t(group.labelKey)}</span>
-                            {ALL_ACTIONS.map((action) => {
-                              const isRelevant = group.actions.includes(action);
-                              const fieldMap: Record<Action, keyof Permission> = { view: "can_view", edit: "can_edit", delete: "can_delete", manage: "can_manage" };
-                              const isDisabled = isAdminToggle || (action !== "view" && action !== "manage" && !parentPerm.can_view);
+                              const isDisabledAction = (action: Action): boolean => {
+                                if (isAdminToggle) return true;
+                                if (action === "edit" || action === "delete") return !childPerm.can_view;
+                                return false;
+                              };
+
                               return (
-                                <div key={action} className="flex justify-center w-10">
-                                  {isRelevant ? (
-                                    <Switch
-                                      checked={isAdminToggle || (parentPerm[fieldMap[action]] as boolean)}
-                                      onCheckedChange={() => togglePerm(group.key, fieldMap[action])}
-                                      onClick={(e) => e.stopPropagation()}
-                                      disabled={isDisabled}
-                                      className="scale-75"
-                                    />
-                                  ) : (
-                                    <div className="w-9 h-5" />
-                                  )}
+                                <div key={child.key} className="grid grid-cols-[1fr_56px_56px_56px_56px] gap-1 items-center px-3 py-1.5 hover:bg-muted/30 transition-colors">
+                                  <span className="text-sm text-muted-foreground pl-6">
+                                    {t(child.labelKey)}
+                                  </span>
+                                  {ALL_ACTIONS.map((action) => {
+                                    const isRelevant = child.actions.includes(action);
+                                    return (
+                                      <div key={action} className="flex justify-center">
+                                        {isRelevant ? (
+                                          <Switch
+                                            checked={isAdminToggle || (childPerm[fieldMap[action]] as boolean)}
+                                            onCheckedChange={() => togglePerm(child.key, fieldMap[action])}
+                                            disabled={isDisabledAction(action)}
+                                            className="scale-[0.65]"
+                                          />
+                                        ) : (
+                                          <div className="w-9 h-5" />
+                                        )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               );
                             })}
                           </div>
-                        </AccordionTrigger>
-                      </div>
-
-                      <AccordionContent className="pb-2 px-2">
-                        <div className="space-y-1 pt-1">
-                          {(group.children ?? []).map((child) => {
-                            const childPerm = permissions.get(child.key) ?? { module: child.key, can_view: false, can_edit: false, can_delete: false, can_manage: false };
-                            return (
-                              <PermRow
-                                key={child.key}
-                                node={child}
-                                perm={childPerm}
-                                isAdminToggle={isAdminToggle}
-                                onToggle={togglePerm}
-                                isChild
-                              />
-                            );
-                          })}
                         </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  );
-                })}
-              </Accordion>
-            </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
 
-            <div className="flex justify-end gap-2 pt-2">
+            {/* Footer */}
+            <div className="px-6 py-3 border-t border-border flex justify-end gap-2 bg-background">
               <Button variant="outline" onClick={() => onOpenChange(false)}>{t("team.cancel")}</Button>
               <Button onClick={handleSave} disabled={saving}>
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {t("team.save")}
               </Button>
             </div>
-          </div>
+          </>
         )}
       </DialogContent>
     </Dialog>
