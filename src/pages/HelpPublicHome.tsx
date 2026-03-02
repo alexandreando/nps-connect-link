@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, FileText, ChevronRight } from "lucide-react";
+import HelpPublicLayout from "@/components/help/HelpPublicLayout";
 
 interface SiteSettings {
   home_title: string;
@@ -10,6 +10,16 @@ interface SiteSettings {
   theme: string;
   brand_logo_url: string | null;
   brand_primary_color: string;
+  hero_image_url?: string | null;
+  hero_overlay_opacity?: number | null;
+  favicon_url?: string | null;
+  header_bg_color?: string | null;
+  header_links_json?: any;
+  footer_logo_url?: string | null;
+  footer_text?: string | null;
+  footer_bg_color?: string | null;
+  footer_links_json?: any;
+  footer_social_json?: any;
 }
 
 interface Collection {
@@ -40,23 +50,18 @@ export default function HelpPublicHome() {
   const [loading, setLoading] = useState(true);
   const [resolvedSlug, setResolvedSlug] = useState<string | null>(tenantSlug || null);
 
-  // Helper to build links - always use tenant slug when available
   const helpBase = resolvedSlug ? `/${resolvedSlug}/help` : "/help";
 
-  useEffect(() => {
-    loadTenant();
-  }, [tenantSlug]);
+  useEffect(() => { loadTenant(); }, [tenantSlug]);
 
   const loadTenant = async () => {
     if (tenantSlug) {
-      // Try slug first, then id
       const { data: tenant } = await supabase.from("tenants").select("id, slug").eq("slug", tenantSlug).maybeSingle();
       if (tenant) { setTenantId(tenant.id); setResolvedSlug(tenant.slug); return; }
       const { data: t2 } = await supabase.from("tenants").select("id, slug").eq("id", tenantSlug).maybeSingle();
       if (t2) { setTenantId(t2.id); setResolvedSlug(t2.slug); return; }
       setLoading(false);
     } else {
-      // No tenantSlug: resolve tenant and redirect to canonical URL
       let resolvedTenantId: string | null = null;
       const { data: site } = await supabase.from("help_site_settings").select("tenant_id").limit(1).maybeSingle();
       if (site) resolvedTenantId = site.tenant_id;
@@ -66,18 +71,13 @@ export default function HelpPublicHome() {
       }
       if (resolvedTenantId) {
         const { data: t } = await supabase.from("tenants").select("slug").eq("id", resolvedTenantId).single();
-        if (t?.slug) {
-          navigate(`/${t.slug}/help`, { replace: true });
-          return;
-        }
+        if (t?.slug) { navigate(`/${t.slug}/help`, { replace: true }); return; }
       }
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (tenantId) loadData();
-  }, [tenantId]);
+  useEffect(() => { if (tenantId) loadData(); }, [tenantId]);
 
   const loadData = async () => {
     const [{ data: site }, { data: cols }, { data: arts }] = await Promise.all([
@@ -89,7 +89,6 @@ export default function HelpPublicHome() {
     if (site) setSettings(site as any);
     else setSettings({ home_title: "Central de Ajuda", home_subtitle: "Como podemos ajudar?", theme: "light", brand_logo_url: null, brand_primary_color: "#3B82F6" });
 
-    // Count articles per collection
     const countMap: Record<string, number> = {};
     (arts ?? []).forEach(a => { if (a.collection_id) countMap[a.collection_id] = (countMap[a.collection_id] || 0) + 1; });
     setCollections((cols ?? []).map(c => ({ ...c, article_count: countMap[c.id] || 0 })));
@@ -112,49 +111,120 @@ export default function HelpPublicHome() {
     return () => clearTimeout(timer);
   }, [search, tenantId]);
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>;
-  if (!tenantId) return <div className="flex items-center justify-center min-h-screen text-muted-foreground">Help Center not found</div>;
+  if (loading) return (
+    <div className="light flex items-center justify-center min-h-screen" style={{ background: "#fff" }}>
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: "#3B82F6", borderTopColor: "transparent" }} />
+    </div>
+  );
+  if (!tenantId) return (
+    <div className="light flex items-center justify-center min-h-screen" style={{ background: "#fff", color: "#6b7280" }}>Help Center not found</div>
+  );
 
   const primaryColor = settings?.brand_primary_color || "#3B82F6";
+  const heroImage = settings?.hero_image_url;
+  const overlayOpacity = settings?.hero_overlay_opacity ?? 50;
 
   return (
-    <div className="min-h-screen bg-background">
+    <HelpPublicLayout settings={settings} helpBase={helpBase}>
       {/* Hero */}
-      <div className="py-16 px-4 text-center" style={{ background: `linear-gradient(135deg, ${primaryColor}10, ${primaryColor}05)` }}>
-        {settings?.brand_logo_url && <img src={settings.brand_logo_url} alt="" className="h-10 mx-auto mb-6" />}
-        <h1 className="text-3xl font-bold mb-2">{settings?.home_title}</h1>
-        <p className="text-muted-foreground mb-8">{settings?.home_subtitle}</p>
-        <div className="relative max-w-lg mx-auto">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar na base de conhecimento..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-10 h-12 text-base"
-          />
-          {searchResults.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-lg shadow-lg z-10 max-h-64 overflow-auto">
-              {searchResults.map(r => (
-                <Link key={r.id} to={`${helpBase}/a/${r.slug}`} className="block px-4 py-3 hover:bg-muted border-b last:border-0">
-                  <p className="font-medium text-sm">{r.title}</p>
-                  {r.subtitle && <p className="text-xs text-muted-foreground">{r.subtitle}</p>}
-                </Link>
-              ))}
-            </div>
-          )}
+      <div
+        className="relative py-20 px-4 text-center overflow-hidden"
+        style={{
+          background: heroImage
+            ? undefined
+            : `linear-gradient(135deg, ${primaryColor}15, ${primaryColor}05, #f9fafb)`,
+        }}
+      >
+        {heroImage && (
+          <>
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: `url(${heroImage})` }}
+            />
+            <div
+              className="absolute inset-0"
+              style={{ backgroundColor: primaryColor, opacity: overlayOpacity / 100 }}
+            />
+          </>
+        )}
+
+        <div className="relative z-10 max-w-2xl mx-auto">
+          <h1
+            className="text-4xl font-bold mb-3 tracking-tight"
+            style={{ color: heroImage ? "#ffffff" : "#111827" }}
+          >
+            {settings?.home_title || "Central de Ajuda"}
+          </h1>
+          <p
+            className="text-lg mb-8"
+            style={{ color: heroImage ? "rgba(255,255,255,0.85)" : "#6b7280" }}
+          >
+            {settings?.home_subtitle || "Como podemos ajudar?"}
+          </p>
+
+          {/* Search */}
+          <div className="relative max-w-lg mx-auto">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5" style={{ color: "#9ca3af" }} />
+            <input
+              placeholder="Buscar na base de conhecimento..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-12 pr-4 h-13 text-base rounded-xl border shadow-lg focus:outline-none focus:ring-2 transition-shadow"
+              style={{
+                backgroundColor: "#ffffff",
+                borderColor: "#e5e7eb",
+                color: "#111827",
+                boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+              }}
+              onFocus={e => { e.target.style.boxShadow = `0 4px 20px ${primaryColor}25`; e.target.style.borderColor = primaryColor; }}
+              onBlur={e => { e.target.style.boxShadow = "0 4px 20px rgba(0,0,0,0.08)"; e.target.style.borderColor = "#e5e7eb"; }}
+            />
+            {searchResults.length > 0 && (
+              <div
+                className="absolute top-full left-0 right-0 mt-2 rounded-xl shadow-xl z-10 max-h-72 overflow-auto border"
+                style={{ backgroundColor: "#ffffff", borderColor: "#e5e7eb" }}
+              >
+                {searchResults.map(r => (
+                  <Link
+                    key={r.id}
+                    to={`${helpBase}/a/${r.slug}`}
+                    className="flex items-center gap-3 px-4 py-3 transition-colors border-b last:border-0"
+                    style={{ borderColor: "#f3f4f6" }}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f9fafb")}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = "#ffffff")}
+                  >
+                    <FileText className="h-4 w-4 flex-shrink-0" style={{ color: "#9ca3af" }} />
+                    <div>
+                      <p className="font-medium text-sm" style={{ color: "#111827" }}>{r.title}</p>
+                      {r.subtitle && <p className="text-xs mt-0.5" style={{ color: "#6b7280" }}>{r.subtitle}</p>}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-12">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12">
         {/* Collections grid */}
         {collections.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-14">
             {collections.map(col => (
-              <Link key={col.id} to={`${helpBase}/c/${col.slug}`} className="block p-6 border rounded-lg hover:shadow-md transition-shadow bg-card">
-                <span className="text-2xl mb-3 block">{col.icon || "📚"}</span>
-                <h3 className="font-semibold mb-1">{col.name}</h3>
-                {col.description && <p className="text-sm text-muted-foreground mb-2">{col.description}</p>}
-                <span className="text-xs text-muted-foreground">{col.article_count} artigos</span>
+              <Link
+                key={col.id}
+                to={`${helpBase}/c/${col.slug}`}
+                className="group block p-6 rounded-xl border transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+                style={{ backgroundColor: "#ffffff", borderColor: "#e5e7eb" }}
+              >
+                <span className="text-3xl mb-3 block">{col.icon || "📚"}</span>
+                <h3 className="font-semibold text-base mb-1.5" style={{ color: "#111827" }}>{col.name}</h3>
+                {col.description && (
+                  <p className="text-sm leading-relaxed mb-3 line-clamp-2" style={{ color: "#6b7280" }}>{col.description}</p>
+                )}
+                <span className="inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full" style={{ backgroundColor: `${primaryColor}10`, color: primaryColor }}>
+                  {col.article_count} artigos
+                </span>
               </Link>
             ))}
           </div>
@@ -163,18 +233,31 @@ export default function HelpPublicHome() {
         {/* Recent articles */}
         {recentArticles.length > 0 && (
           <div>
-            <h2 className="text-lg font-semibold mb-4">Artigos Recentes</h2>
+            <h2 className="text-xl font-semibold mb-5" style={{ color: "#111827" }}>Artigos Recentes</h2>
             <div className="space-y-2">
               {recentArticles.map(art => (
-                <Link key={art.id} to={`${helpBase}/a/${art.slug}`} className="block p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                  <p className="font-medium text-sm">{art.title}</p>
-                  {art.subtitle && <p className="text-xs text-muted-foreground mt-0.5">{art.subtitle}</p>}
+                <Link
+                  key={art.id}
+                  to={`${helpBase}/a/${art.slug}`}
+                  className="flex items-center justify-between p-4 rounded-lg border transition-colors group"
+                  style={{ borderColor: "#f3f4f6" }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f9fafb")}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+                >
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-4 w-4 flex-shrink-0" style={{ color: "#d1d5db" }} />
+                    <div>
+                      <p className="font-medium text-sm" style={{ color: "#111827" }}>{art.title}</p>
+                      {art.subtitle && <p className="text-xs mt-0.5" style={{ color: "#6b7280" }}>{art.subtitle}</p>}
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "#9ca3af" }} />
                 </Link>
               ))}
             </div>
           </div>
         )}
       </div>
-    </div>
+    </HelpPublicLayout>
   );
 }
