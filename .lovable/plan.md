@@ -1,107 +1,100 @@
 
 
-# Redesign da Tela de Permissoes
+# Redesign da Tabela de Permissoes - Dropdown de Nivel + Rolagem
 
-## Visao Geral
+## Problema Atual
 
-Refazer o `UserPermissionsDialog` com melhor UX/UI, adicionar permissoes faltantes, perfis pre-configurados e opcao de copiar permissoes de outro usuario.
+1. **4 switches por linha** e dificil de entender e visualmente poluido
+2. **Sem rolagem funcional** - o dialog nao rola e o usuario nao consegue ver todos os modulos
 
-## 1. Permissoes Faltantes a Adicionar
+## Solucao
 
-Itens que existem no sidebar mas nao estao no `PERMISSION_TREE`:
+### 1. Substituir switches por um Dropdown de Nivel por Linha
 
-| Modulo | Key | Descricao |
-|--------|-----|-----------|
-| CS | `cs.dashboard` | Dashboard CS (visao geral) |
-| CS | `cs.csms` | Gestao de CSMs |
-| Chat | `chat.settings.custom_fields` | Campos personalizados do chat |
-| Chat | `chat.settings.auto_rules` | Regras automaticas |
-| Chat | `chat.settings.business_hours` | Horario comercial |
-| Chat | `chat.settings.assignment` | Config de distribuicao |
-| Help | `help.overview` | Dashboard do Help Center |
+Cada linha (modulo pai e submodulo) tera um unico `Select` com niveis hierarquicos. Cada nivel inclui os anteriores:
 
-## 2. Perfis Pre-Configurados
+| Nivel | can_view | can_edit | can_delete | can_manage |
+|-------|----------|----------|------------|------------|
+| Nenhum | false | false | false | false |
+| Visualizar | true | false | false | false |
+| Editar | true | true | false | false |
+| Excluir | true | true | true | false |
+| Gerenciar | true | true | true | true |
 
-Adicionar um select/dropdown no topo da secao de permissoes com perfis prontos:
+O dropdown so mostra as opcoes relevantes para cada linha (baseado no `actions` do node). Ex: se um submodulo so tem `["view"]`, o dropdown mostra apenas "Nenhum" e "Visualizar".
 
-| Perfil | Descricao | Permissoes |
-|--------|-----------|------------|
-| **Administrador** | Acesso total | Liga admin toggle |
-| **Gerente CS** | CS completo + NPS + Contatos + Relatorios | Todos os modulos CS, NPS, Contatos com view/edit/manage |
-| **Atendente Chat** | Workspace + historico + macros | Chat workspace, history, macros, banners (view) |
-| **Analista NPS** | Dashboard + campanhas (sem settings) | NPS dashboard e campaigns (view/edit) |
-| **Visualizador** | Somente leitura em tudo | can_view em todos os modulos |
-| **Personalizado** | Nenhuma pre-selecao | Estado atual / manual |
+### 2. Submodulos desabilitados se o pai estiver "Nenhum"
 
-Ao selecionar um perfil, as permissoes sao carregadas automaticamente nos toggles abaixo. O usuario pode ajustar antes de salvar.
+- Se o modulo pai estiver em "Nenhum", todas as linhas filhas ficam desabilitadas (grayed out) e nao e possivel selecionar nivel nelas
+- Ao habilitar o pai (qualquer nivel acima de Nenhum), os filhos ficam disponiveis para configuracao
 
-## 3. Copiar Permissoes de Outro Usuario
+### 3. Corrigir rolagem do Dialog
 
-Adicionar um botao "Copiar de outro usuario" que abre um dropdown/popover com a lista de membros do tenant. Ao selecionar, carrega as permissoes daquele usuario (incluindo admin toggle) para o formulario atual, permitindo ajuste antes de salvar.
+- Trocar `Dialog` por `Sheet` lateral (`side="right"`) com largura fixa, que tem scroll nativo melhor
+- Ou manter o Dialog mas garantir `overflow-y-auto` no corpo interno com `max-h` calculado corretamente
+- Adicionar `overflow-y-auto` explicito no container de permissoes em vez de depender do `ScrollArea` do Radix
 
-## 4. Redesign do Layout
-
-### Estrutura do Dialog (agora `Sheet` lateral ou Dialog maior)
+### Layout Proposto
 
 ```text
 +--------------------------------------------------+
 | [Avatar] Nome do usuario                          |
 | email@empresa.com                                 |
 +--------------------------------------------------+
-| [Admin Toggle]  [Perfil: Dropdown v]  [Copiar v]  |
+| [Admin Toggle]  [Perfil: v]  [Copiar de usuario]  |
 +--------------------------------------------------+
-| Informacoes CS (collapsible, mais compacto)       |
-| Telefone | Departamento | Especialidades          |
+| CS Info (collapsible)                              |
 +--------------------------------------------------+
-| Permissoes por Modulo                              |
+| Permissoes                                         |
 |                                                    |
-| Header: Modulo | Ver | Editar | Excluir | Gerenc. |
-|                                                    |
-| [CS]  ============================================ |
-|   Dashboard CS        [x]                          |
-|   Kanban              [x] [x]                      |
-|   Trilhas             [x] [x] [x]                  |
+| Modulo                              Nivel          |
+| ------------------------------------------------- |
+| [icon] CS                         [Gerenciar v]    |
+|   Dashboard CS                    [Visualizar v]   |
+|   Kanban                          [Editar v]       |
+|   Trilhas                         [Excluir v]      |
 |   ...                                              |
 |                                                    |
-| [NPS] ============================================ |
+| [icon] Chat                       [Nenhum v]       |
+|   Workspace (desabilitado)        [-- v]           |
+|   Historico (desabilitado)        [-- v]           |
 |   ...                                              |
 +--------------------------------------------------+
 | [Cancelar]                           [Salvar]      |
 +--------------------------------------------------+
 ```
 
-### Melhorias de UI/UX
+## Mudancas Tecnicas
 
-- **Dialog mais largo**: `sm:max-w-3xl` para dar mais espaco
-- **Secao CS collapsible**: os campos de telefone/departamento/especialidades ficam em um collapsible para nao poluir
-- **Barra de acoes no topo**: Admin toggle, dropdown de perfil e botao copiar lado a lado em uma faixa visual destacada
-- **Tabela de permissoes mais limpa**: remover o accordion e usar uma tabela flat com separadores visuais por grupo (header colorido por modulo). Isso melhora a escaneabilidade
-- **Indicador visual por grupo**: icone + cor sutil no header de cada grupo
-- **Switch menores e alinhados**: manter scale-75 mas com grid mais limpo
-- **Scroll interno**: area de permissoes com scroll independente para manter header/footer sempre visiveis
-- **Badge de perfil selecionado**: mostrar qual perfil esta ativo (ou "Personalizado" se foi editado manualmente)
+### `src/components/UserPermissionsDialog.tsx`
 
-## 5. Mudancas por Arquivo
+- **Remover** a grid de 4 switches e a header "Ver | Editar | Excluir | Gerenciar"
+- **Adicionar** funcao `getLevel(perm)` que retorna o nivel atual baseado nos booleans
+- **Adicionar** funcao `setLevel(module, level)` que seta os booleans corretos
+- **Trocar** cada linha por: `Nome do modulo` + `Select` com opcoes de nivel filtradas pelo `actions` do node
+- **Logica de pai**: filhos ficam `disabled` quando `getLevel(parentKey) === "none"`
+- **Corrigir scroll**: usar `overflow-y-auto` com `max-h-[calc(94vh-280px)]` na area de permissoes, removendo dependencia do ScrollArea para o body principal
+
+### Niveis disponiveis por node
+
+```typescript
+function availableLevels(actions: Action[]): Level[] {
+  const levels: Level[] = ["none"];
+  if (actions.includes("view")) levels.push("view");
+  if (actions.includes("edit")) levels.push("edit");
+  if (actions.includes("delete")) levels.push("delete");
+  if (actions.includes("manage")) levels.push("manage");
+  return levels;
+}
+```
+
+### Arquivos modificados
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/components/UserPermissionsDialog.tsx` | Redesign completo: novo layout, perfis, copiar usuario, permissoes faltantes |
-| `src/locales/pt-BR.ts` | Labels para novos modulos e perfis |
-| `src/locales/en.ts` | Labels para novos modulos e perfis |
+| `src/components/UserPermissionsDialog.tsx` | Dropdown de nivel, logica pai/filho, fix scroll |
+| `src/locales/pt-BR.ts` | Labels: "Nenhum", "Visualizar", "Editar", "Excluir", "Gerenciar" |
+| `src/locales/en.ts` | Labels: "None", "View", "Edit", "Delete", "Manage" |
 
-## 6. Detalhes Tecnicos
-
-### Perfis pre-configurados
-- Definidos como constante `PRESET_PROFILES` no componente
-- Cada perfil e um mapa de `module -> { can_view, can_edit, can_delete, can_manage }`
-- Ao selecionar, popula o state `permissions` e `isAdminToggle`
-- Qualquer alteracao manual muda o label do perfil para "Personalizado"
-
-### Copiar permissoes
-- Busca `user_permissions` + `user_roles` do usuario selecionado
-- Carrega no formulario atual sem salvar (usuario pode ajustar)
-- Lista de usuarios vem de `user_profiles` do mesmo tenant (excluindo o usuario sendo editado)
-
-### Sem mudancas de banco
-- Nenhuma migration necessaria. As novas keys de permissao serao salvas na tabela `user_permissions` existente (campo `module` ja e texto livre)
+Nenhuma mudanca de banco de dados necessaria.
 
