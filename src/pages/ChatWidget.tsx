@@ -475,11 +475,11 @@ const ChatWidget = () => {
     return () => { supabase.removeChannel(channel); };
   }, [roomId, phase]);
 
-  // Realtime subscription for proactive chats (new rooms created by attendants)
+  // Realtime subscription for proactive chats (new rooms created by attendants) and reopened rooms
   useEffect(() => {
     if (!visitorId) return;
 
-    const channel = supabase
+    const insertChannel = supabase
       .channel(`widget-new-rooms-${visitorId}`)
       .on("postgres_changes", {
         event: "INSERT",
@@ -509,6 +509,19 @@ const ChatWidget = () => {
           }
           postMsg("chat-ready");
         }
+        // Notify unread for broadcast/proactive rooms when widget is closed or user is in another room
+        if (!isOpenRef.current || (roomId && roomId !== newRoom.id)) {
+          setUnreadCount(prev => {
+            const next = prev + 1;
+            if (isEmbed) window.parent.postMessage({ type: "chat-unread-count", count: next }, "*");
+            return next;
+          });
+          try {
+            const audio = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbsGczGjlqj8Lb1LRiQhY0YYa95+3UdFQmLFl7p+Xj2p6MiWpXdZqXh3FxOBImWVhzl5KCcHM1EjhWX3eVkYBxcjURO1hdepCSfm5pJytRVnqNjoFyey8lRE55lYd5ciwnNk55ioJ3ay0vQU94jXlwYSAyREhqfG9eLjAqI0E=");
+            audio.volume = 0.25;
+            audio.play().catch(() => {});
+          } catch {}
+        }
         // If viewing history, refresh the list
         if (phase === "history") {
           fetchHistory(visitorId);
@@ -516,8 +529,60 @@ const ChatWidget = () => {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [visitorId, phase, fetchHistory]);
+    // Listen for reopened rooms (status change from closed -> active/waiting)
+    const updateChannel = supabase
+      .channel(`widget-reopen-rooms-${visitorId}`)
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "chat_rooms",
+        filter: `visitor_id=eq.${visitorId}`,
+      }, async (payload) => {
+        const updatedRoom = payload.new as any;
+        const oldRoom = payload.old as any;
+        // Detect reopen: was closed, now active or waiting
+        if (oldRoom.status === "closed" && (updatedRoom.status === "active" || updatedRoom.status === "waiting")) {
+          // If not in an active chat, auto-enter
+          if (phase !== "chat" && phase !== "waiting" && phase !== "csat") {
+            setRoomId(updatedRoom.id);
+            setMessages([]);
+            setCsatScore(0);
+            setCsatComment("");
+            if (updatedRoom.status === "active") {
+              setPhase("chat");
+              if (updatedRoom.attendant_id) {
+                const { data: att } = await supabase.from("attendant_profiles").select("display_name").eq("id", updatedRoom.attendant_id).maybeSingle();
+                setAttendantName(att?.display_name ?? null);
+              }
+            } else {
+              setPhase("waiting");
+            }
+            postMsg("chat-ready");
+          }
+          // Notify unread
+          if (!isOpenRef.current || (roomId && roomId !== updatedRoom.id)) {
+            setUnreadCount(prev => {
+              const next = prev + 1;
+              if (isEmbed) window.parent.postMessage({ type: "chat-unread-count", count: next }, "*");
+              return next;
+            });
+            try {
+              const audio = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbsGczGjlqj8Lb1LRiQhY0YYa95+3UdFQmLFl7p+Xj2p6MiWpXdZqXh3FxOBImWVhzl5KCcHM1EjhWX3eVkYBxcjURO1hdepCSfm5pJytRVnqNjoFyey8lRE55lYd5ciwnNk55ioJ3ay0vQU94jXlwYSAyREhqfG9eLjAqI0E=");
+              audio.volume = 0.25;
+              audio.play().catch(() => {});
+            } catch {}
+          }
+          // If viewing history, refresh
+          if (phase === "history") fetchHistory(visitorId);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(insertChannel);
+      supabase.removeChannel(updateChannel);
+    };
+  }, [visitorId, phase, fetchHistory, roomId]);
 
   // Trigger scroll when phase changes to chat/viewTranscript + update read status
   useEffect(() => {
