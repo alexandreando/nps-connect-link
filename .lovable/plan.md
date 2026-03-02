@@ -1,135 +1,107 @@
 
-# Mensagens em Massa (Broadcast) no Chat
+
+# Redesign da Tela de Permissoes
 
 ## Visao Geral
 
-Criar um modulo completo de **Mensagens em Massa** (Broadcast) dentro do Chat, permitindo que atendentes enviem mensagens proativas para multiplos contatos simultaneamente, com agendamento, status (rascunho/live), e metricas de engajamento (visualizacao, cliques).
+Refazer o `UserPermissionsDialog` com melhor UX/UI, adicionar permissoes faltantes, perfis pre-configurados e opcao de copiar permissoes de outro usuario.
 
-## Novas Tabelas
+## 1. Permissoes Faltantes a Adicionar
 
-### `chat_broadcasts`
-Armazena cada campanha de broadcast.
+Itens que existem no sidebar mas nao estao no `PERMISSION_TREE`:
 
-| Coluna | Tipo | Descricao |
-|--------|------|-----------|
-| id | uuid PK | |
-| tenant_id | uuid | |
-| user_id | uuid | Criador |
-| title | text | Nome da campanha |
-| message | text | Conteudo da mensagem |
-| status | text | `draft`, `scheduled`, `live`, `completed`, `cancelled` |
-| scheduled_at | timestamptz | Agendamento (null = imediato) |
-| sent_at | timestamptz | Quando foi disparada |
-| completed_at | timestamptz | Quando terminou de enviar |
-| total_recipients | int | Total de destinatarios |
-| created_at | timestamptz | |
-| updated_at | timestamptz | |
+| Modulo | Key | Descricao |
+|--------|-----|-----------|
+| CS | `cs.dashboard` | Dashboard CS (visao geral) |
+| CS | `cs.csms` | Gestao de CSMs |
+| Chat | `chat.settings.custom_fields` | Campos personalizados do chat |
+| Chat | `chat.settings.auto_rules` | Regras automaticas |
+| Chat | `chat.settings.business_hours` | Horario comercial |
+| Chat | `chat.settings.assignment` | Config de distribuicao |
+| Help | `help.overview` | Dashboard do Help Center |
 
-### `chat_broadcast_recipients`
-Lista de destinatarios de cada broadcast com metricas individuais.
+## 2. Perfis Pre-Configurados
 
-| Coluna | Tipo | Descricao |
-|--------|------|-----------|
-| id | uuid PK | |
-| broadcast_id | uuid FK | |
-| company_contact_id | uuid FK | Contato destinatario |
-| contact_id | uuid FK | Empresa do contato |
-| tenant_id | uuid | |
-| status | text | `pending`, `sent`, `failed` |
-| sent_at | timestamptz | Quando a msg foi enviada |
-| delivered_at | timestamptz | Quando foi entregue/visualizada |
-| clicked_at | timestamptz | Quando clicou em link |
-| chat_room_id | uuid | Sala criada para este envio |
-| created_at | timestamptz | |
+Adicionar um select/dropdown no topo da secao de permissoes com perfis prontos:
 
-### RLS
-- Ambas as tabelas: `tenant_id = get_user_tenant_id(auth.uid())` para todas as operacoes.
-- Realtime habilitado em `chat_broadcasts` para atualizacoes de status.
+| Perfil | Descricao | Permissoes |
+|--------|-----------|------------|
+| **Administrador** | Acesso total | Liga admin toggle |
+| **Gerente CS** | CS completo + NPS + Contatos + Relatorios | Todos os modulos CS, NPS, Contatos com view/edit/manage |
+| **Atendente Chat** | Workspace + historico + macros | Chat workspace, history, macros, banners (view) |
+| **Analista NPS** | Dashboard + campanhas (sem settings) | NPS dashboard e campaigns (view/edit) |
+| **Visualizador** | Somente leitura em tudo | can_view em todos os modulos |
+| **Personalizado** | Nenhuma pre-selecao | Estado atual / manual |
 
-## Logica de Disparo
+Ao selecionar um perfil, as permissoes sao carregadas automaticamente nos toggles abaixo. O usuario pode ajustar antes de salvar.
 
-Uma **Edge Function** `process-chat-broadcasts` sera responsavel por:
+## 3. Copiar Permissoes de Outro Usuario
 
-1. Buscar broadcasts com `status = 'live'` (ou `scheduled` com `scheduled_at <= now()`)
-2. Para cada recipient `pending`:
-   - Resolver/criar visitor (mesma logica do `ProactiveChatDialog`)
-   - Criar `chat_room` com status `active`
-   - Inserir mensagem inicial
-   - Atualizar recipient para `sent`
-3. Ao finalizar todos recipients, marcar broadcast como `completed`
+Adicionar um botao "Copiar de outro usuario" que abre um dropdown/popover com a lista de membros do tenant. Ao selecionar, carrega as permissoes daquele usuario (incluindo admin toggle) para o formulario atual, permitindo ajuste antes de salvar.
 
-Essa function sera agendada via cron (a cada minuto) ou invocada manualmente ao clicar "Enviar agora".
+## 4. Redesign do Layout
 
-## Metricas de Engajamento
-
-- **Visualizacao**: Quando o visitante abre a conversa no widget/portal, atualiza `delivered_at` no recipient (via realtime ou ao carregar mensagens)
-- **Cliques**: Links na mensagem sao rastreados. Quando o visitante clica em um link dentro de uma mensagem de broadcast, o widget registra o evento atualizando `clicked_at`
-- O dashboard do broadcast mostra: total enviados, entregues, visualizados, clicados, taxa de abertura, taxa de clique
-
-## Interface - Nova Pagina `/admin/broadcasts`
-
-### Listagem
-- Tabela com: titulo, status (badge colorido), destinatarios, taxa de abertura, taxa de clique, data criacao, acoes
-- Botao "Nova Mensagem em Massa"
-- Filtros por status
-
-### Dialog/Pagina de Criacao/Edicao
-1. **Titulo** da campanha
-2. **Mensagem** (textarea com preview)
-3. **Selecao de destinatarios**:
-   - Filtro por Empresa (multi-select ou busca)
-   - Filtro por Cargo, Departamento
-   - Lista de contatos com checkboxes (selecao individual ou "Selecionar todos")
-   - Contador de selecionados
-4. **Agendamento**:
-   - "Enviar agora" ou "Agendar para" (date/time picker)
-5. **Acoes**:
-   - "Salvar como rascunho" (status = draft)
-   - "Agendar" (status = scheduled)
-   - "Enviar agora" (status = live)
-
-### Pagina de Detalhes do Broadcast
-- Metricas: cards com Enviados, Entregues, Visualizados, Clicados
-- Tabela de recipients com status individual
-- Preview da mensagem
-
-## Permissionamento
-
-Adicionar novos nodes ao `PERMISSION_TREE` em `UserPermissionsDialog.tsx`:
+### Estrutura do Dialog (agora `Sheet` lateral ou Dialog maior)
 
 ```text
-chat.broadcasts -> view, edit, delete, manage
++--------------------------------------------------+
+| [Avatar] Nome do usuario                          |
+| email@empresa.com                                 |
++--------------------------------------------------+
+| [Admin Toggle]  [Perfil: Dropdown v]  [Copiar v]  |
++--------------------------------------------------+
+| Informacoes CS (collapsible, mais compacto)       |
+| Telefone | Departamento | Especialidades          |
++--------------------------------------------------+
+| Permissoes por Modulo                              |
+|                                                    |
+| Header: Modulo | Ver | Editar | Excluir | Gerenc. |
+|                                                    |
+| [CS]  ============================================ |
+|   Dashboard CS        [x]                          |
+|   Kanban              [x] [x]                      |
+|   Trilhas             [x] [x] [x]                  |
+|   ...                                              |
+|                                                    |
+| [NPS] ============================================ |
+|   ...                                              |
++--------------------------------------------------+
+| [Cancelar]                           [Salvar]      |
++--------------------------------------------------+
 ```
 
-E tambem adicionar ao sidebar a verificacao `hasPermission("chat.broadcasts", "view")`.
+### Melhorias de UI/UX
 
-### Outras permissoes faltantes a adicionar
+- **Dialog mais largo**: `sm:max-w-3xl` para dar mais espaco
+- **Secao CS collapsible**: os campos de telefone/departamento/especialidades ficam em um collapsible para nao poluir
+- **Barra de acoes no topo**: Admin toggle, dropdown de perfil e botao copiar lado a lado em uma faixa visual destacada
+- **Tabela de permissoes mais limpa**: remover o accordion e usar uma tabela flat com separadores visuais por grupo (header colorido por modulo). Isso melhora a escaneabilidade
+- **Indicador visual por grupo**: icone + cor sutil no header de cada grupo
+- **Switch menores e alinhados**: manter scale-75 mas com grid mais limpo
+- **Scroll interno**: area de permissoes com scroll independente para manter header/footer sempre visiveis
+- **Badge de perfil selecionado**: mostrar qual perfil esta ativo (ou "Personalizado" se foi editado manualmente)
 
-Revisar e adicionar ao PERMISSION_TREE nodes para funcionalidades que ja existem mas nao estao no permissionamento:
-- `chat.dashboard` -> view (Dashboard do Chat)
-- `chat.csat` -> view (Relatorio CSAT)
-- `chat.gerencial` -> view (Dashboard Gerencial)
-
-## Mudancas por Arquivo
+## 5. Mudancas por Arquivo
 
 | Arquivo | Mudanca |
 |---------|---------|
-| Migration SQL | Criar tabelas `chat_broadcasts` e `chat_broadcast_recipients` com RLS |
-| `supabase/functions/process-chat-broadcasts/index.ts` | Edge Function de processamento |
-| `src/pages/AdminBroadcasts.tsx` | Nova pagina de listagem + CRUD |
-| `src/App.tsx` | Rota `/admin/broadcasts` |
-| `src/components/AppSidebar.tsx` | Menu item "Mensagens em Massa" no grupo Chat |
-| `src/components/UserPermissionsDialog.tsx` | Adicionar `chat.broadcasts`, `chat.dashboard`, `chat.csat`, `chat.gerencial` |
-| `src/locales/pt-BR.ts` + `en.ts` | Labels de traducao |
-| `supabase/config.toml` | Config da nova edge function (verify_jwt = false) |
+| `src/components/UserPermissionsDialog.tsx` | Redesign completo: novo layout, perfis, copiar usuario, permissoes faltantes |
+| `src/locales/pt-BR.ts` | Labels para novos modulos e perfis |
+| `src/locales/en.ts` | Labels para novos modulos e perfis |
 
-## Fluxo do Usuario
+## 6. Detalhes Tecnicos
 
-```text
-1. Acessa "Mensagens em Massa" no menu Chat
-2. Clica "Nova Mensagem"
-3. Escreve titulo e mensagem
-4. Filtra por empresa e seleciona contatos
-5. Escolhe: Rascunho / Agendar / Enviar agora
-6. Acompanha metricas na listagem e pagina de detalhes
-```
+### Perfis pre-configurados
+- Definidos como constante `PRESET_PROFILES` no componente
+- Cada perfil e um mapa de `module -> { can_view, can_edit, can_delete, can_manage }`
+- Ao selecionar, popula o state `permissions` e `isAdminToggle`
+- Qualquer alteracao manual muda o label do perfil para "Personalizado"
+
+### Copiar permissoes
+- Busca `user_permissions` + `user_roles` do usuario selecionado
+- Carrega no formulario atual sem salvar (usuario pode ajustar)
+- Lista de usuarios vem de `user_profiles` do mesmo tenant (excluindo o usuario sendo editado)
+
+### Sem mudancas de banco
+- Nenhuma migration necessaria. As novas keys de permissao serao salvas na tabela `user_permissions` existente (campo `module` ja e texto livre)
+
