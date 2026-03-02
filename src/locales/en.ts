@@ -1513,4 +1513,15 @@ export default {
   "chat.tags.usage_count": "uses",
   "chat.tags.delete_confirm": "Are you sure you want to delete this tag? It will be removed from all conversations.",
   "chat.tags.no_tags": "No tags registered",
+
+  // Image Upload
+  "imageUpload.upload": "Upload",
+  "imageUpload.change": "Change",
+  "imageUpload.remove": "Remove",
+  "imageUpload.dragHint": "Drag an image or click to upload",
+  "imageUpload.invalidType": "File format not accepted",
+  "imageUpload.tooLarge": "File too large (max: {max}MB)",
+  "imageUpload.success": "Image uploaded successfully",
+  "imageUpload.error": "Error uploading image",
+  "imageUpload.transparentBg": "Transparent background recommended",
 };
