@@ -41,6 +41,7 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
 
     let attendants: any[] = [];
     let myTeamAttendantIds: string[] = [];
+    let otherAttendants: any[] = [];
 
     if (masterImpersonating && currentTenantId) {
       const { data } = await supabase
@@ -49,10 +50,35 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
         .eq("tenant_id", currentTenantId);
       attendants = data ?? [];
     } else if (adminStatus) {
-      const { data } = await supabase
+      // Fetch all tenant attendants
+      const { data: allData } = await supabase
         .from("attendant_profiles")
         .select("id, display_name, user_id, status");
-      attendants = data ?? [];
+      const allAttendants = allData ?? [];
+
+      // Check if admin belongs to any team to split my team vs other teams
+      if (myProfile) {
+        const { data: myTeams } = await supabase
+          .from("chat_team_members")
+          .select("team_id")
+          .eq("attendant_id", myProfile.id);
+        if (myTeams && myTeams.length > 0) {
+          const teamIds = myTeams.map((t: any) => t.team_id);
+          const { data: teamMembers } = await supabase
+            .from("chat_team_members")
+            .select("attendant_id")
+            .in("team_id", teamIds);
+          const myTeamIds = new Set((teamMembers ?? []).map((m: any) => m.attendant_id));
+          myTeamAttendantIds = [...myTeamIds];
+          attendants = allAttendants.filter((a: any) => myTeamIds.has(a.id));
+          otherAttendants = allAttendants.filter((a: any) => !myTeamIds.has(a.id));
+        } else {
+          // Admin not in any team: show all in main list
+          attendants = allAttendants;
+        }
+      } else {
+        attendants = allAttendants;
+      }
     } else if (myProfile) {
       const { data: myTeams } = await supabase
         .from("chat_team_members")
@@ -84,7 +110,6 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
     }
 
     // Fetch other team attendants for non-admin users with a tenant
-    let otherAttendants: any[] = [];
     if (!adminStatus && !masterImpersonating && currentTenantId && myProfile) {
       const { data: allTenant } = await supabase
         .from("attendant_profiles")

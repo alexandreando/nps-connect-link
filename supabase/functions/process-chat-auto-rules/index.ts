@@ -20,6 +20,31 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // === ACTIVATE SCHEDULED BROADCASTS ===
+    await supabase
+      .from("chat_broadcasts")
+      .update({ status: "live", sent_at: new Date().toISOString() })
+      .eq("status", "scheduled")
+      .lte("scheduled_at", new Date().toISOString());
+
+    // Check if there are live broadcasts with pending recipients and invoke processor
+    const { data: liveBroadcasts } = await supabase
+      .from("chat_broadcasts")
+      .select("id")
+      .eq("status", "live")
+      .limit(1);
+
+    if (liveBroadcasts && liveBroadcasts.length > 0) {
+      const broadcastUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/process-chat-broadcasts`;
+      fetch(broadcastUrl, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          "Content-Type": "application/json",
+        },
+      }).catch((e) => console.error("Failed to invoke process-chat-broadcasts:", e));
+    }
+
     // Fetch active time-based rules (chain + attendant_absence + welcome_message)
     const { data: rules, error: rulesErr } = await supabase
       .from("chat_auto_rules")
