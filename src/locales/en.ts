@@ -641,6 +641,7 @@ export default {
   "chat.workspace.title": "Workspace",
   "chat.workspace.station": "Workspace",
   "chat.workspace.you": "(you)",
+  "chat.workspace.otherTeams": "Other teams",
   "chat.workspace.conversations": "Conversations",
   "chat.workspace.total": "total",
   "chat.workspace.no_conversations": "No conversations",

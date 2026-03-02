@@ -662,6 +662,7 @@ export default {
   "chat.workspace.title": "Workspace",
   "chat.workspace.station": "Fila do chat",
   "chat.workspace.you": "(você)",
+  "chat.workspace.otherTeams": "Outros times",
   "chat.workspace.conversations": "Conversas",
   "chat.workspace.total": "total",
   "chat.workspace.no_conversations": "Nenhuma conversa",

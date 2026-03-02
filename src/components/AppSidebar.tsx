@@ -76,35 +76,21 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
   
   const collapsed = state === "collapsed";
 
-  const [npsOpen, setNpsOpen] = useState(
-    () => localStorage.getItem("sidebar-nps-open") !== "false"
-  );
-  const [chatOpen, setChatOpen] = useState(
-    () => localStorage.getItem("sidebar-chat-open") !== "false"
-  );
-  const [reportsOpen, setReportsOpen] = useState(
-    () => localStorage.getItem("sidebar-reports-open") !== "false"
-  );
-  const [workspaceOpen, setWorkspaceOpen] = useState(
-    () => localStorage.getItem("sidebar-workspace-open") !== "false"
-  );
+  const usePersistedState = (key: string, defaultValue = true) => {
+    const [value, setValue] = useState(() => localStorage.getItem(key) !== "false" ? defaultValue : !defaultValue);
+    const toggle = (open: boolean) => { setValue(open); localStorage.setItem(key, String(open)); };
+    return [value, toggle] as const;
+  };
 
-  const handleNpsOpen = (open: boolean) => {
-    setNpsOpen(open);
-    localStorage.setItem("sidebar-nps-open", String(open));
-  };
-  const handleChatOpen = (open: boolean) => {
-    setChatOpen(open);
-    localStorage.setItem("sidebar-chat-open", String(open));
-  };
-  const handleReportsOpen = (open: boolean) => {
-    setReportsOpen(open);
-    localStorage.setItem("sidebar-reports-open", String(open));
-  };
-  const handleWorkspaceOpen = (open: boolean) => {
-    setWorkspaceOpen(open);
-    localStorage.setItem("sidebar-workspace-open", String(open));
-  };
+  const [npsOpen, handleNpsOpen] = usePersistedState("sidebar-nps-open");
+  const [chatOpen, handleChatOpen] = usePersistedState("sidebar-chat-open");
+  const [reportsOpen, handleReportsOpen] = usePersistedState("sidebar-reports-open");
+  const [workspaceOpen, handleWorkspaceOpen] = usePersistedState("sidebar-workspace-open");
+  const [otherTeamsOpen, handleOtherTeamsOpen] = usePersistedState("sidebar-other-teams-open", false);
+  const [backofficeOpen, handleBackofficeOpen] = usePersistedState("sidebar-backoffice-open");
+  const [csOpen, handleCsOpen] = usePersistedState("sidebar-cs-open");
+  const [contactsOpen, handleContactsOpen] = usePersistedState("sidebar-contacts-open");
+  const [helpOpen, handleHelpOpen] = usePersistedState("sidebar-help-open");
 
   const showCS = hasPermission("cs", "view") || hasPermission("cs.kanban", "view") || hasPermission("cs.trails", "view");
   const showCSReports = hasPermission("cs.reports.health", "view") || hasPermission("cs.reports.churn", "view") || hasPermission("cs.reports.financial", "view");
@@ -114,7 +100,7 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
   const showNPS = hasPermission("nps", "view") || hasPermission("nps.dashboard", "view") || hasPermission("nps.campaigns", "view");
   const showContacts = hasPermission("contacts", "view") || hasPermission("contacts.companies", "view") || hasPermission("contacts.people", "view");
   const showHelp = hasPermission("help", "view") || hasPermission("help.articles", "view") || hasPermission("help.collections", "view");
-  const { teamAttendants, totalActiveChats, unassignedCount } = useSidebarData();
+  const { teamAttendants, otherTeamAttendants, totalActiveChats, otherTeamsTotalChats, unassignedCount } = useSidebarData();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -183,41 +169,59 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
             {/* Backoffice Master */}
             {isMaster && (
               <SidebarGroup>
-                <SidebarGroupLabel className={groupLabelCls}>Backoffice</SidebarGroupLabel>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton onClick={() => navigate("/backoffice")} isActive={isActive("/backoffice")} tooltip="Backoffice" className={cn(isActive("/backoffice") ? activeItemCls : "hover:bg-sidebar-accent")}>
-                        <Shield className="h-4 w-4" /><span>Painel Master</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  </SidebarMenu>
-                </SidebarGroupContent>
+                <Collapsible open={backofficeOpen} onOpenChange={handleBackofficeOpen}>
+                  <CollapsibleTrigger asChild>
+                    <SidebarGroupLabel className={`${groupLabelCls} cursor-pointer hover:text-foreground/70 flex items-center justify-between w-full transition-colors`}>
+                      <span className="flex items-center gap-2"><Shield className="h-3.5 w-3.5" /><span>Backoffice</span></span>
+                      {!collapsed && (backofficeOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
+                    </SidebarGroupLabel>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarGroupContent>
+                      <SidebarMenu>
+                        <SidebarMenuItem>
+                          <SidebarMenuButton onClick={() => navigate("/backoffice")} isActive={isActive("/backoffice")} tooltip="Backoffice" className={cn(isActive("/backoffice") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                            <Shield className="h-4 w-4" /><span>Painel Master</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </CollapsibleContent>
+                </Collapsible>
               </SidebarGroup>
             )}
 
             {/* Customer Success */}
             {showCS && (
               <SidebarGroup>
-                <SidebarGroupLabel className={groupLabelCls}>{t("cs.title")}</SidebarGroupLabel>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {hasPermission("cs.kanban", "view") && (
-                      <SidebarMenuItem>
-                        <SidebarMenuButton onClick={() => navigate("/cs-dashboard")} isActive={isActive("/cs-dashboard")} tooltip={t("nav.overview")} className={cn(isActive("/cs-dashboard") ? activeItemCls : "hover:bg-sidebar-accent")}>
-                          <LayoutDashboard className="h-4 w-4" /><span>{t("nav.overview")}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    )}
-                    {hasPermission("cs.trails", "view") && (
-                      <SidebarMenuItem>
-                        <SidebarMenuButton onClick={() => navigate("/cs-trails")} isActive={isActive("/cs-trails")} tooltip={t("nav.journeys")} className={cn(isActive("/cs-trails") ? activeItemCls : "hover:bg-sidebar-accent")}>
-                          <Route className="h-4 w-4" /><span>{t("nav.journeys")}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    )}
-                  </SidebarMenu>
-                </SidebarGroupContent>
+                <Collapsible open={csOpen} onOpenChange={handleCsOpen}>
+                  <CollapsibleTrigger asChild>
+                    <SidebarGroupLabel className={`${groupLabelCls} cursor-pointer hover:text-foreground/70 flex items-center justify-between w-full transition-colors`}>
+                      <span className="flex items-center gap-2"><LayoutDashboard className="h-3.5 w-3.5" /><span>{t("cs.title")}</span></span>
+                      {!collapsed && (csOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
+                    </SidebarGroupLabel>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarGroupContent>
+                      <SidebarMenu>
+                        {hasPermission("cs.kanban", "view") && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/cs-dashboard")} isActive={isActive("/cs-dashboard")} tooltip={t("nav.overview")} className={cn(isActive("/cs-dashboard") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <LayoutDashboard className="h-4 w-4" /><span>{t("nav.overview")}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        )}
+                        {hasPermission("cs.trails", "view") && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/cs-trails")} isActive={isActive("/cs-trails")} tooltip={t("nav.journeys")} className={cn(isActive("/cs-trails") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <Route className="h-4 w-4" /><span>{t("nav.journeys")}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        )}
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </CollapsibleContent>
+                </Collapsible>
               </SidebarGroup>
             )}
 
@@ -327,6 +331,42 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
                                     </SidebarMenuButton>
                                   </SidebarMenuItem>
                                 ))}
+
+                                {/* Other teams section */}
+                                {otherTeamAttendants.length > 0 && (
+                                  <Collapsible open={otherTeamsOpen} onOpenChange={handleOtherTeamsOpen}>
+                                    <SidebarMenuItem>
+                                      <CollapsibleTrigger asChild>
+                                        <SidebarMenuButton
+                                          tooltip={t("chat.workspace.otherTeams")}
+                                          className="pl-10 text-xs hover:bg-sidebar-accent"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <Users className="h-3.5 w-3.5" />
+                                          <span className="truncate font-medium">{t("chat.workspace.otherTeams")}</span>
+                                          {otherTeamsTotalChats > 0 && <Badge variant="secondary" className="ml-auto text-[10px] min-w-[18px] h-4 px-1 text-center">{otherTeamsTotalChats}</Badge>}
+                                          {otherTeamsOpen ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
+                                        </SidebarMenuButton>
+                                      </CollapsibleTrigger>
+                                    </SidebarMenuItem>
+                                    <CollapsibleContent onClick={(e) => e.stopPropagation()}>
+                                      {otherTeamAttendants.map((att) => (
+                                        <SidebarMenuItem key={att.id}>
+                                          <SidebarMenuButton
+                                            onClick={(e) => { e.stopPropagation(); navigate(`/admin/workspace?attendant=${att.id}`); }}
+                                            isActive={location.search.includes(`attendant=${att.id}`)}
+                                            tooltip={att.display_name}
+                                            className="pl-14 text-xs hover:bg-sidebar-accent"
+                                          >
+                                            <span className={`h-2 w-2 rounded-full shrink-0 ${att.status === "online" ? "bg-green-500" : att.status === "busy" ? "bg-amber-500" : "bg-gray-400"}`} />
+                                            <span className="truncate">{att.display_name}</span>
+                                            <Badge variant="accent" className="ml-auto text-[10px] min-w-[18px] h-4 px-1 text-center">{att.active_count}</Badge>
+                                          </SidebarMenuButton>
+                                        </SidebarMenuItem>
+                                      ))}
+                                    </CollapsibleContent>
+                                  </Collapsible>
+                                )}
                               </CollapsibleContent>
                             </Collapsible>
                           </SidebarMenuItem>
@@ -434,73 +474,89 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
             {/* Cadastros */}
             {showContacts && (
               <SidebarGroup>
-                <SidebarGroupLabel className={groupLabelCls}>{t("nav.registry")}</SidebarGroupLabel>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {hasPermission("contacts.companies", "view") && (
-                      <SidebarMenuItem>
-                        <SidebarMenuButton onClick={() => navigate("/nps/contacts")} isActive={isActive("/nps/contacts")} tooltip={t("nav.companies")} className={cn(isActive("/nps/contacts") ? activeItemCls : "hover:bg-sidebar-accent")}>
-                          <Building2 className="h-4 w-4" /><span>{t("nav.companies")}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    )}
-                    {hasPermission("contacts.people", "view") && (
-                      <SidebarMenuItem>
-                        <SidebarMenuButton onClick={() => navigate("/nps/people")} isActive={isActive("/nps/people")} tooltip={t("nav.people")} className={cn(isActive("/nps/people") ? activeItemCls : "hover:bg-sidebar-accent")}>
-                          <Users className="h-4 w-4" /><span>{t("nav.people")}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    )}
-                  </SidebarMenu>
-                </SidebarGroupContent>
+                <Collapsible open={contactsOpen} onOpenChange={handleContactsOpen}>
+                  <CollapsibleTrigger asChild>
+                    <SidebarGroupLabel className={`${groupLabelCls} cursor-pointer hover:text-foreground/70 flex items-center justify-between w-full transition-colors`}>
+                      <span className="flex items-center gap-2"><Building2 className="h-3.5 w-3.5" /><span>{t("nav.registry")}</span></span>
+                      {!collapsed && (contactsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
+                    </SidebarGroupLabel>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarGroupContent>
+                      <SidebarMenu>
+                        {hasPermission("contacts.companies", "view") && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/nps/contacts")} isActive={isActive("/nps/contacts")} tooltip={t("nav.companies")} className={cn(isActive("/nps/contacts") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <Building2 className="h-4 w-4" /><span>{t("nav.companies")}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        )}
+                        {hasPermission("contacts.people", "view") && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/nps/people")} isActive={isActive("/nps/people")} tooltip={t("nav.people")} className={cn(isActive("/nps/people") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <Users className="h-4 w-4" /><span>{t("nav.people")}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        )}
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </CollapsibleContent>
+                </Collapsible>
               </SidebarGroup>
             )}
 
             {/* Help Center */}
             {showHelp && (
               <SidebarGroup>
-                <SidebarGroupLabel className={groupLabelCls}>
-                  <span className="flex items-center gap-2"><BookOpen className="h-3.5 w-3.5" /><span>{t("help.title")}</span></span>
-                </SidebarGroupLabel>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {hasPermission("help.articles", "view") && (
-                      <>
-                        <SidebarMenuItem>
-                          <SidebarMenuButton onClick={() => navigate("/help/overview")} isActive={isActive("/help/overview")} tooltip={t("help.overview")} className={cn(isActive("/help/overview") ? activeItemCls : "hover:bg-sidebar-accent")}>
-                            <BarChart3 className="h-4 w-4" /><span>{t("help.overview")}</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
-                          <SidebarMenuButton onClick={() => navigate("/help/articles")} isActive={isActive("/help/articles") || location.pathname.startsWith("/help/articles/")} tooltip={t("help.articles")} className={cn(isActive("/help/articles") || location.pathname.startsWith("/help/articles/") ? activeItemCls : "hover:bg-sidebar-accent")}>
-                            <FileText className="h-4 w-4" /><span>{t("help.articles")}</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      </>
-                    )}
-                    {hasPermission("help.collections", "view") && (
-                      <SidebarMenuItem>
-                        <SidebarMenuButton onClick={() => navigate("/help/collections")} isActive={isActive("/help/collections")} tooltip={t("help.collections")} className={cn(isActive("/help/collections") ? activeItemCls : "hover:bg-sidebar-accent")}>
-                          <FolderOpen className="h-4 w-4" /><span>{t("help.collections")}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    )}
-                    {hasPermission("help.settings", "view") && (
-                      <SidebarMenuItem>
-                        <SidebarMenuButton onClick={() => navigate("/help/settings")} isActive={isActive("/help/settings")} tooltip={t("help.settings")} className={cn(isActive("/help/settings") ? activeItemCls : "hover:bg-sidebar-accent")}>
-                          <Settings className="h-4 w-4" /><span>{t("help.settings")}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    )}
-                    {hasPermission("help.import", "manage") && (
-                      <SidebarMenuItem>
-                        <SidebarMenuButton onClick={() => navigate("/help/import")} isActive={isActive("/help/import")} tooltip={t("help.import")} className={cn(isActive("/help/import") ? activeItemCls : "hover:bg-sidebar-accent")}>
-                          <Import className="h-4 w-4" /><span>{t("help.import")}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    )}
-                  </SidebarMenu>
-                </SidebarGroupContent>
+                <Collapsible open={helpOpen} onOpenChange={handleHelpOpen}>
+                  <CollapsibleTrigger asChild>
+                    <SidebarGroupLabel className={`${groupLabelCls} cursor-pointer hover:text-foreground/70 flex items-center justify-between w-full transition-colors`}>
+                      <span className="flex items-center gap-2"><BookOpen className="h-3.5 w-3.5" /><span>{t("help.title")}</span></span>
+                      {!collapsed && (helpOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
+                    </SidebarGroupLabel>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarGroupContent>
+                      <SidebarMenu>
+                        {hasPermission("help.articles", "view") && (
+                          <>
+                            <SidebarMenuItem>
+                              <SidebarMenuButton onClick={() => navigate("/help/overview")} isActive={isActive("/help/overview")} tooltip={t("help.overview")} className={cn(isActive("/help/overview") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                                <BarChart3 className="h-4 w-4" /><span>{t("help.overview")}</span>
+                              </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem>
+                              <SidebarMenuButton onClick={() => navigate("/help/articles")} isActive={isActive("/help/articles") || location.pathname.startsWith("/help/articles/")} tooltip={t("help.articles")} className={cn(isActive("/help/articles") || location.pathname.startsWith("/help/articles/") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                                <FileText className="h-4 w-4" /><span>{t("help.articles")}</span>
+                              </SidebarMenuButton>
+                            </SidebarMenuItem>
+                          </>
+                        )}
+                        {hasPermission("help.collections", "view") && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/help/collections")} isActive={isActive("/help/collections")} tooltip={t("help.collections")} className={cn(isActive("/help/collections") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <FolderOpen className="h-4 w-4" /><span>{t("help.collections")}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        )}
+                        {hasPermission("help.settings", "view") && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/help/settings")} isActive={isActive("/help/settings")} tooltip={t("help.settings")} className={cn(isActive("/help/settings") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <Settings className="h-4 w-4" /><span>{t("help.settings")}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        )}
+                        {hasPermission("help.import", "manage") && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/help/import")} isActive={isActive("/help/import")} tooltip={t("help.import")} className={cn(isActive("/help/import") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <Import className="h-4 w-4" /><span>{t("help.import")}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        )}
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </CollapsibleContent>
+                </Collapsible>
               </SidebarGroup>
             )}
           </>

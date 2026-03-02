@@ -12,7 +12,9 @@ export interface TeamAttendant {
 
 interface SidebarDataContextType {
   teamAttendants: TeamAttendant[];
+  otherTeamAttendants: TeamAttendant[];
   totalActiveChats: number;
+  otherTeamsTotalChats: number;
   unassignedCount: number;
   initialized: boolean;
 }
@@ -22,14 +24,14 @@ const SidebarDataContext = createContext<SidebarDataContextType | undefined>(und
 export function SidebarDataProvider({ children }: { children: ReactNode }) {
   const { user, isAdmin, isMaster, isImpersonating, tenantId } = useAuth();
   const [teamAttendants, setTeamAttendants] = useState<TeamAttendant[]>([]);
+  const [otherTeamAttendants, setOtherTeamAttendants] = useState<TeamAttendant[]>([]);
   const [unassignedCount, setUnassignedCount] = useState(0);
   const [initialized, setInitialized] = useState(false);
-  // Track which user we initialized for, to re-init on user change
   const initializedForRef = useRef<string | null>(null);
 
   const totalActiveChats = teamAttendants.reduce((sum, a) => sum + a.active_count, 0) + unassignedCount;
+  const otherTeamsTotalChats = otherTeamAttendants.reduce((sum, a) => sum + a.active_count, 0);
 
-  // One-time initial fetch — builds the baseline state
   const initializeData = useCallback(async (userId: string, adminStatus: boolean, currentTenantId?: string | null, masterImpersonating?: boolean) => {
     const { data: myProfile } = await supabase
       .from("attendant_profiles")
@@ -38,8 +40,8 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
       .maybeSingle();
 
     let attendants: any[] = [];
+    let myTeamAttendantIds: string[] = [];
 
-    // When master is impersonating, fetch attendants for that specific tenant
     if (masterImpersonating && currentTenantId) {
       const { data } = await supabase
         .from("attendant_profiles")
@@ -63,6 +65,7 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
           .select("attendant_id")
           .in("team_id", teamIds);
         const uniqueIds = [...new Set((teamMembers ?? []).map((m: any) => m.attendant_id))];
+        myTeamAttendantIds = uniqueIds;
         if (uniqueIds.length > 0) {
           const { data } = await supabase
             .from("attendant_profiles")
@@ -76,10 +79,22 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
           .select("id, display_name, user_id, status")
           .eq("user_id", userId);
         attendants = data ?? [];
+        myTeamAttendantIds = (data ?? []).map((a: any) => a.id);
       }
     }
 
-    // Fetch active room counts — filter by tenant when impersonating
+    // Fetch other team attendants for non-admin users with a tenant
+    let otherAttendants: any[] = [];
+    if (!adminStatus && !masterImpersonating && currentTenantId && myProfile) {
+      const { data: allTenant } = await supabase
+        .from("attendant_profiles")
+        .select("id, display_name, user_id, status")
+        .eq("tenant_id", currentTenantId);
+      const myIds = new Set(myTeamAttendantIds);
+      otherAttendants = (allTenant ?? []).filter((a: any) => !myIds.has(a.id));
+    }
+
+    // Fetch active room counts
     let roomsQuery = supabase
       .from("chat_rooms")
       .select("attendant_id")
@@ -117,24 +132,40 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
       });
 
     setTeamAttendants(sorted);
+
+    const sortedOther = otherAttendants
+      .map((a: any) => ({
+        id: a.id,
+        display_name: a.display_name,
+        user_id: a.user_id,
+        active_count: counts[a.id] || 0,
+        status: a.status ?? null,
+      }))
+      .sort((a, b) => a.display_name.localeCompare(b.display_name));
+
+    setOtherTeamAttendants(sortedOther);
     setInitialized(true);
     initializedForRef.current = userId + (currentTenantId ?? '');
   }, []);
 
-  // Surgical patch handlers — no HTTP requests, just state updates
-  // With REPLICA IDENTITY FULL, oldRoom has all fields.
-  // Fallback: if oldRoom fields are undefined, use newRoom as heuristic.
   const handleRoomChange = useCallback((payload: any) => {
     const { eventType, new: newRoom, old: oldRoom } = payload;
+
+    const patchAttendants = (setter: React.Dispatch<React.SetStateAction<TeamAttendant[]>>, id: string, delta: number) => {
+      setter(prev => prev.map(a =>
+        a.id === id ? { ...a, active_count: Math.max(0, a.active_count + delta) } : a
+      ));
+    };
+
+    const patchBoth = (id: string, delta: number) => {
+      patchAttendants(setTeamAttendants, id, delta);
+      patchAttendants(setOtherTeamAttendants, id, delta);
+    };
 
     if (eventType === "INSERT") {
       if (newRoom.status === "active" || newRoom.status === "waiting") {
         if (newRoom.attendant_id) {
-          setTeamAttendants(prev => prev.map(a =>
-            a.id === newRoom.attendant_id
-              ? { ...a, active_count: a.active_count + 1 }
-              : a
-          ));
+          patchBoth(newRoom.attendant_id, 1);
         } else {
           setUnassignedCount(prev => prev + 1);
         }
@@ -145,40 +176,21 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
       const oldStatus = oldRoom.status ?? undefined;
       const oldAttendant = oldRoom.attendant_id ?? undefined;
 
-      // Room closed → decrement previous owner
       if (newRoom.status === "closed" && oldStatus !== "closed") {
-        // Use oldRoom.attendant_id if available, otherwise fall back to newRoom.attendant_id
         const decrementId = oldAttendant || newRoom.attendant_id;
         if (decrementId) {
-          setTeamAttendants(prev => prev.map(a =>
-            a.id === decrementId
-              ? { ...a, active_count: Math.max(0, a.active_count - 1) }
-              : a
-          ));
+          patchBoth(decrementId, -1);
         } else if (oldStatus === undefined || oldStatus === "waiting") {
-          // Was unassigned
           setUnassignedCount(prev => Math.max(0, prev - 1));
         }
-      }
-      // Room reassigned → adjust both sides
-      else if (newRoom.attendant_id !== oldAttendant && newRoom.status !== "closed") {
-        // Decrement old owner (only if we know who it was)
+      } else if (newRoom.attendant_id !== oldAttendant && newRoom.status !== "closed") {
         if (oldAttendant) {
-          setTeamAttendants(prev => prev.map(a =>
-            a.id === oldAttendant
-              ? { ...a, active_count: Math.max(0, a.active_count - 1) }
-              : a
-          ));
+          patchBoth(oldAttendant, -1);
         } else if (oldStatus !== "closed" && oldStatus !== undefined) {
           setUnassignedCount(prev => Math.max(0, prev - 1));
         }
-        // Increment new owner
         if (newRoom.attendant_id) {
-          setTeamAttendants(prev => prev.map(a =>
-            a.id === newRoom.attendant_id
-              ? { ...a, active_count: a.active_count + 1 }
-              : a
-          ));
+          patchBoth(newRoom.attendant_id, 1);
         } else {
           setUnassignedCount(prev => prev + 1);
         }
@@ -186,15 +198,11 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
     }
 
     if (eventType === "DELETE") {
-      const oldStatus = oldRoom.status ?? "active"; // assume active if unknown
+      const oldStatus = oldRoom.status ?? "active";
       const oldAttendant = oldRoom.attendant_id ?? undefined;
       if (oldStatus !== "closed") {
         if (oldAttendant) {
-          setTeamAttendants(prev => prev.map(a =>
-            a.id === oldAttendant
-              ? { ...a, active_count: Math.max(0, a.active_count - 1) }
-              : a
-          ));
+          patchBoth(oldAttendant, -1);
         } else {
           setUnassignedCount(prev => Math.max(0, prev - 1));
         }
@@ -206,8 +214,20 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
     const updated = payload.new as any;
     if (!updated) return;
 
+    const applyToSetter = (setter: React.Dispatch<React.SetStateAction<TeamAttendant[]>>) => {
+      if (payload.eventType === "UPDATE") {
+        setter(prev => prev.map(a =>
+          a.id === updated.id
+            ? { ...a, status: updated.status, display_name: updated.display_name }
+            : a
+        ));
+      } else if (payload.eventType === "DELETE") {
+        setter(prev => prev.filter(a => a.id !== payload.old?.id));
+      }
+    };
+
     if (payload.eventType === "INSERT") {
-      // New attendant added — append if not already present
+      // For inserts, we add to teamAttendants if not present (existing behavior)
       setTeamAttendants(prev => {
         if (prev.find(a => a.id === updated.id)) return prev;
         return [...prev, {
@@ -218,18 +238,12 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
           status: updated.status ?? null,
         }];
       });
-    } else if (payload.eventType === "UPDATE") {
-      setTeamAttendants(prev => prev.map(a =>
-        a.id === updated.id
-          ? { ...a, status: updated.status, display_name: updated.display_name }
-          : a
-      ));
-    } else if (payload.eventType === "DELETE") {
-      setTeamAttendants(prev => prev.filter(a => a.id !== payload.old?.id));
     }
+
+    applyToSetter(setTeamAttendants);
+    applyToSetter(setOtherTeamAttendants);
   }, []);
 
-  // Periodic re-sync: recount active rooms from DB every 60s as safety net
   const resyncCounts = useCallback(async () => {
     const { data: allActiveRooms } = await supabase
       .from("chat_rooms")
@@ -250,12 +264,16 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
       ...a,
       active_count: counts[a.id] || 0,
     })));
+    setOtherTeamAttendants(prev => prev.map(a => ({
+      ...a,
+      active_count: counts[a.id] || 0,
+    })));
   }, []);
 
   useEffect(() => {
     if (!user?.id) {
-      // User logged out — reset state
       setTeamAttendants([]);
+      setOtherTeamAttendants([]);
       setInitialized(false);
       initializedForRef.current = null;
       return;
@@ -263,13 +281,11 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
 
     const cacheKey = user.id + (tenantId ?? '');
 
-    // Re-initialize when the user or impersonated tenant changes
     if (initializedForRef.current !== cacheKey) {
       setInitialized(false);
       initializeData(user.id, isAdmin, tenantId, isMaster && isImpersonating);
     }
 
-    // Permanent Realtime channels — created once, never destroyed during navigation
     const roomsChannel = supabase
       .channel("global-sidebar-chat-rooms")
       .on(
@@ -288,7 +304,6 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
       )
       .subscribe();
 
-    // Periodic re-sync every 60 seconds
     const resyncInterval = setInterval(resyncCounts, 60_000);
 
     return () => {
@@ -300,7 +315,7 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
   }, [user?.id, isAdmin, tenantId, isImpersonating]);
 
   return (
-    <SidebarDataContext.Provider value={{ teamAttendants, totalActiveChats, unassignedCount, initialized }}>
+    <SidebarDataContext.Provider value={{ teamAttendants, otherTeamAttendants, totalActiveChats, otherTeamsTotalChats, unassignedCount, initialized }}>
       {children}
     </SidebarDataContext.Provider>
   );
