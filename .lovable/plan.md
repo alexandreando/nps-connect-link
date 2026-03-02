@@ -1,100 +1,83 @@
 
-# Correção: Broadcast em Massa + Menu Outros Times
 
-## Problema 1: Broadcast em massa não funciona
+# Correcao do Slug do Tenant + Validacao
 
-Foram identificados **4 bugs** que impedem o funcionamento:
+## Problema
 
-### Bug A: Recipients não são salvos no banco
-A inserção de `chat_broadcast_recipients` não inclui `tenant_id`. A política de segurança (RLS) exige que `tenant_id` corresponda ao tenant do usuário, então a inserção é bloqueada silenciosamente.
+Ao tentar trocar o slug do tenant na aba de Organizacao, o banco retorna erro `23505` (unique constraint `tenants_slug_key`) porque:
+1. O campo nao aplica slugify automatico (o usuario pode digitar qualquer coisa)
+2. Nao ha validacao previa de unicidade antes de salvar
+3. O erro bruto do banco e exibido ao usuario sem tratamento amigavel
 
-**Correção em `AdminBroadcasts.tsx`:** Adicionar `tenant_id` no insert dos recipients. Também corrigir `contact_id` que pode ficar como string vazia (UUID inválido) quando o contato não tem `company_id`.
+## Solucao
 
-### Bug B: Edge function bloqueada por autenticação
-A função `process-chat-broadcasts` não está registrada no `config.toml` com `verify_jwt = false`. Como é invocada pelo client, precisa aceitar chamadas autenticadas, mas para segurança e consistência com as demais funções, deve ser adicionada ao config.
+### 1. OrganizationSettingsTab.tsx - Validacao e UX
 
-**Correção:** Adicionar `[functions.process-chat-broadcasts] verify_jwt = false` ao `config.toml`.
+- Importar a funcao `slugify` de `src/utils/helpSlug.ts` (ja existe no projeto)
+- Aplicar `slugify` automaticamente ao valor do input de slug (on change ou on blur)
+- Antes de salvar, verificar unicidade: query `tenants` onde `slug = novoSlug` e `id != tenantId`
+- Se slug duplicado, mostrar toast amigavel: "Este slug ja esta em uso por outra organizacao"
+- Se slug vazio, permitir salvar como `null`
+- Adicionar texto auxiliar explicando que o slug e usado nas URLs publicas do Help Center
 
-### Bug C: Broadcasts agendados nunca disparam
-Não existe nenhum mecanismo (cron, scheduler) para invocar a edge function quando `scheduled_at` é atingido. A edge function só é chamada manualmente quando o status é "live".
+### 2. Locais que usam o tenant slug (auditoria)
 
-**Correção:** Adicionar um `pg_cron` job (migration) que invoque a edge function a cada 1 minuto, OU (mais simples) adicionar ao `process-chat-auto-rules` (que já roda periodicamente) uma chamada adicional para ativar broadcasts agendados. A abordagem mais prática: adicionar a lógica de ativação de broadcasts agendados dentro da edge function `process-chat-auto-rules`, que já é chamada periodicamente.
+Todos os locais abaixo leem o slug **dinamicamente do banco** a cada carregamento, entao trocar o slug na tabela `tenants` propaga automaticamente:
 
-### Bug D: Room criada sem attendant_id
-A edge function cria o `chat_room` sem `attendant_id`, fazendo com que a sala fique sem atendente. O broadcast deveria atribuir o remetente como atendente.
+| Arquivo | Uso |
+|---------|-----|
+| `src/pages/HelpPublicHome.tsx` | Resolve tenant por slug na URL `/:tenantSlug/help` |
+| `src/pages/HelpPublicCollection.tsx` | Resolve tenant por slug na URL `/:tenantSlug/help/c/:slug` |
+| `src/pages/HelpPublicArticle.tsx` | Resolve tenant por slug na URL `/:tenantSlug/help/a/:slug` |
+| `src/pages/HelpArticles.tsx` | Busca slug para montar link publico e copiar URL |
+| `src/components/chat/ChatInput.tsx` | Busca slug para montar URL do artigo ao enviar no chat |
+| `src/App.tsx` | Rotas `/:tenantSlug/help/*` (parametro dinamico, sem hardcode) |
 
-**Correção em `process-chat-broadcasts/index.ts`:** Buscar o `attendant_profile` do `broadcast.user_id` e definir `attendant_id` na criação da room. Também mudar `sender_type` de "system" para "attendant" para que a mensagem apareça corretamente no widget.
+**Unico ponto de atencao:** Mensagens de chat ja enviadas com `message_type: "help_article"` tem o slug antigo salvo em `metadata.article_url` e `metadata.tenant_slug`. Essas URLs antigas vao quebrar. Para resolver:
+- No **ChatWidget.tsx** e **ChatMessageList.tsx**, ao renderizar cards de artigos, reconstruir a URL usando o slug atual do artigo (buscar do banco) em vez de confiar na URL salva na metadata. Alternativa mais simples: as paginas publicas do Help Center ja fazem fallback por `article_id` ou `article_slug` sem depender do tenant slug, entao os links antigos simplesmente redirecionam.
 
----
+### 3. Arquivos a modificar
 
-## Problema 2: Menu "Outros times" não aparece
-
-O código atual só busca `otherTeamAttendants` para usuários **não-admin** (linha 88: `!adminStatus`). Para admins, todos os atendentes vão para a lista principal e `otherTeamAttendants` fica vazio, então a seção nunca aparece.
-
-**Correção em `SidebarDataContext.tsx`:** Para admins, também fazer a separação por times:
-- Buscar os times do admin (via `chat_team_members`)
-- Atendentes dos mesmos times vão para `teamAttendants`
-- Atendentes de outros times vão para `otherTeamAttendants`
-- Se o admin não está em nenhum time, manter o comportamento atual (todos na lista principal)
-
----
-
-## Arquivos a modificar
-
-| Arquivo | Mudança |
+| Arquivo | Mudanca |
 |---------|---------|
-| `src/pages/AdminBroadcasts.tsx` | Adicionar `tenant_id` no insert dos recipients; tratar `contact_id` vazio |
-| `supabase/functions/process-chat-broadcasts/index.ts` | Buscar attendant_id do remetente; usar sender_type "attendant"; incluir sender_id/sender_name |
-| `supabase/functions/process-chat-auto-rules/index.ts` | Adicionar chamada para ativar broadcasts agendados |
-| `supabase/config.toml` | Adicionar `process-chat-broadcasts` com `verify_jwt = false` |
-| `src/contexts/SidebarDataContext.tsx` | Para admins, separar atendentes por times (meu time vs outros) |
+| `src/components/OrganizationSettingsTab.tsx` | Slugify automatico, validacao de unicidade, erro amigavel, texto auxiliar |
+| `src/locales/pt-BR.ts` | Labels: slug em uso, descricao do slug |
+| `src/locales/en.ts` | Labels em ingles |
 
-## Detalhes técnicos
+### 4. Detalhes tecnicos
 
-### AdminBroadcasts - insert recipients corrigido
+**Validacao pre-save:**
 ```typescript
-const recipientRows = Array.from(selectedContactIds).map((contactId) => {
-  const contact = contacts.find((c) => c.id === contactId);
-  return {
-    broadcast_id: broadcastId,
-    company_contact_id: contactId,
-    contact_id: contact?.company_id || null,
-    tenant_id: tenantId, // <-- FALTAVA
-    status: "pending",
-  };
-});
+// Slugify
+const finalSlug = slug ? slugify(slug) : null;
+
+// Check uniqueness
+if (finalSlug) {
+  const { data: existing } = await supabase
+    .from("tenants")
+    .select("id")
+    .eq("slug", finalSlug)
+    .neq("id", tenantId)
+    .maybeSingle();
+
+  if (existing) {
+    toast({ title: "Erro", description: t("organization.slugInUse"), variant: "destructive" });
+    return;
+  }
+}
+
+await supabase.from("tenants").update({ name, slug: finalSlug }).eq("id", tenantId);
 ```
 
-### Edge function - atribuir attendant
+**Input com slugify on blur:**
 ```typescript
-// Buscar attendant do remetente
-const { data: senderAtt } = await supabase
-  .from("attendant_profiles")
-  .select("id, display_name")
-  .eq("user_id", broadcast.user_id)
-  .maybeSingle();
-
-// Criar room COM attendant
-const { data: room } = await supabase
-  .from("chat_rooms")
-  .insert({
-    visitor_id: visitorId,
-    owner_user_id: broadcast.user_id,
-    attendant_id: senderAtt?.id ?? null,
-    // ...
-  });
-
-// Mensagem como attendant
-await supabase.from("chat_messages").insert({
-  room_id: room.id,
-  sender_type: senderAtt ? "attendant" : "system",
-  sender_id: senderAtt?.id ?? null,
-  sender_name: senderAtt?.display_name ?? "Broadcast",
-  content: broadcast.message,
-});
+<Input
+  value={slug}
+  onChange={(e) => setSlug(e.target.value)}
+  onBlur={() => setSlug(slug ? slugify(slug) : "")}
+/>
+<p className="text-xs text-muted-foreground mt-1">
+  {t("organization.slugDescription")}
+</p>
 ```
 
-### SidebarDataContext - admin com separação por times
-Na branch `adminStatus`, após buscar todos os atendentes do tenant, verificar se o admin pertence a algum time e separar:
-- Se tem times: `teamAttendants` = colegas de time, `otherTeamAttendants` = restante
-- Se não tem times: todos ficam em `teamAttendants` (comportamento atual)
