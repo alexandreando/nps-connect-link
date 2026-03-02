@@ -52,7 +52,7 @@ const AdminChatHistory = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // ReadOnly dialog
-  const [readOnlyRoom, setReadOnlyRoom] = useState<{ id: string; name: string } | null>(null);
+  const [readOnlyRoom, setReadOnlyRoom] = useState<{ id: string; name: string; resolution_status: string | null } | null>(null);
 
   useEffect(() => {
     supabase.from("chat_tags").select("id, name, color").order("name").then(({ data }) => {
@@ -422,7 +422,7 @@ const AdminChatHistory = () => {
                       return (
                         <TableRow key={room.id} className="hover:bg-muted/50">
                           <TableCell onClick={(e) => e.stopPropagation()}><Checkbox checked={selectedIds.has(room.id)} onCheckedChange={() => toggleSelect(room.id)} /></TableCell>
-                          <TableCell className="cursor-pointer" onClick={() => setReadOnlyRoom({ id: room.id, name: room.visitor_name ?? "Visitante" })}><Eye className="h-4 w-4 text-muted-foreground" /></TableCell>
+                          <TableCell className="cursor-pointer" onClick={() => setReadOnlyRoom({ id: room.id, name: room.visitor_name ?? "Visitante", resolution_status: room.resolution_status })}><Eye className="h-4 w-4 text-muted-foreground" /></TableCell>
                           <TableCell className="font-mono text-[11px]">{room.id.slice(0, 8)}</TableCell>
                           <TableCell className="text-[13px]">{room.visitor_name ?? "—"}</TableCell>
                           <TableCell className="text-[13px]">{room.attendant_name ?? "—"}</TableCell>
@@ -482,6 +482,11 @@ const AdminChatHistory = () => {
         visitorName={readOnlyRoom?.name ?? ""}
         open={!!readOnlyRoom}
         onOpenChange={(open) => !open && setReadOnlyRoom(null)}
+        resolutionStatus={readOnlyRoom?.resolution_status ?? null}
+        onReopen={(id) => {
+          handleReopenChat(id);
+          setReadOnlyRoom(null);
+        }}
       />
     </>
   );
