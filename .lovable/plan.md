@@ -1,83 +1,112 @@
 
 
-# Correcao do Slug do Tenant + Validacao
+# Plano: 6 Funcionalidades - Dashboard Tags, Ausencias, Intervalos, Reabrir Resolvido, Notificacao Broadcast, Auto-Offline
 
-## Problema
+## 1. Top Tags no Dashboard Gerencial
 
-Ao tentar trocar o slug do tenant na aba de Organizacao, o banco retorna erro `23505` (unique constraint `tenants_slug_key`) porque:
-1. O campo nao aplica slugify automatico (o usuario pode digitar qualquer coisa)
-2. Nao ha validacao previa de unicidade antes de salvar
-3. O erro bruto do banco e exibido ao usuario sem tratamento amigavel
+Adicionar ao `useDashboardStats` a contagem de tags por periodo e exibir no `AdminDashboardGerencial` um novo grafico/card de "Top Tags".
 
-## Solucao
+**Tecnico:**
+- `useDashboardStats.ts`: Buscar `chat_room_tags` com join em `chat_tags` para os room IDs filtrados. Agrupar por tag, retornar `topTags: { name: string; color: string; count: number }[]` no stats.
+- `AdminDashboardGerencial.tsx`: Adicionar um `ChartCard` com barras horizontais ou lista ranqueada das top 10 tags com badge colorido e contagem.
 
-### 1. OrganizationSettingsTab.tsx - Validacao e UX
+---
 
-- Importar a funcao `slugify` de `src/utils/helpSlug.ts` (ja existe no projeto)
-- Aplicar `slugify` automaticamente ao valor do input de slug (on change ou on blur)
-- Antes de salvar, verificar unicidade: query `tenants` onde `slug = novoSlug` e `id != tenantId`
-- Se slug duplicado, mostrar toast amigavel: "Este slug ja esta em uso por outra organizacao"
-- Se slug vazio, permitir salvar como `null`
-- Adicionar texto auxiliar explicando que o slug e usado nas URLs publicas do Help Center
+## 2. Cadastro de Ausencias (Feriados/Datas Especiais) no Working Hours
 
-### 2. Locais que usam o tenant slug (auditoria)
+Permitir cadastrar datas especificas onde o horario semanal nao se aplica (feriados, recesso, etc.), podendo definir horario especial ou marcar como "sem expediente".
 
-Todos os locais abaixo leem o slug **dinamicamente do banco** a cada carregamento, entao trocar o slug na tabela `tenants` propaga automaticamente:
+**Tecnico:**
+- **Migration**: Criar tabela `chat_business_hour_overrides`:
+  - `id`, `tenant_id`, `user_id`, `override_date` (date, unique per tenant), `is_closed` (boolean, default true), `start_time`, `end_time`, `label` (text, ex: "Feriado Nacional"), `offline_message` (text, mensagem customizada), `created_at`
+  - RLS: tenant members manage
+- **AdminSettings.tsx** (aba "Horarios"): Adicionar secao "Ausencias e Feriados" com formulario para adicionar data, label, toggle fechado/horario especial, e mensagem de ausencia. Listar ausencias futuras com opcao de editar/excluir.
+- **Trigger `assign_chat_room`**: Antes de verificar `chat_business_hours`, checar se existe override para a data atual. Se `is_closed = true`, nao atribuir. Se tem horario especial, usar esse horario ao inves do semanal.
+- **Widget `get-widget-config`**: Verificar overrides ao determinar se esta dentro do horario.
 
-| Arquivo | Uso |
-|---------|-----|
-| `src/pages/HelpPublicHome.tsx` | Resolve tenant por slug na URL `/:tenantSlug/help` |
-| `src/pages/HelpPublicCollection.tsx` | Resolve tenant por slug na URL `/:tenantSlug/help/c/:slug` |
-| `src/pages/HelpPublicArticle.tsx` | Resolve tenant por slug na URL `/:tenantSlug/help/a/:slug` |
-| `src/pages/HelpArticles.tsx` | Busca slug para montar link publico e copiar URL |
-| `src/components/chat/ChatInput.tsx` | Busca slug para montar URL do artigo ao enviar no chat |
-| `src/App.tsx` | Rotas `/:tenantSlug/help/*` (parametro dinamico, sem hardcode) |
+---
 
-**Unico ponto de atencao:** Mensagens de chat ja enviadas com `message_type: "help_article"` tem o slug antigo salvo em `metadata.article_url` e `metadata.tenant_slug`. Essas URLs antigas vao quebrar. Para resolver:
-- No **ChatWidget.tsx** e **ChatMessageList.tsx**, ao renderizar cards de artigos, reconstruir a URL usando o slug atual do artigo (buscar do banco) em vez de confiar na URL salva na metadata. Alternativa mais simples: as paginas publicas do Help Center ja fazem fallback por `article_id` ou `article_slug` sem depender do tenant slug, entao os links antigos simplesmente redirecionam.
+## 3. Intervalos nos Working Hours
 
-### 3. Arquivos a modificar
+Adicionar suporte a intervalos (ex: almoco 12:00-13:00) dentro de cada dia, com mensagem especifica para quando o cliente envia mensagem durante o intervalo.
 
-| Arquivo | Mudanca |
-|---------|---------|
-| `src/components/OrganizationSettingsTab.tsx` | Slugify automatico, validacao de unicidade, erro amigavel, texto auxiliar |
-| `src/locales/pt-BR.ts` | Labels: slug em uso, descricao do slug |
-| `src/locales/en.ts` | Labels em ingles |
+**Tecnico:**
+- **Migration**: Criar tabela `chat_business_hour_breaks`:
+  - `id`, `business_hour_id` (FK para `chat_business_hours`), `tenant_id`, `start_time`, `end_time`, `message` (texto exibido durante o intervalo), `created_at`
+  - RLS: tenant members manage
+- **AdminSettings.tsx** (aba "Horarios"): Para cada dia, adicionar botao "Adicionar intervalo" que expande campos de horario inicio/fim e mensagem. Listar intervalos existentes com opcao de remover.
+- **Trigger `assign_chat_room`**: Apos confirmar que o dia esta ativo e dentro do horario, verificar se o horario atual cai dentro de algum intervalo. Se sim, nao atribuir (mesma logica de fora do horario).
+- **Widget**: Quando em intervalo, exibir a mensagem de intervalo configurada ao inves da mensagem de fora de horario padrao.
 
-### 4. Detalhes tecnicos
+---
 
-**Validacao pre-save:**
-```typescript
-// Slugify
-const finalSlug = slug ? slugify(slug) : null;
+## 4. Configuracao para Reabrir Chat Resolvido (com re-CSAT)
 
-// Check uniqueness
-if (finalSlug) {
-  const { data: existing } = await supabase
-    .from("tenants")
-    .select("id")
-    .eq("slug", finalSlug)
-    .neq("id", tenantId)
-    .maybeSingle();
+Permitir que o admin configure se atendentes podem reabrir chats ja resolvidos. Ao fechar novamente, pedir nova avaliacao CSAT que sobrepoe a anterior.
 
-  if (existing) {
-    toast({ title: "Erro", description: t("organization.slugInUse"), variant: "destructive" });
-    return;
-  }
-}
+**Tecnico:**
+- **Migration**: Adicionar colunas na tabela `chat_settings`:
+  - `allow_reopen_resolved` (boolean, default false)
+- **AdminSettings.tsx** (aba "Regras"): Adicionar switch "Permitir reabrir chats resolvidos" com descricao explicando que a nota CSAT sera substituida.
+- **AdminWorkspace.tsx**: No cabecalho de um chat fechado com `resolution_status = 'resolved'`, se `allow_reopen_resolved` estiver habilitado, exibir botao "Reabrir". Ao reabrir:
+  - Limpar `csat_score`, `csat_comment`, `resolution_status`, `closed_at`
+  - Status volta para `active` com o mesmo `attendant_id`
+  - Inserir mensagem de sistema "Chat reaberto por [atendente]"
+- **ChatWidget.tsx**: Ao fechar o chat reaberto com status "resolvido", exibir CSAT normalmente. A nova nota sobrescreve a anterior.
+- **AdminChatHistory.tsx**: Tambem exibir opcao de reabrir resolvidos se a config permitir.
 
-await supabase.from("tenants").update({ name, slug: finalSlug }).eq("id", tenantId);
-```
+---
 
-**Input com slugify on blur:**
-```typescript
-<Input
-  value={slug}
-  onChange={(e) => setSlug(e.target.value)}
-  onBlur={() => setSlug(slug ? slugify(slug) : "")}
-/>
-<p className="text-xs text-muted-foreground mt-1">
-  {t("organization.slugDescription")}
-</p>
-```
+## 5. Notificacao no Widget para Broadcasts e Chats Reabertos
+
+Chats abertos por broadcast ou reabertos devem notificar o cliente no widget da mesma forma que uma nova mensagem em chat ativo.
+
+**Tecnico:**
+- **ChatWidget.tsx**: O widget ja escuta mudancas via realtime em `chat_rooms` e `chat_messages`. O que falta e:
+  - Quando o widget recebe uma nova mensagem de um `room_id` diferente do ativo, ou de um room que estava fechado, incrementar `unreadCount` e emitir `chat-unread-count` via postMessage.
+  - Adicionar subscription para `INSERT` em `chat_rooms` filtrando pelo `visitor_id` atual. Quando um novo room aparece (broadcast) ou um room existente muda de `closed` para `waiting/active` (reaberto), tratar como nova notificacao.
+- **process-chat-broadcasts**: Ja foi corrigido para criar rooms com attendant. Verificar que a mensagem inserida dispara o realtime corretamente (ja deve funcionar pois `chat_messages` tem realtime habilitado).
+
+---
+
+## 6. Auto-Offline para Atendentes Deslogados + Restaurar Ultimo Status
+
+Quando o atendente sai da plataforma (fecha aba/logout), seu status deve ir automaticamente para offline. Ao voltar, restaurar o ultimo status ativo.
+
+**Tecnico:**
+- **Migration**: Adicionar coluna `previous_status` (text, nullable) na tabela `attendant_profiles` para guardar o status antes de ficar offline.
+- **SidebarLayout.tsx ou AuthContext.tsx**: 
+  - No mount (login/abertura da aba): buscar `attendant_profiles` do usuario. Se `previous_status` existe e != 'offline', restaurar para esse status e limpar `previous_status`.
+  - No unmount/beforeunload: salvar status atual em `previous_status` e setar status para 'offline'.
+  - Usar `navigator.sendBeacon` ou `fetch keepalive` no `beforeunload` para garantir que o update chegue ao servidor.
+- **Logout handler**: Antes de fazer signOut, salvar `previous_status` e setar offline.
+- **MyProfile.tsx**: Ao mudar status manualmente, limpar `previous_status` (pois e uma escolha intencional).
+
+---
+
+## Resumo de Arquivos
+
+| Arquivo | Mudancas |
+|---------|----------|
+| `src/hooks/useDashboardStats.ts` | Adicionar topTags ao stats |
+| `src/pages/AdminDashboardGerencial.tsx` | Renderizar card de Top Tags |
+| `src/pages/AdminSettings.tsx` | Secao ausencias, intervalos, config reabrir resolvido |
+| `src/pages/AdminWorkspace.tsx` | Botao reabrir resolvido (condicional) |
+| `src/pages/AdminChatHistory.tsx` | Botao reabrir resolvido (condicional) |
+| `src/pages/ChatWidget.tsx` | Notificacao para broadcasts/reopens |
+| `src/pages/MyProfile.tsx` | Limpar previous_status ao mudar status manual |
+| `src/components/SidebarLayout.tsx` | Auto-offline no unmount, restore no mount |
+| **Migration 1** | Tabela `chat_business_hour_overrides` |
+| **Migration 2** | Tabela `chat_business_hour_breaks` |
+| **Migration 3** | Colunas `allow_reopen_resolved` em `chat_settings`, `previous_status` em `attendant_profiles` |
+| **Trigger update** | `assign_chat_room` - verificar overrides e breaks |
+
+## Ordem de implementacao
+
+1. Migrations (tabelas + colunas)
+2. Top Tags no dashboard
+3. Ausencias e intervalos no working hours
+4. Config reabrir resolvido
+5. Notificacoes widget (broadcast/reopen)
+6. Auto-offline + restore status
 
