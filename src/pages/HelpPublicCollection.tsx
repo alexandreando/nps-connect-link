@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, FileText } from "lucide-react";
+import HelpPublicLayout from "@/components/help/HelpPublicLayout";
 
 interface Article {
   id: string;
@@ -23,12 +24,11 @@ export default function HelpPublicCollection() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [resolvedSlug, setResolvedSlug] = useState<string | null>(tenantSlug || null);
+  const [siteSettings, setSiteSettings] = useState<any>(null);
 
   const helpBase = resolvedSlug ? `/${resolvedSlug}/help` : "/help";
 
-  useEffect(() => {
-    if (collectionSlug) loadData();
-  }, [tenantSlug, collectionSlug]);
+  useEffect(() => { if (collectionSlug) loadData(); }, [tenantSlug, collectionSlug]);
 
   const loadData = async () => {
     let tenantIdResolved: string | null = null;
@@ -39,7 +39,6 @@ export default function HelpPublicCollection() {
       tenantIdResolved = tenant.id;
       setResolvedSlug(tenant.slug);
     } else {
-      // No tenantSlug: resolve tenant and redirect to canonical URL
       let resolvedTenantId: string | null = null;
       const { data: site } = await supabase.from("help_site_settings").select("tenant_id").limit(1).maybeSingle();
       if (site) resolvedTenantId = site.tenant_id;
@@ -49,16 +48,17 @@ export default function HelpPublicCollection() {
       }
       if (resolvedTenantId) {
         const { data: t } = await supabase.from("tenants").select("slug").eq("id", resolvedTenantId).single();
-        if (t?.slug) {
-          navigate(`/${t.slug}/help/c/${collectionSlug}`, { replace: true });
-          return;
-        }
+        if (t?.slug) { navigate(`/${t.slug}/help/c/${collectionSlug}`, { replace: true }); return; }
       }
       setLoading(false);
       return;
     }
 
     if (!tenantIdResolved) { setLoading(false); return; }
+
+    // Load settings
+    const { data: settings } = await supabase.from("help_site_settings").select("*").eq("tenant_id", tenantIdResolved).maybeSingle();
+    setSiteSettings(settings);
 
     // Find collection
     const { data: col } = await supabase.from("help_collections")
@@ -82,38 +82,57 @@ export default function HelpPublicCollection() {
     setLoading(false);
   };
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>;
-  if (!collection) return <div className="flex items-center justify-center min-h-screen text-muted-foreground">Coleção não encontrada</div>;
+  if (loading) return (
+    <div className="light flex items-center justify-center min-h-screen" style={{ background: "#fff" }}>
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: "#3B82F6", borderTopColor: "transparent" }} />
+    </div>
+  );
+  if (!collection) return (
+    <div className="light flex items-center justify-center min-h-screen" style={{ background: "#fff", color: "#6b7280" }}>Coleção não encontrada</div>
+  );
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-3xl mx-auto px-4 py-8">
+    <HelpPublicLayout settings={siteSettings} helpBase={helpBase}>
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-1 text-sm text-muted-foreground mb-8">
-          <Link to={helpBase} className="hover:text-foreground">Help Center</Link>
-          <ChevronRight className="h-3 w-3" />
-          <span className="text-foreground">{collection.name}</span>
+        <nav className="flex items-center gap-1.5 text-sm mb-8 flex-wrap">
+          <Link to={helpBase} className="hover:underline transition-colors" style={{ color: "#6b7280" }}>Help Center</Link>
+          <ChevronRight className="h-3.5 w-3.5" style={{ color: "#d1d5db" }} />
+          <span className="font-medium" style={{ color: "#111827" }}>{collection.name}</span>
         </nav>
 
-        <div className="mb-8">
-          <span className="text-3xl mb-3 block">{collection.icon || "📚"}</span>
-          <h1 className="text-2xl font-bold mb-2">{collection.name}</h1>
-          {collection.description && <p className="text-muted-foreground">{collection.description}</p>}
+        <div className="mb-10 p-6 rounded-xl" style={{ backgroundColor: "#f9fafb" }}>
+          <span className="text-4xl mb-3 block">{collection.icon || "📚"}</span>
+          <h1 className="text-2xl font-bold mb-2" style={{ color: "#111827" }}>{collection.name}</h1>
+          {collection.description && <p className="text-base" style={{ color: "#6b7280" }}>{collection.description}</p>}
         </div>
 
         {articles.length === 0 ? (
-          <p className="text-muted-foreground">Nenhum artigo nesta coleção.</p>
+          <p style={{ color: "#6b7280" }}>Nenhum artigo nesta coleção.</p>
         ) : (
           <div className="space-y-2">
             {articles.map(art => (
-              <Link key={art.id} to={`${helpBase}/a/${art.slug}`} className="block p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                <p className="font-medium">{art.title}</p>
-                {art.subtitle && <p className="text-sm text-muted-foreground mt-0.5">{art.subtitle}</p>}
+              <Link
+                key={art.id}
+                to={`${helpBase}/a/${art.slug}`}
+                className="flex items-center justify-between p-4 rounded-lg border transition-colors group"
+                style={{ borderColor: "#f3f4f6" }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f9fafb")}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+              >
+                <div className="flex items-center gap-3">
+                  <FileText className="h-4 w-4 flex-shrink-0" style={{ color: "#d1d5db" }} />
+                  <div>
+                    <p className="font-medium" style={{ color: "#111827" }}>{art.title}</p>
+                    {art.subtitle && <p className="text-sm mt-0.5" style={{ color: "#6b7280" }}>{art.subtitle}</p>}
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "#9ca3af" }} />
               </Link>
             ))}
           </div>
         )}
       </div>
-    </div>
+    </HelpPublicLayout>
   );
 }

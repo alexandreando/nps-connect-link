@@ -2042,7 +2042,17 @@ export type Database = {
           contact_channels_json: Json
           created_at: string
           custom_css: string | null
+          favicon_url: string | null
+          footer_bg_color: string | null
           footer_html: string | null
+          footer_links_json: Json | null
+          footer_logo_url: string | null
+          footer_social_json: Json | null
+          footer_text: string | null
+          header_bg_color: string | null
+          header_links_json: Json | null
+          hero_image_url: string | null
+          hero_overlay_opacity: number | null
           home_subtitle: string | null
           home_title: string | null
           public_base_url: string | null
@@ -2057,7 +2067,17 @@ export type Database = {
           contact_channels_json?: Json
           created_at?: string
           custom_css?: string | null
+          favicon_url?: string | null
+          footer_bg_color?: string | null
           footer_html?: string | null
+          footer_links_json?: Json | null
+          footer_logo_url?: string | null
+          footer_social_json?: Json | null
+          footer_text?: string | null
+          header_bg_color?: string | null
+          header_links_json?: Json | null
+          hero_image_url?: string | null
+          hero_overlay_opacity?: number | null
           home_subtitle?: string | null
           home_title?: string | null
           public_base_url?: string | null
@@ -2072,7 +2092,17 @@ export type Database = {
           contact_channels_json?: Json
           created_at?: string
           custom_css?: string | null
+          favicon_url?: string | null
+          footer_bg_color?: string | null
           footer_html?: string | null
+          footer_links_json?: Json | null
+          footer_logo_url?: string | null
+          footer_social_json?: Json | null
+          footer_text?: string | null
+          header_bg_color?: string | null
+          header_links_json?: Json | null
+          hero_image_url?: string | null
+          hero_overlay_opacity?: number | null
           home_subtitle?: string | null
           home_title?: string | null
           public_base_url?: string | null

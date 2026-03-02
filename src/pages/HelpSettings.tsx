@@ -7,10 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, Plus, Trash2 } from "lucide-react";
+
+interface LinkItem { label: string; url: string; }
+interface SocialItem { type: string; url: string; }
 
 export default function HelpSettings() {
   const { t } = useLanguage();
@@ -28,6 +32,17 @@ export default function HelpSettings() {
   const [footerHtml, setFooterHtml] = useState("");
   const [contactChannels, setContactChannels] = useState("[]");
 
+  const [heroImageUrl, setHeroImageUrl] = useState("");
+  const [heroOverlayOpacity, setHeroOverlayOpacity] = useState(50);
+  const [faviconUrl, setFaviconUrl] = useState("");
+  const [headerBgColor, setHeaderBgColor] = useState("#ffffff");
+  const [headerLinks, setHeaderLinks] = useState<LinkItem[]>([]);
+  const [footerLogoUrl, setFooterLogoUrl] = useState("");
+  const [footerText, setFooterText] = useState("");
+  const [footerBgColor, setFooterBgColor] = useState("#111827");
+  const [footerLinks, setFooterLinks] = useState<LinkItem[]>([]);
+  const [footerSocial, setFooterSocial] = useState<SocialItem[]>([]);
+
   useEffect(() => { if (tenantId) loadSettings(); }, [tenantId]);
 
   const loadSettings = async () => {
@@ -42,6 +57,16 @@ export default function HelpSettings() {
       setSecondaryColor(data.brand_secondary_color || "");
       setFooterHtml(data.footer_html || "");
       setContactChannels(JSON.stringify(data.contact_channels_json || [], null, 2));
+      setHeroImageUrl((data as any).hero_image_url || "");
+      setHeroOverlayOpacity((data as any).hero_overlay_opacity ?? 50);
+      setFaviconUrl((data as any).favicon_url || "");
+      setHeaderBgColor((data as any).header_bg_color || "#ffffff");
+      setHeaderLinks((data as any).header_links_json || []);
+      setFooterLogoUrl((data as any).footer_logo_url || "");
+      setFooterText((data as any).footer_text || "");
+      setFooterBgColor((data as any).footer_bg_color || "#111827");
+      setFooterLinks((data as any).footer_links_json || []);
+      setFooterSocial((data as any).footer_social_json || []);
     }
     setLoading(false);
   };
@@ -63,7 +88,17 @@ export default function HelpSettings() {
       brand_secondary_color: secondaryColor || null,
       footer_html: footerHtml || null,
       contact_channels_json: channelsJson,
-    });
+      hero_image_url: heroImageUrl || null,
+      hero_overlay_opacity: heroOverlayOpacity,
+      favicon_url: faviconUrl || null,
+      header_bg_color: headerBgColor || "#ffffff",
+      header_links_json: headerLinks,
+      footer_logo_url: footerLogoUrl || null,
+      footer_text: footerText || null,
+      footer_bg_color: footerBgColor || "#111827",
+      footer_links_json: footerLinks,
+      footer_social_json: footerSocial,
+    } as any);
 
     toast({ title: t("help.siteSaveSuccess") });
     setSaving(false);
@@ -132,20 +167,136 @@ export default function HelpSettings() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2">
-          <CardHeader><CardTitle className="text-sm">{t("help.siteFooter")}</CardTitle></CardHeader>
+        <Card>
+          <CardHeader><CardTitle className="text-sm">{t("help.siteHero")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
-              <Label>Footer HTML</Label>
-              <Textarea value={footerHtml} onChange={e => setFooterHtml(e.target.value)} rows={4} className="font-mono text-xs" />
+              <Label>{t("help.siteHeroImage")}</Label>
+              <Input value={heroImageUrl} onChange={e => setHeroImageUrl(e.target.value)} placeholder={t("help.siteHeroImagePlaceholder")} />
+              {heroImageUrl && (
+                <div className="mt-2 rounded-lg overflow-hidden border h-24 relative">
+                  <img src={heroImageUrl} alt="" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0" style={{ backgroundColor: primaryColor, opacity: heroOverlayOpacity / 100 }} />
+                </div>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("help.siteHeroOverlay")}: {heroOverlayOpacity}%</Label>
+              <Slider value={[heroOverlayOpacity]} onValueChange={v => setHeroOverlayOpacity(v[0])} min={0} max={100} step={5} />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-sm">{t("help.siteHeader")}</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>{t("help.siteHeaderBgColor")}</Label>
+              <div className="flex items-center gap-2">
+                <input type="color" value={headerBgColor} onChange={e => setHeaderBgColor(e.target.value)} className="h-9 w-12 rounded border cursor-pointer" />
+                <Input value={headerBgColor} onChange={e => setHeaderBgColor(e.target.value)} className="flex-1" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("help.siteHeaderLinks")}</Label>
+              <LinkListEditor items={headerLinks} onChange={setHeaderLinks} addLabel={t("help.addLink")} labelPlaceholder={t("help.linkLabel")} urlPlaceholder={t("help.linkUrl")} />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader><CardTitle className="text-sm">{t("help.siteFooterSection")}</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>{t("help.siteFooterLogo")}</Label>
+                <Input value={footerLogoUrl} onChange={e => setFooterLogoUrl(e.target.value)} placeholder="https://..." />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("help.siteFooterText")}</Label>
+                <Input value={footerText} onChange={e => setFooterText(e.target.value)} placeholder="© 2025 Empresa" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("help.siteFooterBgColor")}</Label>
+              <div className="flex items-center gap-2">
+                <input type="color" value={footerBgColor} onChange={e => setFooterBgColor(e.target.value)} className="h-9 w-12 rounded border cursor-pointer" />
+                <Input value={footerBgColor} onChange={e => setFooterBgColor(e.target.value)} className="flex-1 max-w-[200px]" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("help.siteFooterLinks")}</Label>
+              <LinkListEditor items={footerLinks} onChange={setFooterLinks} addLabel={t("help.addLink")} labelPlaceholder={t("help.linkLabel")} urlPlaceholder={t("help.linkUrl")} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("help.siteFooterSocial")}</Label>
+              <SocialListEditor items={footerSocial} onChange={setFooterSocial} addLabel={t("help.addSocial")} />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader><CardTitle className="text-sm">{t("help.siteAdvanced")}</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>{t("help.siteFavicon")}</Label>
+              <Input value={faviconUrl} onChange={e => setFaviconUrl(e.target.value)} placeholder="https://exemplo.com/favicon.ico" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("help.siteFooter")} (Legacy HTML)</Label>
+              <Textarea value={footerHtml} onChange={e => setFooterHtml(e.target.value)} rows={3} className="font-mono text-xs" />
             </div>
             <div className="space-y-1.5">
               <Label>{t("help.siteContactChannels")} (JSON)</Label>
-              <Textarea value={contactChannels} onChange={e => setContactChannels(e.target.value)} rows={4} className="font-mono text-xs" placeholder='[{"type": "email", "value": "suporte@empresa.com"}]' />
+              <Textarea value={contactChannels} onChange={e => setContactChannels(e.target.value)} rows={3} className="font-mono text-xs" placeholder='[{"type": "email", "value": "suporte@empresa.com"}]' />
             </div>
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function LinkListEditor({ items, onChange, addLabel, labelPlaceholder, urlPlaceholder }: {
+  items: LinkItem[]; onChange: (v: LinkItem[]) => void; addLabel: string; labelPlaceholder: string; urlPlaceholder: string;
+}) {
+  return (
+    <div className="space-y-2">
+      {items.map((item, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <Input value={item.label} onChange={e => { const n = [...items]; n[i] = { ...n[i], label: e.target.value }; onChange(n); }} placeholder={labelPlaceholder} className="flex-1" />
+          <Input value={item.url} onChange={e => { const n = [...items]; n[i] = { ...n[i], url: e.target.value }; onChange(n); }} placeholder={urlPlaceholder} className="flex-1" />
+          <Button variant="ghost" size="icon" onClick={() => onChange(items.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></Button>
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={() => onChange([...items, { label: "", url: "" }])}>
+        <Plus className="h-3.5 w-3.5 mr-1.5" />{addLabel}
+      </Button>
+    </div>
+  );
+}
+
+function SocialListEditor({ items, onChange, addLabel }: {
+  items: SocialItem[]; onChange: (v: SocialItem[]) => void; addLabel: string;
+}) {
+  const types = ["linkedin", "twitter", "instagram", "facebook", "youtube"];
+  return (
+    <div className="space-y-2">
+      {items.map((item, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <Select value={item.type} onValueChange={v => { const n = [...items]; n[i] = { ...n[i], type: v }; onChange(n); }}>
+            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {types.map(t => <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Input value={item.url} onChange={e => { const n = [...items]; n[i] = { ...n[i], url: e.target.value }; onChange(n); }} placeholder="https://..." className="flex-1" />
+          <Button variant="ghost" size="icon" onClick={() => onChange(items.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></Button>
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={() => onChange([...items, { type: "linkedin", url: "" }])}>
+        <Plus className="h-3.5 w-3.5 mr-1.5" />{addLabel}
+      </Button>
     </div>
   );
 }
