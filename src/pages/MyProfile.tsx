@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
-import { Camera, Loader2, Headphones, Volume2 } from "lucide-react";
+import { Loader2, Headphones, Volume2 } from "lucide-react";
+import { ImageUploadField } from "@/components/ui/image-upload-field";
 import { cn } from "@/lib/utils";
 
 const CHAT_STATUS_OPTIONS = [
@@ -32,10 +33,8 @@ export default function MyProfile() {
   const { t } = useLanguage();
   const { toast } = useToast();
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
 
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -85,34 +84,11 @@ export default function MyProfile() {
     fetchProfile();
   }, [user]);
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-
-    setUploading(true);
-    const ext = file.name.split(".").pop();
-    const path = `${user.id}/avatar.${ext}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("logos")
-      .upload(path, file, { upsert: true });
-
-    if (uploadError) {
-      toast({ title: "Erro", description: uploadError.message, variant: "destructive" });
-      setUploading(false);
-      return;
+  const handleAvatarChange = async (url: string) => {
+    setAvatarUrl(url || null);
+    if (user) {
+      await supabase.from("user_profiles").update({ avatar_url: url || null }).eq("user_id", user.id);
     }
-
-    const { data: publicUrlData } = supabase.storage.from("logos").getPublicUrl(path);
-    const url = `${publicUrlData.publicUrl}?t=${Date.now()}`;
-    setAvatarUrl(url);
-
-    await supabase
-      .from("user_profiles")
-      .update({ avatar_url: url })
-      .eq("user_id", user.id);
-
-    setUploading(false);
   };
 
   const handleSave = async () => {
@@ -236,34 +212,23 @@ export default function MyProfile() {
             )}
 
             <Card>
-              <CardHeader className="items-center">
-                <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                  <Avatar className="h-24 w-24">
-                    <AvatarImage src={avatarUrl ?? undefined} />
-                    <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {uploading ? (
-                      <Loader2 className="h-6 w-6 animate-spin text-white" />
-                    ) : (
-                      <Camera className="h-6 w-6 text-white" />
-                    )}
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleAvatarUpload}
-                  />
-                </div>
-                <CardTitle className="mt-2">{displayName || email}</CardTitle>
-                <CardDescription>{t("profile.changePhoto")}</CardDescription>
+              <CardHeader>
+                <CardTitle>{displayName || email}</CardTitle>
               </CardHeader>
 
               <CardContent className="space-y-5">
+                <ImageUploadField
+                  value={avatarUrl}
+                  onChange={handleAvatarChange}
+                  label={t("profile.changePhoto")}
+                  bucket="logos"
+                  folder={user?.id ?? "avatars"}
+                  dimensions="200x200px"
+                  maxSizeMB={1}
+                  accept=".png,.jpg,.webp"
+                  previewHeight="h-24"
+                />
+
                 <div className="space-y-2">
                   <Label>{t("profile.displayName")}</Label>
                   <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />

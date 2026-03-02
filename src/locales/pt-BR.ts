@@ -1520,4 +1520,15 @@ export default {
   "chat.dashboard.in_queue": "Na Fila",
   "chat.dashboard.unassigned_queue": "Fila Geral (sem atendente)",
   "chat.dashboard.team_col": "Time",
+
+  // Image Upload
+  "imageUpload.upload": "Upload",
+  "imageUpload.change": "Alterar",
+  "imageUpload.remove": "Remover",
+  "imageUpload.dragHint": "Arraste uma imagem ou clique para upload",
+  "imageUpload.invalidType": "Formato de arquivo não aceito",
+  "imageUpload.tooLarge": "Arquivo muito grande (máx: {max}MB)",
+  "imageUpload.success": "Imagem enviada com sucesso",
+  "imageUpload.error": "Erro ao enviar imagem",
+  "imageUpload.transparentBg": "Fundo transparente recomendado",
 };

@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Building2, Users, Send, MessageSquare, Eye, AlertTriangle, Copy, UserCheck } from "lucide-react";
+import { ImageUploadField } from "@/components/ui/image-upload-field";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 
@@ -268,7 +269,18 @@ export default function TenantManagement() {
                 <div className="space-y-4">
                   <div><Label>Nome</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome da plataforma" /></div>
                   <div><Label>Slug</Label><Input value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} placeholder="slug-unico" /></div>
-                  <div><Label>Logo URL</Label><Input value={form.logo_url} onChange={e => setForm(f => ({ ...f, logo_url: e.target.value }))} placeholder="https://..." /></div>
+                  <div>
+                    <ImageUploadField
+                      value={form.logo_url}
+                      onChange={(url) => setForm(f => ({ ...f, logo_url: url }))}
+                      label="Logo"
+                      bucket="logos"
+                      folder="tenants"
+                      dimensions="200x60px"
+                      maxSizeMB={1}
+                      accept=".png,.svg,.webp"
+                    />
+                  </div>
                   {!editingTenant && (
                     <>
                       <Separator className="my-2" />

@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Save, Plus, Trash2 } from "lucide-react";
+import { ImageUploadField } from "@/components/ui/image-upload-field";
 
 interface LinkItem { label: string; url: string; }
 interface SocialItem { type: string; url: string; }
@@ -144,10 +145,17 @@ export default function HelpSettings() {
         <Card>
           <CardHeader><CardTitle className="text-sm">Branding</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>{t("help.siteLogo")}</Label>
-              <Input value={logoUrl} onChange={e => setLogoUrl(e.target.value)} placeholder="https://..." />
-            </div>
+            <ImageUploadField
+              value={logoUrl}
+              onChange={setLogoUrl}
+              label={t("help.siteLogo")}
+              bucket="help-images"
+              folder="logo"
+              dimensions="200x60px"
+              maxSizeMB={1}
+              accept=".png,.svg,.webp"
+              hint={t("imageUpload.transparentBg")}
+            />
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>{t("help.sitePrimaryColor")}</Label>
@@ -170,16 +178,18 @@ export default function HelpSettings() {
         <Card>
           <CardHeader><CardTitle className="text-sm">{t("help.siteHero")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>{t("help.siteHeroImage")}</Label>
-              <Input value={heroImageUrl} onChange={e => setHeroImageUrl(e.target.value)} placeholder={t("help.siteHeroImagePlaceholder")} />
-              {heroImageUrl && (
-                <div className="mt-2 rounded-lg overflow-hidden border h-24 relative">
-                  <img src={heroImageUrl} alt="" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0" style={{ backgroundColor: primaryColor, opacity: heroOverlayOpacity / 100 }} />
-                </div>
-              )}
-            </div>
+            <ImageUploadField
+              value={heroImageUrl}
+              onChange={setHeroImageUrl}
+              label={t("help.siteHeroImage")}
+              bucket="help-images"
+              folder="hero"
+              dimensions="1920x400px"
+              maxSizeMB={5}
+              accept=".jpg,.png,.webp"
+              previewMode="cover"
+              previewHeight="h-24"
+            />
             <div className="space-y-1.5">
               <Label>{t("help.siteHeroOverlay")}: {heroOverlayOpacity}%</Label>
               <Slider value={[heroOverlayOpacity]} onValueChange={v => setHeroOverlayOpacity(v[0])} min={0} max={100} step={5} />
@@ -208,10 +218,16 @@ export default function HelpSettings() {
           <CardHeader><CardTitle className="text-sm">{t("help.siteFooterSection")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>{t("help.siteFooterLogo")}</Label>
-                <Input value={footerLogoUrl} onChange={e => setFooterLogoUrl(e.target.value)} placeholder="https://..." />
-              </div>
+              <ImageUploadField
+                value={footerLogoUrl}
+                onChange={setFooterLogoUrl}
+                label={t("help.siteFooterLogo")}
+                bucket="help-images"
+                folder="footer-logo"
+                dimensions="200x60px"
+                maxSizeMB={1}
+                accept=".png,.svg,.webp"
+              />
               <div className="space-y-1.5">
                 <Label>{t("help.siteFooterText")}</Label>
                 <Input value={footerText} onChange={e => setFooterText(e.target.value)} placeholder="© 2025 Empresa" />
@@ -238,10 +254,16 @@ export default function HelpSettings() {
         <Card className="lg:col-span-2">
           <CardHeader><CardTitle className="text-sm">{t("help.siteAdvanced")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>{t("help.siteFavicon")}</Label>
-              <Input value={faviconUrl} onChange={e => setFaviconUrl(e.target.value)} placeholder="https://exemplo.com/favicon.ico" />
-            </div>
+            <ImageUploadField
+              value={faviconUrl}
+              onChange={setFaviconUrl}
+              label={t("help.siteFavicon")}
+              bucket="help-images"
+              folder="favicon"
+              dimensions="32x32px ou 64x64px"
+              maxSizeMB={0.5}
+              accept=".png,.ico,.svg"
+            />
             <div className="space-y-1.5">
               <Label>{t("help.siteFooter")} (Legacy HTML)</Label>
               <Textarea value={footerHtml} onChange={e => setFooterHtml(e.target.value)} rows={3} className="font-mono text-xs" />

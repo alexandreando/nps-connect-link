@@ -1,10 +1,11 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, Palette } from "lucide-react";
+import { Loader2, Palette } from "lucide-react";
+import { ImageUploadField } from "@/components/ui/image-upload-field";
 import { Label } from "@/components/ui/label";
 import NPSForm from "@/components/NPSForm";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -33,8 +34,6 @@ const BrandSettingsTab = () => {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { t } = useLanguage();
   const { hasPermission } = useAuth();
@@ -104,44 +103,6 @@ const BrandSettingsTab = () => {
     }
   };
 
-  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error(t("settings.userNotAuthenticated"));
-
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("logos")
-        .upload(fileName, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from("logos")
-        .getPublicUrl(fileName);
-
-      setSettings({ ...settings, logo_url: publicUrl });
-
-      toast({
-        title: t("common.success"),
-        description: t("settings.uploadSuccess"),
-      });
-    } catch (error: any) {
-      toast({
-        title: t("common.error"),
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const handleAddNewBrand = () => {
     const newBrand: BrandSettings = {
@@ -256,40 +217,16 @@ const BrandSettingsTab = () => {
             />
           </div>
 
-          <div>
-            <Label>{t("settings.companyLogo")}</Label>
-            <div className="mt-2 space-y-4">
-              {settings.logo_url && (
-                <div className="flex items-center justify-center p-4 border rounded-lg bg-muted">
-                  <img
-                    src={settings.logo_url}
-                    alt="Logo"
-                    className="max-h-24 object-contain"
-                  />
-                </div>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleLogoUpload}
-                className="hidden"
-              />
-              <Button
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="w-full"
-              >
-                {uploading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Upload className="mr-2 h-4 w-4" />
-                )}
-                {settings.logo_url ? t("settings.changeLogo") : t("settings.uploadLogo")}
-              </Button>
-            </div>
-          </div>
+          <ImageUploadField
+            value={settings.logo_url}
+            onChange={(url) => setSettings({ ...settings, logo_url: url || null })}
+            label={t("settings.companyLogo")}
+            bucket="logos"
+            folder="brand"
+            dimensions="400x120px"
+            maxSizeMB={2}
+            accept=".png,.jpg,.webp,.svg"
+          />
 
           <div className="space-y-4">
             <Label>
