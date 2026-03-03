@@ -149,7 +149,7 @@ export default function SidebarLayout() {
 
   const themeClass = isDark ? "dark" : "";
 
-  if (loading || userDataLoading) {
+  if (loading) {
     return (
       <div className={`${themeClass} min-h-screen flex flex-col items-center justify-center bg-background gap-4`}>
         <img src={isDark ? "/logo-icon-light.svg" : "/logo-icon-dark.svg"} alt="Journey" className="h-16 w-16 animate-pulse" />

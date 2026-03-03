@@ -295,6 +295,15 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
     })));
   }, []);
 
+  // Refs for stable values used inside effects without triggering re-runs
+  const isAdminRef = useRef(isAdmin);
+  const isMasterRef = useRef(isMaster);
+  const isImpersonatingRef = useRef(isImpersonating);
+  isAdminRef.current = isAdmin;
+  isMasterRef.current = isMaster;
+  isImpersonatingRef.current = isImpersonating;
+
+  // Data initialization — depends on user.id + tenantId (stable keys)
   useEffect(() => {
     if (!user?.id) {
       setTeamAttendants([]);
@@ -308,8 +317,14 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
 
     if (initializedForRef.current !== cacheKey) {
       setInitialized(false);
-      initializeData(user.id, isAdmin, tenantId, isMaster && isImpersonating);
+      initializeData(user.id, isAdminRef.current, tenantId, isMasterRef.current && isImpersonatingRef.current);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, tenantId]);
+
+  // Realtime channels — only depend on user.id (stable, never re-created on token refresh)
+  useEffect(() => {
+    if (!user?.id) return;
 
     const roomsChannel = supabase
       .channel("global-sidebar-chat-rooms")
@@ -337,7 +352,7 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
       clearInterval(resyncInterval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, isAdmin, tenantId, isImpersonating]);
+  }, [user?.id]);
 
   return (
     <SidebarDataContext.Provider value={{ teamAttendants, otherTeamAttendants, totalActiveChats, otherTeamsTotalChats, unassignedCount, initialized }}>
