@@ -237,6 +237,9 @@
           resolvedToken = data.visitor_token;
           resolvedName = data.visitor_name || "";
           resolvedEmail = data.visitor_email || "";
+          // Persist resolved identity for future update() calls
+          if (resolvedName && !visitorProps.name) visitorProps.name = resolvedName;
+          if (resolvedEmail && !visitorProps.email) visitorProps.email = resolvedEmail;
           resolvedOwnerUserId = data.user_id || resolvedOwnerUserId;
           resolvedCompanyContactId = data.company_contact_id || "";
           resolvedContactId = data.contact_id || "";
