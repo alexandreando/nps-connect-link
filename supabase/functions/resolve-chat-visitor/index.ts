@@ -32,6 +32,8 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { api_key, external_id, name, email, phone, company_id, company_name, custom_data, visitor_token } = body;
 
+    console.log("[resolve-chat-visitor] Payload received:", { external_id, name, email, company_id, company_name, has_custom_data: !!custom_data, custom_data_keys: custom_data ? Object.keys(custom_data) : [] });
+
     if (!api_key) {
       return new Response(
         JSON.stringify({ error: "api_key is required" }),
@@ -434,7 +436,18 @@ async function findOrCreateVisitor(
     if (customData && Object.keys(customData).length > 0) {
       const nonEmptyMeta = filterNonEmpty(customData);
       if (Object.keys(nonEmptyMeta).length > 0) {
-        updates.metadata = nonEmptyMeta;
+        // MERGE metadata instead of replacing — fetch existing first
+        const { data: currentVisitor } = await supabase
+          .from("chat_visitors")
+          .select("metadata")
+          .eq("id", existing.id)
+          .single();
+        const existingMeta = (currentVisitor?.metadata as Record<string, any>) ?? {};
+        const merged = { ...existingMeta };
+        for (const [k, v] of Object.entries(nonEmptyMeta)) {
+          if (!isEmptyValue(v)) merged[k] = v;
+        }
+        updates.metadata = merged;
       }
     }
 
@@ -597,12 +610,20 @@ async function applyCustomData(
     }
   }
 
+  // Collect keys that were moved to direct columns (to clean from custom_fields)
+  const keysMovedToDirect: string[] = [];
+  for (const [key] of Object.entries(customData)) {
+    if (mapsToLookup[key] || KNOWN_DIRECT[key]) keysMovedToDirect.push(key);
+  }
+
   if (Object.keys(directUpdate).length > 0) {
     directUpdate.updated_at = new Date().toISOString();
+    console.log(`[applyCustomData] Direct update for contact ${contactId}:`, directUpdate);
     await supabase.from("contacts").update(directUpdate).eq("id", contactId);
   }
 
-  if (Object.keys(customUpdate).length > 0) {
+  // Always fetch custom_fields to clean stale keys that now live in direct columns
+  if (Object.keys(customUpdate).length > 0 || keysMovedToDirect.length > 0) {
     const { data: current } = await supabase
       .from("contacts")
       .select("custom_fields")
@@ -610,13 +631,21 @@ async function applyCustomData(
       .single();
 
     const existing = (current?.custom_fields as Record<string, any>) ?? {};
-    // Only overwrite keys whose new value is non-empty
     const merged = { ...existing };
+
+    // Add new custom values
     for (const [k, v] of Object.entries(customUpdate)) {
       if (!isEmptyValue(v)) {
         merged[k] = v;
       }
     }
+
+    // Remove stale keys that now live in direct columns
+    for (const k of keysMovedToDirect) {
+      delete merged[k];
+    }
+
+    console.log(`[applyCustomData] Custom fields update for contact ${contactId}:`, { customUpdate, keysMovedToDirect, merged });
     await supabase
       .from("contacts")
       .update({ custom_fields: merged, updated_at: new Date().toISOString() })
