@@ -26,6 +26,7 @@ import CategoriesTab from "@/components/chat/CategoriesTab";
 import CustomFieldDefinitionsTab from "@/components/chat/CustomFieldDefinitionsTab";
 import ChatWidgetDocsTab from "@/components/chat/ChatWidgetDocsTab";
 import TagManagementSection from "@/components/chat/TagManagementSection";
+import WorkspaceDisplayTab from "@/components/chat/WorkspaceDisplayTab";
 
 interface Macro {
   id: string;
@@ -459,6 +460,10 @@ const AdminSettings = () => {
             </TabsTrigger>
             <TabsTrigger value="macros">{t("chat.settings.tab_macros")}</TabsTrigger>
             <TabsTrigger value="hours">{t("chat.settings.tab_hours")}</TabsTrigger>
+            <TabsTrigger value="workspace" className="flex items-center gap-2">
+              <Settings2 className="h-4 w-4" />
+              Workspace
+            </TabsTrigger>
           </TabsList>
 
           {/* ===== Widget e Instalação Tab ===== */}
@@ -1152,6 +1157,11 @@ const AdminSettings = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* ===== Workspace Tab ===== */}
+          <TabsContent value="workspace" className="mt-4">
+            <WorkspaceDisplayTab />
           </TabsContent>
         </Tabs>
 

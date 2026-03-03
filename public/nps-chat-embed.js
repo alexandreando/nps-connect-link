@@ -355,11 +355,24 @@
     document.body.appendChild(iframe);
     chatIframe = iframe;
 
+    var widgetIsOpen = false;
+
+    function recalcHeight() {
+      if (widgetIsOpen) {
+        var maxH = Math.min(700, window.innerHeight - 16);
+        iframe.style.height = maxH + "px";
+      }
+    }
+
+    window.addEventListener("resize", recalcHeight);
+
     window.addEventListener("message", function (event) {
       if (event.data && event.data.type === "chat-toggle") {
+        widgetIsOpen = event.data.isOpen;
         if (event.data.isOpen) {
           iframe.style.width = "420px";
-          iframe.style.height = "700px";
+          var maxH = Math.min(700, window.innerHeight - 16);
+          iframe.style.height = maxH + "px";
           iframe.style.bottom = "0";
           iframe.style[position === "left" ? "left" : "right"] = "0";
         } else {
