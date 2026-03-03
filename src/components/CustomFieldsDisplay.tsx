@@ -50,8 +50,18 @@ function formatFieldValue(value: any, fieldType: string) {
           {value === true || value === "true" ? "Sim" : "Não"}
         </Badge>
       );
-    default:
-      return String(value);
+    default: {
+      const str = String(value);
+      if (/^(https?:\/\/|www\.)/i.test(str)) {
+        const href = str.startsWith("http") ? str : `https://${str}`;
+        return (
+          <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">
+            {str.replace(/^https?:\/\//, "").slice(0, 40)}
+          </a>
+        );
+      }
+      return str;
+    }
   }
 }
 

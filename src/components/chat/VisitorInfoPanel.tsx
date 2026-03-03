@@ -1,16 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Mail, Phone, Building2, Hash, MessageSquare, Star, Calendar, DollarSign, Activity, ExternalLink, RefreshCw, ChevronDown, Clock } from "lucide-react";
+import { User, Mail, Phone, Building2, Hash, Star, Calendar, DollarSign, Activity, ExternalLink, RefreshCw, ChevronDown, Clock, FileText, MapPin, Briefcase } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { SectionLabel } from "@/components/ui/section-label";
 import { TimelineComponent } from "@/components/cs/TimelineComponent";
 import { ReadOnlyChatDialog } from "@/components/chat/ReadOnlyChatDialog";
-
 
 interface Visitor {
   id: string;
@@ -35,6 +34,7 @@ interface CompanyContact {
   chat_total: number | null;
   chat_avg_csat: number | null;
   chat_last_at: string | null;
+  custom_fields: Record<string, any> | null;
 }
 
 interface Company {
@@ -71,6 +71,7 @@ interface FieldDef {
   field_type: string;
   target: string;
   maps_to: string | null;
+  display_order: number | null;
   is_active: boolean;
 }
 
@@ -97,16 +98,32 @@ function getHealthColor(score: number) {
   return "text-red-600";
 }
 
-function getHealthProgressColor(score: number) {
+function getHealthBg(score: number) {
   if (score >= 70) return "bg-green-500";
   if (score >= 40) return "bg-yellow-500";
   return "bg-red-500";
 }
 
 function getNpsBadge(score: number) {
-  if (score >= 9) return { label: "Promotor", variant: "default" as const, className: "bg-green-500 hover:bg-green-600" };
-  if (score >= 7) return { label: "Neutro", variant: "secondary" as const, className: "bg-yellow-500 hover:bg-yellow-600 text-white" };
-  return { label: "Detrator", variant: "destructive" as const, className: "" };
+  if (score >= 9) return { label: "Promotor", className: "bg-green-500/15 text-green-700 border-green-500/30" };
+  if (score >= 7) return { label: "Neutro", className: "bg-yellow-500/15 text-yellow-700 border-yellow-500/30" };
+  return { label: "Detrator", className: "bg-red-500/15 text-red-700 border-red-500/30" };
+}
+
+function isUrl(val: string) {
+  return /^(https?:\/\/|www\.)/i.test(val);
+}
+
+function ClickableValue({ value, type }: { value: string; type?: string }) {
+  if (type === "url" || isUrl(value)) {
+    const href = value.startsWith("http") ? value : `https://${value}`;
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">
+        {value.replace(/^https?:\/\//, "").slice(0, 35)}
+      </a>
+    );
+  }
+  return <span className="truncate">{value}</span>;
 }
 
 export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, companyContactId: propCompanyContactId }: VisitorInfoPanelProps) {
@@ -145,7 +162,6 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
     setHasMoreChats(roomList.length > CHAT_PAGE_SIZE);
     const trimmed = roomList.slice(0, CHAT_PAGE_SIZE);
 
-    // Fetch attendant names + tags for these rooms
     const attIds = [...new Set(trimmed.map(r => r.attendant_id).filter(Boolean))] as string[];
     const roomIds = trimmed.map(r => r.id);
 
@@ -200,7 +216,6 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
     setVisitor(v);
     setVisitorMetadata((v?.metadata as Record<string, any>) ?? {});
 
-    // Fetch custom field definitions for this tenant
     const { data: defs } = await supabase
       .from("chat_custom_field_definitions" as any)
       .select("*")
@@ -241,7 +256,7 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
         (async () => {
           const { data } = await supabase
             .from("company_contacts")
-            .select("id, name, email, phone, role, department, external_id, chat_total, chat_avg_csat, chat_last_at")
+            .select("id, name, email, phone, role, department, external_id, chat_total, chat_avg_csat, chat_last_at, custom_fields")
             .eq("id", resolvedCcId)
             .maybeSingle();
           setCompanyContact(data as CompanyContact | null);
@@ -270,298 +285,304 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
 
   if (!visitor) return null;
 
-  const hasLinkedData = company || companyContact;
   const displayContact = companyContact || visitor;
+  const hasCompany = !!company;
 
-  if (!hasLinkedData) {
-    return (
-      <div className="glass-card h-full">
-      <div className="p-4 border-b border-border flex items-center justify-between">
-          <h3 className="text-sm font-semibold">{t("chat.workspace.visitor_info")}</h3>
-          <button onClick={() => fetchData(true)} disabled={refreshing} className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50" title="Atualizar dados">
-            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
-          </button>
-        </div>
-        <div className="p-4 space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <User className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="font-medium text-sm">{visitor.name}</p>
-              {visitor.role && <p className="text-xs text-muted-foreground">{visitor.role}</p>}
-            </div>
-          </div>
-          {visitor.email && (
-            <div className="flex items-center gap-2 text-sm">
-              <Mail className="h-4 w-4 text-muted-foreground" />
-              <span className="truncate">{visitor.email}</span>
-            </div>
-          )}
-          {visitor.phone && (
-            <div className="flex items-center gap-2 text-sm">
-              <Phone className="h-4 w-4 text-muted-foreground" />
-              <span>{visitor.phone}</span>
-            </div>
-          )}
-          {visitor.department && (
-            <div className="text-sm">
-              <p className="text-xs text-muted-foreground mb-1">{t("chat.workspace.department")}</p>
-              <p>{visitor.department}</p>
-            </div>
-          )}
-          <div className="text-xs text-muted-foreground pt-2 border-t">
-            {t("chat.workspace.since")} {new Date(visitor.created_at).toLocaleDateString()}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Merge custom fields from visitor metadata + company custom_fields + contact custom_fields
+  const companyCustomFields = company?.custom_fields ?? {};
+  const contactCustomFields = (companyContact?.custom_fields as Record<string, any>) ?? {};
 
   return (
     <div className="glass-card h-full flex flex-col">
-      <div className="p-4 border-b border-border space-y-2 relative">
-        <button onClick={() => fetchData(true)} disabled={refreshing} className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50" title="Atualizar dados">
+      {/* Header */}
+      <div className="p-4 border-b border-border space-y-1.5 relative">
+        <button
+          onClick={() => fetchData(true)}
+          disabled={refreshing}
+          className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          title="Atualizar dados"
+        >
           <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
         </button>
+
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
             <User className="h-5 w-5 text-primary" />
           </div>
           <div className="min-w-0">
-            <p className="font-medium text-sm truncate">{displayContact.name}</p>
-            {displayContact.role && <p className="text-xs text-muted-foreground truncate">{displayContact.role}</p>}
+            <p className="font-semibold text-sm truncate">{displayContact.name}</p>
+            {displayContact.role && <p className="text-[11px] text-muted-foreground truncate">{displayContact.role}</p>}
           </div>
         </div>
+
         {displayContact.email && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Mail className="h-3 w-3 shrink-0" />
-            <span className="truncate">{displayContact.email}</span>
+            <a href={`mailto:${displayContact.email}`} className="truncate hover:text-primary hover:underline transition-colors">
+              {displayContact.email}
+            </a>
           </div>
         )}
         {displayContact.phone && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Phone className="h-3 w-3 shrink-0" />
-            <span>{displayContact.phone}</span>
+            <a href={`tel:${displayContact.phone}`} className="hover:text-primary hover:underline transition-colors">
+              {displayContact.phone}
+            </a>
           </div>
         )}
       </div>
 
-      <Tabs defaultValue="contact" className="flex-1 flex flex-col min-h-0">
-        <TabsList className="mx-4 mt-3 grid grid-cols-3 h-8">
-          <TabsTrigger value="contact" className="text-xs">Contato</TabsTrigger>
-          <TabsTrigger value="company" className="text-xs">Empresa</TabsTrigger>
-          <TabsTrigger value="timeline" className="text-xs">Timeline</TabsTrigger>
-        </TabsList>
+      <ScrollArea className="flex-1">
+        <div className="p-4 space-y-4">
 
-        <ScrollArea className="flex-1">
-          <TabsContent value="contact" className="px-4 pb-4 space-y-3 mt-0">
-            {companyContact?.department && <InfoRow icon={Building2} label="Departamento" value={companyContact.department} />}
-            {companyContact?.external_id && <InfoRow icon={Hash} label="External ID" value={companyContact.external_id} />}
-            <div className="pt-2 border-t border-border space-y-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Métricas de Chat</p>
-              <div className="grid grid-cols-2 gap-2">
-                <MetricCard label="Sessões" value={String(companyContact?.chat_total ?? 0)} />
-                <MetricCard label="CSAT Médio" value={companyContact?.chat_avg_csat ? `${Number(companyContact.chat_avg_csat).toFixed(1)}` : "—"} />
-              </div>
-              {companyContact?.chat_last_at && (
-                <p className="text-xs text-muted-foreground">
-                  Último chat: {new Date(companyContact.chat_last_at).toLocaleDateString()}
-                </p>
-              )}
-            </div>
-
-            {/* Custom Fields from metadata */}
-            {fieldDefs.length > 0 && Object.keys(visitorMetadata).length > 0 && (
-              <div className="pt-2 border-t border-border space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Dados Customizados</p>
-                <div className="space-y-1.5">
-                  {fieldDefs
-                    .filter((fd) => visitorMetadata[fd.key] !== undefined && visitorMetadata[fd.key] !== null)
-                    .map((fd) => (
-                      <CustomFieldRow key={fd.id} fieldDef={fd} value={visitorMetadata[fd.key]} />
-                    ))}
-                </div>
-              </div>
-            )}
-
-            {/* Recent Chats */}
-            {recentChats.length > 0 && (
-              <div className="pt-2 border-t border-border space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Clock className="h-3 w-3" /> Últimos Chats
-                </p>
-                <div className="space-y-1.5">
-                  {recentChats.map((chat) => (
-                    <button
-                      key={chat.id}
-                      onClick={() => setReadOnlyRoom({ id: chat.id, name: visitor?.name ?? "Visitante" })}
-                      className="w-full text-left p-2 rounded-md border border-border hover:bg-muted/50 transition-colors space-y-1"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] text-muted-foreground tabular-nums">
-                          {new Date(chat.created_at).toLocaleDateString("pt-BR")}
-                        </span>
-                        <Badge
-                          variant={chat.status === "active" ? "default" : chat.status === "closed" ? "secondary" : "outline"}
-                          className="text-[9px] px-1.5 py-0"
-                        >
-                          {chat.status === "active" ? "Ativo" : chat.status === "closed" ? "Encerrado" : chat.status === "waiting" ? "Aguardando" : chat.status}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {chat.csat_score != null && (
-                          <span className="text-[10px] flex items-center gap-0.5">
-                            <Star className="h-2.5 w-2.5 fill-yellow-500 text-yellow-500" />
-                            {chat.csat_score}
-                          </span>
-                        )}
-                        {chat.attendant_name && (
-                          <span className="text-[10px] text-muted-foreground">{chat.attendant_name}</span>
-                        )}
-                        {chat.tags.map((tag, i) => (
-                          <Badge key={i} variant="secondary" className="text-[9px] px-1 py-0" style={{ borderColor: tag.color ?? undefined }}>
-                            {tag.name}
-                          </Badge>
-                        ))}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-                {hasMoreChats && (
-                  <Button variant="ghost" size="sm" className="w-full text-[11px] h-7" onClick={loadMoreChats}>
-                    <ChevronDown className="h-3 w-3 mr-1" /> Carregar mais
-                  </Button>
-                )}
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="company" className="px-4 pb-4 space-y-3 mt-0">
-            {company ? (
-              <>
-                <button
-                  onClick={() => navigate("/nps/contacts")}
-                  className="text-left group"
-                >
+          {/* EMPRESA */}
+          {hasCompany && (
+            <section>
+              <SectionLabel>Empresa</SectionLabel>
+              <div className="space-y-1.5">
+                <button onClick={() => navigate("/nps/contacts")} className="text-left group w-full">
                   <p className="font-medium text-sm group-hover:text-primary transition-colors flex items-center gap-1">
-                    {company.trade_name || company.name}
+                    {company!.trade_name || company!.name}
                     <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </p>
-                  {company.trade_name && company.name !== company.trade_name && (
-                    <p className="text-xs text-muted-foreground">{company.name}</p>
+                  {company!.trade_name && company!.name !== company!.trade_name && (
+                    <p className="text-[11px] text-muted-foreground">{company!.name}</p>
                   )}
                 </button>
 
-                {company.health_score != null && (
-                  <button
-                    onClick={() => navigate("/cs-health")}
-                    className="w-full text-left space-y-1 group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider group-hover:text-primary transition-colors flex items-center gap-1">
-                        Health Score
-                        <ExternalLink className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </span>
-                      <span className={`text-sm font-semibold ${getHealthColor(company.health_score)}`}>
-                        {company.health_score}
-                      </span>
-                    </div>
-                    <div className="h-2 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${getHealthProgressColor(company.health_score)}`}
-                        style={{ width: `${company.health_score}%` }}
-                      />
-                    </div>
-                  </button>
-                )}
-
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => navigate("/cs-financial")} className="group">
-                    <MetricCard
-                      label={<span className="group-hover:text-primary transition-colors flex items-center gap-0.5 justify-center">MRR<ExternalLink className="h-2 w-2 opacity-0 group-hover:opacity-100" /></span>}
-                      value={company.mrr ? `R$ ${Number(company.mrr).toLocaleString("pt-BR")}` : "—"}
-                    />
-                  </button>
-                  <button onClick={() => navigate("/cs-financial")} className="group">
-                    <MetricCard
-                      label={<span className="group-hover:text-primary transition-colors flex items-center gap-0.5 justify-center">Contrato<ExternalLink className="h-2 w-2 opacity-0 group-hover:opacity-100" /></span>}
-                      value={company.contract_value ? `R$ ${Number(company.contract_value).toLocaleString("pt-BR")}` : "—"}
-                    />
-                  </button>
-                </div>
-
-                {company.renewal_date && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Renovação:</span>
-                    <span className="text-xs">{new Date(company.renewal_date).toLocaleDateString("pt-BR")}</span>
+                {company!.company_document && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <FileText className="h-3 w-3 shrink-0" />
+                    <span>CNPJ: {company!.company_document}</span>
                   </div>
                 )}
+                {company!.company_sector && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Briefcase className="h-3 w-3 shrink-0" />
+                    <span>{company!.company_sector}</span>
+                  </div>
+                )}
+                {(company!.city || company!.state) && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    <span>{[company!.city, company!.state].filter(Boolean).join(", ")}</span>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
 
-                {company.last_nps_score != null && (
-                  <button
-                    onClick={() => navigate("/nps/dashboard")}
-                    className="flex items-center gap-2 group w-full text-left"
-                  >
-                    <Star className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground group-hover:text-primary transition-colors flex items-center gap-0.5">
-                      NPS
+          {/* MÉTRICAS */}
+          {hasCompany && (
+            <section className="border-t border-border pt-3">
+              <SectionLabel>Métricas</SectionLabel>
+
+              {/* Health Score */}
+              {company!.health_score != null && (
+                <button onClick={() => navigate("/cs-health")} className="w-full text-left group mb-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] text-muted-foreground group-hover:text-primary transition-colors flex items-center gap-1">
+                      Health Score
                       <ExternalLink className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </span>
-                    <span className="text-sm font-semibold">{company.last_nps_score}</span>
-                    <Badge className={`text-[10px] px-1.5 py-0 ${getNpsBadge(company.last_nps_score).className}`}>
-                      {getNpsBadge(company.last_nps_score).label}
+                    <span className={`text-xs font-bold ${getHealthColor(company!.health_score!)}`}>
+                      {company!.health_score}
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${getHealthBg(company!.health_score!)}`}
+                      style={{ width: `${company!.health_score}%` }}
+                    />
+                  </div>
+                </button>
+              )}
+
+              {/* Metric pills */}
+              <div className="flex flex-wrap gap-1.5">
+                {company!.mrr != null && Number(company!.mrr) > 0 && (
+                  <button onClick={() => navigate("/cs-financial")} className="group">
+                    <Badge variant="outline" className="text-[10px] font-medium gap-1 group-hover:border-primary group-hover:text-primary transition-colors">
+                      <DollarSign className="h-2.5 w-2.5" />
+                      MRR R$ {Number(company!.mrr).toLocaleString("pt-BR")}
                     </Badge>
                   </button>
                 )}
-
-                {(company.city || company.state) && (
-                  <p className="text-xs text-muted-foreground">📍 {[company.city, company.state].filter(Boolean).join(", ")}</p>
+                {company!.contract_value != null && Number(company!.contract_value) > 0 && (
+                  <button onClick={() => navigate("/cs-financial")} className="group">
+                    <Badge variant="outline" className="text-[10px] font-medium gap-1 group-hover:border-primary group-hover:text-primary transition-colors">
+                      Contrato R$ {Number(company!.contract_value).toLocaleString("pt-BR")}
+                    </Badge>
+                  </button>
                 )}
-                {company.company_sector && <p className="text-xs text-muted-foreground">🏢 {company.company_sector}</p>}
-                {company.company_document && <p className="text-xs text-muted-foreground">📋 CNPJ: {company.company_document}</p>}
+                {company!.last_nps_score != null && (
+                  <button onClick={() => navigate("/nps/dashboard")} className="group">
+                    <Badge variant="outline" className={`text-[10px] font-medium gap-1 ${getNpsBadge(company!.last_nps_score!).className}`}>
+                      <Star className="h-2.5 w-2.5" />
+                      NPS {company!.last_nps_score}
+                    </Badge>
+                  </button>
+                )}
+                {company!.renewal_date && (
+                  <Badge variant="outline" className="text-[10px] font-medium gap-1">
+                    <Calendar className="h-2.5 w-2.5" />
+                    Renov. {new Date(company!.renewal_date).toLocaleDateString("pt-BR")}
+                  </Badge>
+                )}
+              </div>
+            </section>
+          )}
 
-                {/* Company Custom Fields */}
-                {company.custom_fields && Object.keys(company.custom_fields).length > 0 && (
-                  <div className="pt-2 border-t border-border space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Campos Customizados</p>
-                    <div className="space-y-1.5">
-                      {fieldDefs
-                        .filter((fd) => fd.target === "company" && company.custom_fields?.[fd.key] !== undefined && company.custom_fields?.[fd.key] !== null)
-                        .map((fd) => (
-                          <CustomFieldRow key={fd.id} fieldDef={fd} value={company.custom_fields![fd.key]} />
-                        ))}
-                      {/* Fallback for fields without definitions */}
-                      {Object.entries(company.custom_fields)
-                        .filter(([key, val]) => val != null && !fieldDefs.some((fd) => fd.key === key && fd.target === "company"))
-                        .map(([key, val]) => (
-                          <div key={key} className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">{key}</span>
-                            <span className="font-medium text-right max-w-[60%] truncate">{String(val)}</span>
-                          </div>
-                        ))}
+          {/* DADOS DO CONTATO */}
+          <section className="border-t border-border pt-3">
+            <SectionLabel>Dados do Contato</SectionLabel>
+            <div className="space-y-1.5">
+              {companyContact?.department && (
+                <InfoRow label="Departamento" value={companyContact.department} />
+              )}
+              {companyContact?.external_id && (
+                <InfoRow label="External ID" value={companyContact.external_id} />
+              )}
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                <Badge variant="secondary" className="text-[10px] font-medium gap-1">
+                  <Clock className="h-2.5 w-2.5" />
+                  {companyContact?.chat_total ?? 0} sessões
+                </Badge>
+                {companyContact?.chat_avg_csat != null && Number(companyContact.chat_avg_csat) > 0 && (
+                  <Badge variant="secondary" className="text-[10px] font-medium gap-1">
+                    <Star className="h-2.5 w-2.5" />
+                    CSAT {Number(companyContact.chat_avg_csat).toFixed(1)}
+                  </Badge>
+                )}
+                {companyContact?.chat_last_at && (
+                  <Badge variant="secondary" className="text-[10px] font-medium gap-1">
+                    Último: {new Date(companyContact.chat_last_at).toLocaleDateString("pt-BR")}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {/* CAMPOS CUSTOMIZADOS (visitor metadata + company custom_fields + contact custom_fields) */}
+          {(() => {
+            const allCustomEntries: { key: string; label: string; value: any; fieldType: string; order: number }[] = [];
+
+            // From visitor metadata
+            fieldDefs.forEach((fd) => {
+              if (visitorMetadata[fd.key] !== undefined && visitorMetadata[fd.key] !== null) {
+                allCustomEntries.push({ key: `v_${fd.key}`, label: fd.label, value: visitorMetadata[fd.key], fieldType: fd.field_type, order: fd.display_order ?? 999 });
+              }
+            });
+
+            // From company custom_fields
+            const companyDefs = fieldDefs.filter(fd => fd.target === "company");
+            companyDefs.forEach(fd => {
+              if (companyCustomFields[fd.key] !== undefined && companyCustomFields[fd.key] !== null && !allCustomEntries.some(e => e.label === fd.label)) {
+                allCustomEntries.push({ key: `c_${fd.key}`, label: fd.label, value: companyCustomFields[fd.key], fieldType: fd.field_type, order: fd.display_order ?? 999 });
+              }
+            });
+            // Fallback company custom fields without defs
+            Object.entries(companyCustomFields).forEach(([key, val]) => {
+              if (val != null && !companyDefs.some(fd => fd.key === key) && !allCustomEntries.some(e => e.label === key)) {
+                allCustomEntries.push({ key: `cf_${key}`, label: key, value: val, fieldType: "text", order: 9999 });
+              }
+            });
+
+            // From contact custom_fields
+            const contactDefs = fieldDefs.filter(fd => fd.target === "contact");
+            contactDefs.forEach(fd => {
+              if (contactCustomFields[fd.key] !== undefined && contactCustomFields[fd.key] !== null && !allCustomEntries.some(e => e.label === fd.label)) {
+                allCustomEntries.push({ key: `cc_${fd.key}`, label: fd.label, value: contactCustomFields[fd.key], fieldType: fd.field_type, order: fd.display_order ?? 999 });
+              }
+            });
+            Object.entries(contactCustomFields).forEach(([key, val]) => {
+              if (val != null && !contactDefs.some(fd => fd.key === key) && !allCustomEntries.some(e => e.label === key)) {
+                allCustomEntries.push({ key: `ccf_${key}`, label: key, value: val, fieldType: "text", order: 9999 });
+              }
+            });
+
+            allCustomEntries.sort((a, b) => a.order - b.order);
+
+            if (allCustomEntries.length === 0) return null;
+
+            return (
+              <section className="border-t border-border pt-3">
+                <SectionLabel>Campos Customizados</SectionLabel>
+                <div className="space-y-1.5">
+                  {allCustomEntries.map((entry) => (
+                    <CustomFieldRow key={entry.key} label={entry.label} value={entry.value} fieldType={entry.fieldType} />
+                  ))}
+                </div>
+              </section>
+            );
+          })()}
+
+          {/* ÚLTIMOS CHATS */}
+          {recentChats.length > 0 && (
+            <section className="border-t border-border pt-3">
+              <SectionLabel className="flex items-center gap-1">
+                <Clock className="h-3 w-3" /> Últimos Chats
+              </SectionLabel>
+              <div className="space-y-1.5">
+                {recentChats.map((chat) => (
+                  <button
+                    key={chat.id}
+                    onClick={() => setReadOnlyRoom({ id: chat.id, name: visitor?.name ?? "Visitante" })}
+                    className="w-full text-left p-2 rounded-md border border-border hover:bg-muted/50 transition-colors space-y-1"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-muted-foreground tabular-nums">
+                        {new Date(chat.created_at).toLocaleDateString("pt-BR")}
+                      </span>
+                      <Badge
+                        variant={chat.status === "active" ? "default" : chat.status === "closed" ? "secondary" : "outline"}
+                        className="text-[9px] px-1.5 py-0"
+                      >
+                        {chat.status === "active" ? "Ativo" : chat.status === "closed" ? "Encerrado" : chat.status === "waiting" ? "Aguardando" : chat.status}
+                      </Badge>
                     </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground py-4 text-center">Sem empresa vinculada</p>
-            )}
-          </TabsContent>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {chat.csat_score != null && (
+                        <span className="text-[10px] flex items-center gap-0.5">
+                          <Star className="h-2.5 w-2.5 fill-yellow-500 text-yellow-500" />
+                          {chat.csat_score}
+                        </span>
+                      )}
+                      {chat.attendant_name && (
+                        <span className="text-[10px] text-muted-foreground">{chat.attendant_name}</span>
+                      )}
+                      {chat.tags.map((tag, i) => (
+                        <Badge key={i} variant="secondary" className="text-[9px] px-1 py-0" style={{ borderColor: tag.color ?? undefined }}>
+                          {tag.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {hasMoreChats && (
+                <Button variant="ghost" size="sm" className="w-full text-[11px] h-7 mt-1" onClick={loadMoreChats}>
+                  <ChevronDown className="h-3 w-3 mr-1" /> Carregar mais
+                </Button>
+              )}
+            </section>
+          )}
 
-          <TabsContent value="timeline" className="px-4 pb-4 mt-0">
+          {/* TIMELINE */}
+          <section className="border-t border-border pt-3">
+            <SectionLabel>Timeline</SectionLabel>
             {timelineEvents.length > 0 ? (
               <TimelineComponent events={timelineEvents} />
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Nenhum evento registrado</p>
+              <div className="text-center py-4 text-muted-foreground">
+                <Activity className="h-6 w-6 mx-auto mb-1 opacity-40" />
+                <p className="text-xs">Nenhum evento registrado</p>
               </div>
             )}
-          </TabsContent>
-        </ScrollArea>
-      </Tabs>
+          </section>
+        </div>
+      </ScrollArea>
 
       <ReadOnlyChatDialog
         roomId={readOnlyRoom?.id ?? null}
@@ -573,55 +594,60 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
   );
 }
 
-function InfoRow({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
+function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center gap-2 text-sm">
-      <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
-      <span className="text-xs text-muted-foreground">{label}:</span>
-      <span className="text-xs truncate">{value}</span>
+    <div className="flex items-center justify-between text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium text-right max-w-[60%] truncate">
+        <ClickableValue value={value} />
+      </span>
     </div>
   );
 }
 
-function MetricCard({ label, value }: { label: React.ReactNode; value: string }) {
-  return (
-    <div className="rounded-md border bg-muted/50 p-2 text-center">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-sm font-semibold">{value}</p>
-    </div>
-  );
-}
-
-function CustomFieldRow({ fieldDef, value }: { fieldDef: FieldDef; value: any }) {
+function CustomFieldRow({ label, value, fieldType }: { label: string; value: any; fieldType: string }) {
   const formatValue = () => {
-    switch (fieldDef.field_type) {
+    if (value === null || value === undefined || value === "") return null;
+    switch (fieldType) {
       case "decimal":
         return `R$ ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
       case "integer":
         return Number(value).toLocaleString("pt-BR");
       case "date":
-        return new Date(value).toLocaleDateString("pt-BR");
+        try { return new Date(value).toLocaleDateString("pt-BR"); } catch { return String(value); }
       case "url":
         return (
-          <a href={String(value)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">
-            {String(value).replace(/^https?:\/\//, "").slice(0, 30)}
+          <a href={String(value).startsWith("http") ? String(value) : `https://${value}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">
+            {String(value).replace(/^https?:\/\//, "").slice(0, 35)}
           </a>
         );
       case "boolean":
         return (
-          <Badge variant={value ? "default" : "secondary"} className="text-[10px]">
-            {value ? "Sim" : "Não"}
+          <Badge variant={value === true || value === "true" ? "default" : "secondary"} className="text-[10px]">
+            {value === true || value === "true" ? "Sim" : "Não"}
           </Badge>
         );
-      default:
-        return String(value);
+      default: {
+        const str = String(value);
+        if (isUrl(str)) {
+          return (
+            <a href={str.startsWith("http") ? str : `https://${str}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">
+              {str.replace(/^https?:\/\//, "").slice(0, 35)}
+            </a>
+          );
+        }
+        return str;
+      }
     }
   };
 
+  const formatted = formatValue();
+  if (formatted === null) return null;
+
   return (
     <div className="flex items-center justify-between text-xs">
-      <span className="text-muted-foreground">{fieldDef.label}</span>
-      <span className="font-medium text-right max-w-[60%] truncate">{formatValue()}</span>
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium text-right max-w-[60%] truncate">{formatted}</span>
     </div>
   );
 }
