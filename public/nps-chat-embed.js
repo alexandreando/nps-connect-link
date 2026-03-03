@@ -30,6 +30,22 @@
 
   var RESERVED_KEYS = ["name", "email", "phone", "company_id", "company_name", "user_id"];
 
+  // --- camelCase to snake_case normalizer ---
+  function camelToSnake(str) {
+    return str.replace(/([A-Z])/g, function (match) { return "_" + match.toLowerCase(); });
+  }
+
+  function normalizeKeys(obj) {
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return obj;
+    var result = {};
+    for (var key in obj) {
+      if (!obj.hasOwnProperty(key)) continue;
+      var snakeKey = camelToSnake(key);
+      result[snakeKey] = obj[key];
+    }
+    return result;
+  }
+
   // --- Banner Type SVG Icons ---
   var BANNER_ICONS = {
     info: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
@@ -207,12 +223,15 @@
     var payload = { api_key: apiKey, external_id: externalId };
     var customData = {};
 
-    for (var key in props) {
-      if (!props.hasOwnProperty(key)) continue;
+    // Normalize all keys to snake_case first
+    var normalized = normalizeKeys(props);
+
+    for (var key in normalized) {
+      if (!normalized.hasOwnProperty(key)) continue;
       if (RESERVED_KEYS.indexOf(key) !== -1) {
-        payload[key] = props[key];
+        payload[key] = normalized[key];
       } else {
-        customData[key] = props[key];
+        customData[key] = normalized[key];
       }
     }
 

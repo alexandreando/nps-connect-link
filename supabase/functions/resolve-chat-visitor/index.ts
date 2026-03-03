@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { api_key, external_id, name, email, phone, company_id, company_name, custom_data, visitor_token } = body;
 
-    console.log("[resolve-chat-visitor] Payload received:", { external_id, name, email, company_id, company_name, has_custom_data: !!custom_data, custom_data_keys: custom_data ? Object.keys(custom_data) : [] });
+    console.log("[resolve-chat-visitor] Payload received:", { external_id, name, email, company_id, company_name, has_custom_data: !!custom_data, custom_data_values: custom_data || {} });
 
     if (!api_key) {
       return new Response(
@@ -94,12 +94,12 @@ Deno.serve(async (req) => {
       tenantId = profile?.tenant_id || null;
     }
 
-    // Get field definitions for maps_to resolution (load early for all branches)
+  // Get field definitions for maps_to resolution (load early for all branches)
     let fieldDefs: any[] = [];
     if (tenantId && custom_data && Object.keys(custom_data).length > 0) {
       const { data: defs } = await supabase
         .from("chat_custom_field_definitions")
-        .select("key, maps_to")
+        .select("key, maps_to, field_type")
         .eq("tenant_id", tenantId)
         .eq("is_active", true);
       fieldDefs = defs || [];
@@ -616,10 +616,40 @@ async function applyCustomData(
     if (mapsToLookup[key] || KNOWN_DIRECT[key]) keysMovedToDirect.push(key);
   }
 
+  // --- Zero-downgrade protection for direct columns ---
   if (Object.keys(directUpdate).length > 0) {
-    directUpdate.updated_at = new Date().toISOString();
-    console.log(`[applyCustomData] Direct update for contact ${contactId}:`, directUpdate);
-    await supabase.from("contacts").update(directUpdate).eq("id", contactId);
+    // Fetch current values to prevent overwriting real data with zeros
+    const directCols = Object.keys(directUpdate).filter(k => k !== "updated_at");
+    const { data: currentContact } = await supabase
+      .from("contacts")
+      .select(directCols.join(","))
+      .eq("id", contactId)
+      .single();
+
+    if (currentContact) {
+      for (const col of directCols) {
+        const currentVal = currentContact[col];
+        const newVal = directUpdate[col];
+        // If current value is non-zero/non-null and new value is 0, skip (prevent downgrade)
+        if (currentVal !== null && currentVal !== undefined && currentVal !== 0 && newVal === 0) {
+          console.log(`[applyCustomData] SKIP zero-downgrade for ${col}: current=${currentVal}, incoming=0`);
+          delete directUpdate[col];
+        }
+      }
+    }
+
+    // Only update if there are still columns to update
+    if (Object.keys(directUpdate).length > 0) {
+      directUpdate.updated_at = new Date().toISOString();
+      console.log(`[applyCustomData] Direct update for contact ${contactId}:`, directUpdate);
+      await supabase.from("contacts").update(directUpdate).eq("id", contactId);
+    }
+  }
+
+  // --- Build field type lookup for numeric zero-protection in custom_fields ---
+  const fieldTypeLookup: Record<string, string> = {};
+  for (const def of fieldDefs) {
+    fieldTypeLookup[def.key] = def.field_type;
   }
 
   // Always fetch custom_fields to clean stale keys that now live in direct columns
@@ -633,11 +663,16 @@ async function applyCustomData(
     const existing = (current?.custom_fields as Record<string, any>) ?? {};
     const merged = { ...existing };
 
-    // Add new custom values
+    // Add new custom values with zero-downgrade protection for numeric fields
     for (const [k, v] of Object.entries(customUpdate)) {
-      if (!isEmptyValue(v)) {
-        merged[k] = v;
+      if (isEmptyValue(v)) continue;
+      const fType = fieldTypeLookup[k] || "";
+      const isNumeric = ["integer", "decimal", "number"].includes(fType);
+      if (isNumeric && v === 0 && merged[k] !== undefined && merged[k] !== null && merged[k] !== 0) {
+        console.log(`[applyCustomData] SKIP custom zero-downgrade for ${k}: current=${merged[k]}, incoming=0`);
+        continue;
       }
+      merged[k] = v;
     }
 
     // Remove stale keys that now live in direct columns
