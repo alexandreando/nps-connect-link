@@ -6,6 +6,23 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// --- Helper: Check if value is empty (should not overwrite existing data) ---
+function isEmptyValue(val: any): boolean {
+  if (val === null || val === undefined || val === "") return true;
+  if (Array.isArray(val) && val.length === 0) return true;
+  if (typeof val === "object" && !Array.isArray(val) && Object.keys(val).length === 0) return true;
+  return false;
+}
+
+// --- Helper: Filter out empty values from an object ---
+function filterNonEmpty(obj: Record<string, any>): Record<string, any> {
+  const result: Record<string, any> = {};
+  for (const [key, val] of Object.entries(obj)) {
+    if (!isEmptyValue(val)) result[key] = val;
+  }
+  return result;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -13,7 +30,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { api_key, external_id, name, email, phone, company_id, company_name, custom_data } = body;
+    const { api_key, external_id, name, email, phone, company_id, company_name, custom_data, visitor_token } = body;
 
     if (!api_key) {
       return new Response(
@@ -160,6 +177,70 @@ Deno.serve(async (req) => {
         );
       }
 
+      // --- visitor_token fallback: identify by token when name/email absent ---
+      if (visitor_token) {
+        const { data: tokenVisitor } = await supabase
+          .from("chat_visitors")
+          .select("id, visitor_token, contact_id, company_contact_id, name, email")
+          .eq("visitor_token", visitor_token)
+          .maybeSingle();
+
+        if (tokenVisitor) {
+          // Load field defs if not loaded yet (custom_data present but no tenantId check earlier)
+          if (fieldDefs.length === 0 && tenantId && custom_data && Object.keys(custom_data).length > 0) {
+            const { data: defs } = await supabase
+              .from("chat_custom_field_definitions")
+              .select("key, maps_to")
+              .eq("tenant_id", tenantId)
+              .eq("is_active", true);
+            fieldDefs = defs || [];
+          }
+
+          let contactId = tokenVisitor.contact_id;
+
+          // Upsert company if needed
+          if (company_id || company_name) {
+            contactId = await upsertCompany(supabase, {
+              userId, tenantId, companyId: company_id, companyName: company_name,
+              contactId, customData: custom_data, fieldDefs,
+            });
+          } else if (custom_data && Object.keys(custom_data).length > 0 && contactId) {
+            await applyCustomData(supabase, contactId, custom_data, fieldDefs);
+          }
+
+          // Update visitor metadata if custom_data has non-empty values
+          if (custom_data && Object.keys(custom_data).length > 0) {
+            const nonEmptyMeta = filterNonEmpty(custom_data);
+            if (Object.keys(nonEmptyMeta).length > 0) {
+              await supabase
+                .from("chat_visitors")
+                .update({ metadata: nonEmptyMeta })
+                .eq("id", tokenVisitor.id);
+            }
+          }
+
+          // Check history
+          const { count } = await supabase
+            .from("chat_rooms")
+            .select("id", { count: "exact", head: true })
+            .eq("visitor_id", tokenVisitor.id);
+
+          return new Response(
+            JSON.stringify({
+              visitor_token: tokenVisitor.visitor_token,
+              visitor_name: tokenVisitor.name,
+              visitor_email: tokenVisitor.email,
+              contact_id: contactId,
+              company_contact_id: tokenVisitor.company_contact_id,
+              user_id: userId,
+              auto_start: true,
+              has_history: (count || 0) > 0,
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+
       return new Response(
         JSON.stringify({ visitor_token: null, user_id: userId, needs_form: !name || !email }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -183,7 +264,7 @@ Deno.serve(async (req) => {
     const { data: companyContact } = await ccExtQuery.maybeSingle();
 
     if (companyContact) {
-      // UPSERT: update contact fields if different
+      // UPSERT: update contact fields if different AND non-empty
       const ccUpdates: Record<string, any> = {};
       if (name && name !== companyContact.name) ccUpdates.name = name;
       if (email && email !== companyContact.email) ccUpdates.email = email;
@@ -345,13 +426,16 @@ async function findOrCreateVisitor(
     .maybeSingle();
 
   if (existing) {
-    // Update visitor with latest data
+    // Update visitor with latest data — only non-empty values
     const updates: Record<string, any> = {};
     if (name && name !== existing.name) updates.name = name;
     if (email && email !== existing.email) updates.email = email;
-    if (phone) updates.phone = phone;
+    if (!isEmptyValue(phone)) updates.phone = phone;
     if (customData && Object.keys(customData).length > 0) {
-      updates.metadata = customData;
+      const nonEmptyMeta = filterNonEmpty(customData);
+      if (Object.keys(nonEmptyMeta).length > 0) {
+        updates.metadata = nonEmptyMeta;
+      }
     }
 
     if (Object.keys(updates).length > 0) {
@@ -375,6 +459,7 @@ async function findOrCreateVisitor(
   }
 
   // Create new visitor with tenant_id
+  const nonEmptyMeta = customData ? filterNonEmpty(customData) : {};
   const { data: newVisitor } = await supabase
     .from("chat_visitors")
     .insert({
@@ -385,7 +470,7 @@ async function findOrCreateVisitor(
       company_contact_id: companyContactId,
       contact_id: contactId,
       tenant_id: tenantId,
-      ...(customData && Object.keys(customData).length > 0 ? { metadata: customData } : {}),
+      ...(Object.keys(nonEmptyMeta).length > 0 ? { metadata: nonEmptyMeta } : {}),
     })
     .select("id, visitor_token")
     .single();
@@ -473,6 +558,7 @@ async function upsertCompany(
 }
 
 // --- Helper: Apply custom_data using maps_to definitions ---
+// Only persists non-empty values — empty values are silently ignored to prevent overwriting existing data
 async function applyCustomData(
   supabase: any,
   contactId: string,
@@ -500,6 +586,9 @@ async function applyCustomData(
     // Skip reserved keys
     if (["name", "email", "phone", "company_id", "company_name"].includes(key)) continue;
 
+    // Skip empty values — never overwrite existing data with nothing
+    if (isEmptyValue(val)) continue;
+
     const mapsTo = mapsToLookup[key] || KNOWN_DIRECT[key];
     if (mapsTo) {
       directUpdate[mapsTo] = val;
@@ -520,7 +609,14 @@ async function applyCustomData(
       .eq("id", contactId)
       .single();
 
-    const merged = { ...((current?.custom_fields as Record<string, any>) ?? {}), ...customUpdate };
+    const existing = (current?.custom_fields as Record<string, any>) ?? {};
+    // Only overwrite keys whose new value is non-empty
+    const merged = { ...existing };
+    for (const [k, v] of Object.entries(customUpdate)) {
+      if (!isEmptyValue(v)) {
+        merged[k] = v;
+      }
+    }
     await supabase
       .from("contacts")
       .update({ custom_fields: merged, updated_at: new Date().toISOString() })

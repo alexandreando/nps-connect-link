@@ -24,6 +24,10 @@
   var visitorProps = {};
   var chatIframe = null;
 
+  // Update queue: accumulate updates until resolver is ready
+  var resolverReady = false;
+  var pendingUpdates = [];
+
   var RESERVED_KEYS = ["name", "email", "phone", "company_id", "company_name", "user_id"];
 
   // --- Banner Type SVG Icons ---
@@ -167,7 +171,6 @@
       .then(function (data) {
         if (data.banners && data.banners.length > 0) {
           createBannerContainer();
-          // Banners already sorted by priority from backend
           data.banners.forEach(function (banner) {
             bannerContainer.appendChild(renderBanner(banner));
           });
@@ -217,12 +220,43 @@
       payload.custom_data = customData;
     }
 
+    // Include visitor_token for fallback identification
+    if (resolvedToken) {
+      payload.visitor_token = resolvedToken;
+    } else {
+      var savedToken = localStorage.getItem("chat_visitor_token");
+      if (savedToken) payload.visitor_token = savedToken;
+    }
+
     return payload;
+  }
+
+  // --- Send resolver POST (used by update and pending queue) ---
+  function sendResolverUpdate(props) {
+    if (!apiKey) return;
+    var payload = buildResolverPayload(props);
+    fetch(supabaseUrl + "/functions/v1/resolve-chat-visitor", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }).catch(function (err) {
+      console.warn("[NPSChat] update failed:", err);
+    });
+  }
+
+  // --- Process pending updates after resolver is ready ---
+  function processPendingUpdates() {
+    if (pendingUpdates.length === 0) return;
+
+    // Merge all pending updates into visitorProps (already done in update())
+    // Just send one resolver call with the merged visitorProps
+    pendingUpdates = [];
+    sendResolverUpdate(visitorProps);
   }
 
   // --- Resolve visitor via api_key + external_id ---
   function resolveVisitor(callback) {
-    if (!apiKey) { callback(); return; }
+    if (!apiKey) { resolverReady = true; callback(); return; }
 
     var payload = buildResolverPayload(visitorProps);
 
@@ -252,9 +286,18 @@
           resolvedNeedsForm = !!data.needs_form;
           resolvedAutoStart = !!data.auto_start;
         }
+
+        // Mark resolver as ready and process queued updates
+        resolverReady = true;
+        processPendingUpdates();
+
         callback();
       })
-      .catch(function () { callback(); });
+      .catch(function () {
+        resolverReady = true;
+        processPendingUpdates();
+        callback();
+      });
   }
 
   // --- Chat Widget Iframe ---
@@ -314,12 +357,15 @@
   window.NPSChat = {
     update: function (props) {
       if (!props || typeof props !== "object") return;
+
+      // Always merge into visitorProps
       for (var key in props) {
         if (props.hasOwnProperty(key)) {
           visitorProps[key] = props[key];
         }
       }
 
+      // Always forward to iframe for immediate UI update
       if (chatIframe && chatIframe.contentWindow) {
         chatIframe.contentWindow.postMessage(
           { type: "nps-chat-update", props: visitorProps },
@@ -327,16 +373,14 @@
         );
       }
 
-      if (apiKey) {
-        var payload = buildResolverPayload(visitorProps);
-        fetch(supabaseUrl + "/functions/v1/resolve-chat-visitor", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }).catch(function (err) {
-          console.warn("[NPSChat] update failed:", err);
-        });
+      // Queue resolver call if not ready yet
+      if (!resolverReady) {
+        pendingUpdates.push(props);
+        return;
       }
+
+      // Resolver is ready — send immediately
+      sendResolverUpdate(visitorProps);
     },
   };
 
