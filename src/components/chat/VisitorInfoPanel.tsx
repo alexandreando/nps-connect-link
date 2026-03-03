@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Mail, Phone, Building2, Hash, Star, Calendar, DollarSign, Activity, ExternalLink, RefreshCw, ChevronDown, Clock, FileText, MapPin, Briefcase } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { isComplexValue, formatComplexValue, SimpleList, UrlList, ObjectList, JsonDisplay } from "@/components/CustomFieldsDisplay";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -605,9 +606,37 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function parseIfString(value: any): any {
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (typeof parsed === "object" && parsed !== null) return parsed;
+    } catch {}
+  }
+  return value;
+}
+
 function CustomFieldRow({ label, value, fieldType }: { label: string; value: any; fieldType: string }) {
-  const formatValue = () => {
-    if (value === null || value === undefined || value === "") return null;
+  if (value === null || value === undefined || value === "") return null;
+
+  const resolved = parseIfString(value);
+  const complex = isComplexValue(resolved, fieldType);
+
+  // Try complex rendering first
+  if (complex) {
+    const rendered = formatComplexValue(value, fieldType);
+    if (rendered) {
+      return (
+        <div className="space-y-1 text-xs">
+          <span className="text-muted-foreground">{label}</span>
+          <div className="pl-1">{rendered}</div>
+        </div>
+      );
+    }
+  }
+
+  // Scalar rendering
+  const formatScalar = () => {
     switch (fieldType) {
       case "decimal":
         return `R$ ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
@@ -641,7 +670,7 @@ function CustomFieldRow({ label, value, fieldType }: { label: string; value: any
     }
   };
 
-  const formatted = formatValue();
+  const formatted = formatScalar();
   if (formatted === null) return null;
 
   return (
