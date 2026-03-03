@@ -1369,6 +1369,15 @@ export type Database = {
           widget_company_name: string | null
           widget_position: string | null
           widget_primary_color: string | null
+          ws_recent_chats_count: number
+          ws_show_company_external_id: boolean
+          ws_show_contact_data: boolean
+          ws_show_contact_external_id: boolean
+          ws_show_custom_fields: boolean
+          ws_show_metrics: boolean
+          ws_show_recent_chats: boolean
+          ws_show_timeline: boolean
+          ws_sort_order: string
         }
         Insert: {
           all_busy_message?: string | null
@@ -1401,6 +1410,15 @@ export type Database = {
           widget_company_name?: string | null
           widget_position?: string | null
           widget_primary_color?: string | null
+          ws_recent_chats_count?: number
+          ws_show_company_external_id?: boolean
+          ws_show_contact_data?: boolean
+          ws_show_contact_external_id?: boolean
+          ws_show_custom_fields?: boolean
+          ws_show_metrics?: boolean
+          ws_show_recent_chats?: boolean
+          ws_show_timeline?: boolean
+          ws_sort_order?: string
         }
         Update: {
           all_busy_message?: string | null
@@ -1433,6 +1451,15 @@ export type Database = {
           widget_company_name?: string | null
           widget_position?: string | null
           widget_primary_color?: string | null
+          ws_recent_chats_count?: number
+          ws_show_company_external_id?: boolean
+          ws_show_contact_data?: boolean
+          ws_show_contact_external_id?: boolean
+          ws_show_custom_fields?: boolean
+          ws_show_metrics?: boolean
+          ws_show_recent_chats?: boolean
+          ws_show_timeline?: boolean
+          ws_sort_order?: string
         }
         Relationships: [
           {

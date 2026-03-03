@@ -53,6 +53,7 @@ interface Company {
   company_sector: string | null;
   company_document: string | null;
   custom_fields: Record<string, any> | null;
+  external_id: string | null;
 }
 
 interface TimelineEvent {
@@ -233,7 +234,7 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
         (async () => {
           const { data } = await supabase
             .from("contacts")
-            .select("id, name, trade_name, health_score, mrr, contract_value, renewal_date, last_nps_score, last_nps_date, city, state, company_sector, company_document, custom_fields")
+            .select("id, name, trade_name, health_score, mrr, contract_value, renewal_date, last_nps_score, last_nps_date, city, state, company_sector, company_document, custom_fields, external_id")
             .eq("id", resolvedContactId)
             .maybeSingle();
           setCompany(data as Company | null);
@@ -392,6 +393,12 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <FileText className="h-3 w-3 shrink-0" />
                     <span>CNPJ: {company!.company_document}</span>
+                  </div>
+                )}
+                {company!.external_id && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Hash className="h-3 w-3 shrink-0" />
+                    <span>ID Externo: {company!.external_id}</span>
                   </div>
                 )}
                 {company!.company_sector && (

@@ -1769,6 +1769,7 @@ const ChatWidget = () => {
         style={{
           width: "100%",
           height: "100%",
+          maxHeight: "100dvh",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
