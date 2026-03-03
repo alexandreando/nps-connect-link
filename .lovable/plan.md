@@ -1,105 +1,74 @@
 
-# Fix: Dados Inconsistentes no Painel do Visitante (MRR, Funcs, Tickets)
 
-## Diagnostico
+# Fix: Proteção Contra Sobrescrita de Dados Reais por Valores Default (0)
 
-Apos analise profunda do banco de dados e do codigo, identifiquei **4 problemas combinados**:
+## Diagnostico Confirmado
 
-### Problema 1: `findOrCreateVisitor` SUBSTITUI metadata em vez de MESCLAR
+Analisando os logs do resolver e o banco de dados, identifiquei a causa raiz:
 
-Quando o resolver e chamado, a funcao `findOrCreateVisitor` (linha 434-438) faz:
+### O que acontece
+
+1. O site do cliente carrega a pagina e chama `NPSChat.update()` **ANTES** da resposta da API estar pronta, enviando **valores default**: `mrr: 0`, `employee_in_contract: 0`, `tickets: []`
+2. O resolver recebe esses defaults e os persiste:
+   - `mrr: 0` vai para coluna direta (maps_to: "mrr") → sobrescreve o valor real (66.97)
+   - `employee_in_contract: 0` vai para custom_fields → sobrescreve o valor real (39)
+   - `tickets: []` e filtrado por `isEmptyValue` (array vazio) → dados antigos permanecem (com links truncados tipo "1163" em vez de URLs completas)
+3. Quando a API do site retorna os valores corretos (mrr: 66.97, employeeInContract: 39, tickets com URLs), ou a segunda chamada nao acontece, ou usa chaves em camelCase que nao batem com as definicoes (ex: `employeeInContract` vs `employee_in_contract`)
+
+### Evidencia nos logs
+
 ```text
-updates.metadata = nonEmptyMeta;  // SUBSTITUI TUDO
+Direct update for contact: { mrr: 0, company_document: "24297866000174" }
+customUpdate: { employee_in_contract: 0, link_master: "https://..." }
 ```
-Isso significa que se uma chamada envia `{mrr: 66.97, tickets: [...]}`, as chaves que existiam antes no metadata (como `employee_in_contract`, `link_master`) sao **perdidas**. E se a chamada inicial (sem custom_data) roda, o metadata pode ser substituido por um objeto parcial.
 
-### Problema 2: Valores antigos em `custom_fields` nunca sao limpos
-
-O campo `mrr` tem `maps_to: mrr` na definicao de campo customizado. Isso significa que `applyCustomData` corretamente coloca o valor em `contacts.mrr` (coluna direta). Porem, o valor ANTIGO `mrr: 0` que ja existia em `contacts.custom_fields` nunca foi removido. O mesmo acontece com `employee_in_contract: 0`.
-
-### Problema 3: Display mostra `custom_fields` em duplicidade com metricas
-
-O `VisitorInfoPanel` (linha 509-513) primeiro verifica `visitorMetadata[fd.key]` e depois `companyCustomFields[fd.key]`. Para campos com `maps_to` (como mrr), o valor deveria vir da coluna direta (ja exibido na secao Metricas), mas o display mostra o valor ANTIGO/STALE do `custom_fields` na secao "Campos Customizados".
-
-No caso do MRR:
-- Metricas: `company.mrr = 0` → nao exibe (condicao `> 0`)
-- Campos Customizados: `custom_fields.mrr = 0` → exibe "R$ 0,00"
-- Valor correto enviado: 66.97 → nunca foi persistido corretamente
-
-### Problema 4: Falta de logging no resolver
-
-Sem logs no resolver, e impossivel rastrear exatamente quais valores chegam e quais sao persistidos. Os logs atuais mostram apenas boot/shutdown.
-
----
+O `mrr` chega como `0` (nao 66.97). O `employee_in_contract` chega como `0` (nao 39). E `tickets` nem aparece no customUpdate — foi filtrado como vazio.
 
 ## Solucao
 
-### Correcao 1: Mesclar metadata em vez de substituir (`resolve-chat-visitor`)
+### Mudanca 1: Proteger colunas diretas contra downgrade para zero
 
-Na funcao `findOrCreateVisitor`, ao atualizar metadata de visitante existente:
+**Arquivo: `supabase/functions/resolve-chat-visitor/index.ts`**
 
+Em `applyCustomData`, antes de gravar os directUpdates, buscar os valores atuais da coluna. Se o valor existente e diferente de zero/null e o novo valor e `0`, pular o update para essa coluna especifica.
+
+Logica:
 ```text
-// ANTES (substitui):
-updates.metadata = nonEmptyMeta;
-
-// DEPOIS (mescla):
-// Buscar metadata atual, mesclar com novos valores nao-vazios
-const { data: current } = await supabase
-  .from("chat_visitors")
-  .select("metadata")
-  .eq("id", existing.id)
-  .single();
-const existingMeta = current?.metadata ?? {};
-const merged = { ...existingMeta };
-for (const [k, v] of Object.entries(nonEmptyMeta)) {
-  if (!isEmptyValue(v)) merged[k] = v;
-}
-updates.metadata = merged;
+// Buscar valores atuais das colunas que serao atualizadas
+// Para cada coluna em directUpdate:
+//   Se valor_atual != null && valor_atual != 0 && novo_valor == 0
+//     → Remover da lista de updates (nao sobrescrever)
+//   Senao
+//     → Manter o update normalmente
 ```
 
-Isso garante que campos existentes no metadata nao sejam perdidos.
+Isso protege contra o cenario mais comum (defaults de `0` chegando antes dos dados reais) sem impedir updates genuinos (ex: null → 0, ou 100 → 50).
 
-### Correcao 2: Limpar valores stale de `custom_fields` quando `maps_to` existe (`resolve-chat-visitor`)
+### Mudanca 2: Mesma protecao para custom_fields numericos
 
-Na funcao `applyCustomData`, apos mover valores para colunas diretas via `maps_to`, remover essas chaves do `custom_fields`:
+Em `applyCustomData`, ao mesclar custom_fields, verificar se o campo tem tipo numerico (via fieldDefs) e aplicar a mesma logica de protecao: nao sobrescrever valor nao-zero existente com 0.
 
-```text
-// Apos processar directUpdate, coletar chaves que foram para colunas diretas
-const keysMovedToDirect = Object.keys(mapsToLookup)
-  .filter(key => customData[key] !== undefined && mapsToLookup[key]);
+### Mudanca 3: Adicionar log dos VALORES recebidos (nao so chaves)
 
-// Ao mesclar custom_fields, remover chaves que agora vivem em colunas diretas
-if (keysMovedToDirect.length > 0) {
-  for (const k of keysMovedToDirect) {
-    delete merged[k];
-  }
-}
-```
+Atualmente o log mostra apenas `custom_data_keys`. Adicionar um log que mostra os valores completos do `custom_data` para facilitar debug futuro.
 
-### Correcao 3: Display nao exibir campos com `maps_to` na secao de campos customizados (`VisitorInfoPanel`)
+### Mudanca 4: Normalizar camelCase para snake_case no embed
 
-Na secao "Campos Customizados" do `VisitorInfoPanel`, filtrar field defs que tem `maps_to` definido, pois esses valores ja sao exibidos na secao "Metricas":
+**Arquivo: `public/nps-chat-embed.js`**
 
-```text
-// Filtrar field defs que maps_to existe (exibidos em Metricas)
-fieldDefs.forEach((fd) => {
-  if (fd.maps_to) return;  // Skip — exibido na secao Metricas
-  // ... resto da logica
-});
-```
-
-Tambem aplicar no visitor metadata (mesma logica).
-
-### Correcao 4: Adicionar logs de diagnostico ao resolver (`resolve-chat-visitor`)
-
-Adicionar `console.log` estrategicos para rastrear:
-- O payload recebido (com custom_data)
-- O resultado do `applyCustomData` (directUpdate, customUpdate)
-- Confirmacao de updates bem-sucedidos
+Adicionar funcao `camelToSnake()` no `buildResolverPayload()` para converter automaticamente chaves como `employeeInContract` → `employee_in_contract` e `perfilCompany` → `perfil_company`. Isso garante que os dados do API response do cliente casem com as definicoes de campo, mesmo que o cliente envie em camelCase.
 
 ---
 
-## Arquivos Impactados
+## Resultado esperado
 
-1. `supabase/functions/resolve-chat-visitor/index.ts` — merge de metadata + limpeza de stale custom_fields + logs
-2. `src/components/chat/VisitorInfoPanel.tsx` — filtrar campos com maps_to da secao custom fields
+- `mrr: 0` enviado como default → NAO sobrescreve 66.97 existente
+- `employee_in_contract: 0` como default → NAO sobrescreve 39 existente
+- Se o cliente enviar o valor correto depois (66.97), o update funciona normalmente (66.97 != 0)
+- Chaves camelCase sao convertidas para snake_case automaticamente, garantindo match com field definitions
+- Tickets vazios continuam sendo ignorados (isEmptyValue ja cuida disso)
+
+## Arquivos impactados
+
+1. `supabase/functions/resolve-chat-visitor/index.ts` — protecao contra downgrade para zero + logs detalhados
+2. `public/nps-chat-embed.js` — normalizacao camelCase → snake_case
