@@ -1,74 +1,43 @@
 
 
-# Fix: Proteção Contra Sobrescrita de Dados Reais por Valores Default (0)
+# Fix: Resync Contadores Fantasma + Trigger de Reatribuição
 
-## Diagnostico Confirmado
+## Situação Atual
 
-Analisando os logs do resolver e o banco de dados, identifiquei a causa raiz:
+| Atendente | `active_conversations` | Rooms reais (active/waiting) |
+|-----------|----------------------|------------------------------|
+| Ana       | 1                    | 0                            |
+| Lucas     | 1                    | 0                            |
+| Matheus   | 0                    | 0                            |
+| Outros    | 0                    | 0                            |
 
-### O que acontece
+Ana e Lucas têm contadores fantasma. O trigger `assign_chat_room` já usa corretamente o `capacity_limit` (5) da tabela `chat_assignment_configs` — **não** usa `max_conversations` do perfil. Confirmado, sem necessidade de alteração na UI.
 
-1. O site do cliente carrega a pagina e chama `NPSChat.update()` **ANTES** da resposta da API estar pronta, enviando **valores default**: `mrr: 0`, `employee_in_contract: 0`, `tickets: []`
-2. O resolver recebe esses defaults e os persiste:
-   - `mrr: 0` vai para coluna direta (maps_to: "mrr") → sobrescreve o valor real (66.97)
-   - `employee_in_contract: 0` vai para custom_fields → sobrescreve o valor real (39)
-   - `tickets: []` e filtrado por `isEmptyValue` (array vazio) → dados antigos permanecem (com links truncados tipo "1163" em vez de URLs completas)
-3. Quando a API do site retorna os valores corretos (mrr: 66.97, employeeInContract: 39, tickets com URLs), ou a segunda chamada nao acontece, ou usa chaves em camelCase que nao batem com as definicoes (ex: `employeeInContract` vs `employee_in_contract`)
+## Causa Raiz
 
-### Evidencia nos logs
+O trigger `decrement_attendant_active_conversations` usa `OLD.attendant_id`. Quando um chat é reatribuído (attendant_id muda de Ana → Matheus) e depois fechado, o decremento vai para Matheus, não para Ana. O incremento original na Ana nunca foi desfeito.
 
-```text
-Direct update for contact: { mrr: 0, company_document: "24297866000174" }
-customUpdate: { employee_in_contract: 0, link_master: "https://..." }
-```
+Não existe trigger para tratar mudança de `attendant_id` em salas ativas.
 
-O `mrr` chega como `0` (nao 66.97). O `employee_in_contract` chega como `0` (nao 39). E `tickets` nem aparece no customUpdate — foi filtrado como vazio.
+## Solução: Uma Migration SQL
 
-## Solucao
+### 1. Resync imediato de todos os contadores
 
-### Mudanca 1: Proteger colunas diretas contra downgrade para zero
+UPDATE `attendant_profiles` SET `active_conversations` = contagem real de rooms em `active`/`waiting` para cada atendente do tenant.
 
-**Arquivo: `supabase/functions/resolve-chat-visitor/index.ts`**
+### 2. Novo trigger para reatribuição
 
-Em `applyCustomData`, antes de gravar os directUpdates, buscar os valores atuais da coluna. Se o valor existente e diferente de zero/null e o novo valor e `0`, pular o update para essa coluna especifica.
+Quando `attendant_id` muda em `chat_rooms` e o status não é `closed`:
+- Decrementar `active_conversations` do `OLD.attendant_id`
+- Incrementar `active_conversations` do `NEW.attendant_id`
 
-Logica:
-```text
-// Buscar valores atuais das colunas que serao atualizadas
-// Para cada coluna em directUpdate:
-//   Se valor_atual != null && valor_atual != 0 && novo_valor == 0
-//     → Remover da lista de updates (nao sobrescrever)
-//   Senao
-//     → Manter o update normalmente
-```
+### 3. Corrigir trigger de close
 
-Isso protege contra o cenario mais comum (defaults de `0` chegando antes dos dados reais) sem impedir updates genuinos (ex: null → 0, ou 100 → 50).
+O `decrement_attendant_active_conversations` deve usar `NEW.attendant_id` (o atendente no momento do close), não `OLD.attendant_id`.
 
-### Mudanca 2: Mesma protecao para custom_fields numericos
+## Arquivo Impactado
 
-Em `applyCustomData`, ao mesclar custom_fields, verificar se o campo tem tipo numerico (via fieldDefs) e aplicar a mesma logica de protecao: nao sobrescrever valor nao-zero existente com 0.
+1. **Nova migration SQL** — resync + novo trigger reassignment + fix trigger close
 
-### Mudanca 3: Adicionar log dos VALORES recebidos (nao so chaves)
+Nenhuma alteração de UI.
 
-Atualmente o log mostra apenas `custom_data_keys`. Adicionar um log que mostra os valores completos do `custom_data` para facilitar debug futuro.
-
-### Mudanca 4: Normalizar camelCase para snake_case no embed
-
-**Arquivo: `public/nps-chat-embed.js`**
-
-Adicionar funcao `camelToSnake()` no `buildResolverPayload()` para converter automaticamente chaves como `employeeInContract` → `employee_in_contract` e `perfilCompany` → `perfil_company`. Isso garante que os dados do API response do cliente casem com as definicoes de campo, mesmo que o cliente envie em camelCase.
-
----
-
-## Resultado esperado
-
-- `mrr: 0` enviado como default → NAO sobrescreve 66.97 existente
-- `employee_in_contract: 0` como default → NAO sobrescreve 39 existente
-- Se o cliente enviar o valor correto depois (66.97), o update funciona normalmente (66.97 != 0)
-- Chaves camelCase sao convertidas para snake_case automaticamente, garantindo match com field definitions
-- Tickets vazios continuam sendo ignorados (isEmptyValue ja cuida disso)
-
-## Arquivos impactados
-
-1. `supabase/functions/resolve-chat-visitor/index.ts` — protecao contra downgrade para zero + logs detalhados
-2. `public/nps-chat-embed.js` — normalizacao camelCase → snake_case
