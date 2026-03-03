@@ -1,43 +1,74 @@
 
 
-# Fix: Resync Contadores Fantasma + Trigger de Reatribuição
+# Plano: External ID da empresa + Aba Workspace + Widget responsivo
 
-## Situação Atual
+## 1. External ID da empresa no VisitorInfoPanel
 
-| Atendente | `active_conversations` | Rooms reais (active/waiting) |
-|-----------|----------------------|------------------------------|
-| Ana       | 1                    | 0                            |
-| Lucas     | 1                    | 0                            |
-| Matheus   | 0                    | 0                            |
-| Outros    | 0                    | 0                            |
+**Arquivo:** `src/components/chat/VisitorInfoPanel.tsx`
 
-Ana e Lucas têm contadores fantasma. O trigger `assign_chat_room` já usa corretamente o `capacity_limit` (5) da tabela `chat_assignment_configs` — **não** usa `max_conversations` do perfil. Confirmado, sem necessidade de alteração na UI.
+A tabela `contacts` já possui coluna `external_id`. O componente já faz select dessa tabela mas não inclui `external_id` no select nem na interface `Company`.
 
-## Causa Raiz
+- Adicionar `external_id` à interface `Company` e ao select da query de contacts
+- Exibir na seção "Empresa" logo abaixo do CNPJ, com ícone `Hash` e label "ID Externo"
 
-O trigger `decrement_attendant_active_conversations` usa `OLD.attendant_id`. Quando um chat é reatribuído (attendant_id muda de Ana → Matheus) e depois fechado, o decremento vai para Matheus, não para Ana. O incremento original na Ana nunca foi desfeito.
+## 2. Nova aba "Workspace" nas configurações do Chat
 
-Não existe trigger para tratar mudança de `attendant_id` em salas ativas.
+**Arquivo:** `src/pages/AdminSettings.tsx` + novo componente `src/components/chat/WorkspaceDisplayTab.tsx`
 
-## Solução: Uma Migration SQL
+Nova aba com configurações de personalização do workspace do atendente. As preferências serão salvas na tabela `chat_settings` (novas colunas via migration).
 
-### 1. Resync imediato de todos os contadores
+Configurações incluídas:
+- **Ordenação da lista de chats**: por data da última mensagem (padrão) ou por tempo de espera
+- **Exibir/ocultar seções do side panel**: toggles para Métricas, Dados do Contato, Campos Customizados, Timeline, Chats Recentes
+- **Exibir external ID da empresa**: toggle (default: on)
+- **Exibir external ID do contato**: toggle (default: on)
+- **Quantidade de chats recentes no side panel**: select (5, 10, 15)
 
-UPDATE `attendant_profiles` SET `active_conversations` = contagem real de rooms em `active`/`waiting` para cada atendente do tenant.
+**Migration SQL:** Adicionar colunas em `chat_settings`:
+- `ws_sort_order` (text, default 'last_message')
+- `ws_show_metrics` (boolean, default true)
+- `ws_show_contact_data` (boolean, default true)
+- `ws_show_custom_fields` (boolean, default true)
+- `ws_show_timeline` (boolean, default true)
+- `ws_show_recent_chats` (boolean, default true)
+- `ws_show_company_external_id` (boolean, default true)
+- `ws_show_contact_external_id` (boolean, default true)
+- `ws_recent_chats_count` (integer, default 5)
 
-### 2. Novo trigger para reatribuição
+O `VisitorInfoPanel` passará a receber essas configurações (via prop ou context) para condicionar a exibição das seções.
 
-Quando `attendant_id` muda em `chat_rooms` e o status não é `closed`:
-- Decrementar `active_conversations` do `OLD.attendant_id`
-- Incrementar `active_conversations` do `NEW.attendant_id`
+## 3. Widget responsivo em altura
 
-### 3. Corrigir trigger de close
+**Arquivos:** `public/nps-chat-embed.js` + `src/pages/ChatWidget.tsx`
 
-O `decrement_attendant_active_conversations` deve usar `NEW.attendant_id` (o atendente no momento do close), não `OLD.attendant_id`.
+### Embed script (`nps-chat-embed.js`)
+Quando o widget abre, em vez de usar altura fixa `700px`, calcular `Math.min(700, window.innerHeight - 20)` e aplicar. Adicionar listener de `resize` para recalcular continuamente.
 
-## Arquivo Impactado
+### Widget interno (`ChatWidget.tsx`)
+- Garantir que o container principal do widget use `max-h-[100dvh]` ou similar para nunca ultrapassar a viewport
+- Usar `dvh` (dynamic viewport height) para respeitar barras de endereço mobile
+- As seções internas (histórico, chat, formulário) devem usar `flex-1 overflow-auto` para scroll interno
 
-1. **Nova migration SQL** — resync + novo trigger reassignment + fix trigger close
+### Embed script — lógica de resize:
+```text
+// On toggle open:
+var maxH = Math.min(700, window.innerHeight - 16);
+iframe.style.height = maxH + "px";
 
-Nenhuma alteração de UI.
+// On window resize (debounced):
+window.addEventListener("resize", function() {
+  if (isOpen) {
+    iframe.style.height = Math.min(700, window.innerHeight - 16) + "px";
+  }
+});
+```
+
+## Arquivos impactados
+
+1. **Nova migration SQL** — colunas de config do workspace em `chat_settings`
+2. `src/components/chat/VisitorInfoPanel.tsx` — external_id da empresa + respeitar configs de exibição
+3. `src/pages/AdminSettings.tsx` — nova aba "Workspace"
+4. `src/components/chat/WorkspaceDisplayTab.tsx` — novo componente da aba
+5. `public/nps-chat-embed.js` — altura responsiva do iframe
+6. `src/pages/ChatWidget.tsx` — container com altura máxima dinâmica
 
