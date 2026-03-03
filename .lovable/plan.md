@@ -1,101 +1,81 @@
 
 
-# Fix: Protecao Contra Sobrescrita com Valores Vazios + Fila de Updates + Token Fallback
+# Fix: Eliminar Recarregamento Total ao Trocar de Aba ou Refresh de Token
 
 ## Problema
 
-Tres problemas combinados:
+Toda vez que o atendente sai da aba do chat e volta (ou o token de sessao renova automaticamente a cada ~1h), a tela inteira fica bloqueada com loading. Isso acontece por causa de uma cadeia:
 
-1. **Valores vazios sobrescrevem dados existentes**: Quando o payload envia `null`, `""`, `0` ou `[]` para um campo que ja tem valor no banco, o valor e apagado. O correto e ignorar envios vazios -- so atualizar quando o novo valor e diferente E nao-vazio.
+1. `onAuthStateChange` dispara em TODOS os eventos de sessao (TOKEN_REFRESHED, tab focus, etc.)
+2. Cada disparo chama `loadUserData()` que seta `userDataLoading = true`
+3. `SidebarLayout` mostra spinner de tela cheia quando `userDataLoading = true`
+4. `SidebarDataContext` depende de `[user?.id, isAdmin, tenantId]` -- quando `isAdmin` muda de `false → true → false` durante o reload, o effect re-executa, destruindo e recriando canais realtime
+5. Canais realtime sao destruidos e recriados, causando rajada de requisicoes
 
-2. **Race condition no reload**: `NPSChat.update()` dispara antes de `resolveVisitor()` completar, causando perda de identidade e dados.
+## Analise: O que PRECISA de realtime e como esta hoje
 
-3. **Sem fallback por token**: Se `name`/`email` estao ausentes no payload, o resolver nao consegue identificar o visitante mesmo tendo o `visitor_token` salvo no localStorage.
+### Dados que JA tem realtime e funcionam bem (NAO mexer):
 
----
+- **Lista de salas de chat** (`useChatRealtime.ts`): Ja usa `initialLoadDone` ref para evitar loading apos primeiro fetch. Patches cirurgicos em INSERT/UPDATE/DELETE. Som e notificacao para novas mensagens. Funciona perfeitamente DESDE QUE os canais nao sejam destruidos.
 
-## Fix 1: Ignorar valores vazios em `applyCustomData` e `findOrCreateVisitor`
+- **Mensagens do chat ativo** (`useChatMessages`): Canal por room_id, INSERT realtime. Funciona bem.
 
-### Arquivo: `supabase/functions/resolve-chat-visitor/index.ts`
+- **Contadores da sidebar** (`SidebarDataContext`): Canais em `chat_rooms` e `attendant_profiles` para atualizar contadores de atendimento e status (online/offline). Resync a cada 60s como safety net.
 
-Criar funcao auxiliar `isEmptyValue(val)` que retorna `true` para `null`, `undefined`, `""`, arrays vazios `[]` e objetos vazios `{}`.
+- **Indicadores de digitacao**: Via Supabase Realtime Broadcast (nao depende de postgres_changes).
 
-**Em `applyCustomData`** (linha 499-508): Antes de adicionar ao `directUpdate` ou `customUpdate`, verificar se o valor NAO e vazio. Se for vazio, ignorar silenciosamente (nao sobrescrever o campo existente).
+### O problema NAO e o realtime -- e a DESTRUICAO dos canais
 
-```text
-// Antes:
-directUpdate[mapsTo] = val;
-
-// Depois:
-if (!isEmptyValue(val)) {
-  directUpdate[mapsTo] = val;
-}
-```
-
-Mesma logica para `customUpdate`. Alem disso, ao fazer merge de `custom_fields`, so sobrescrever chaves cujo novo valor nao seja vazio.
-
-**Em `findOrCreateVisitor`** (linhas 349-355): Aplicar mesma logica -- so incluir `metadata` se `customData` tiver pelo menos uma chave com valor nao-vazio. Nao sobrescrever `phone` com valor vazio.
-
-**Na atualizacao de `company_contacts`** (linhas 187-190): Ja esta correto (so atualiza se valor e truthy e diferente). Manter como esta.
-
-## Fix 2: Fila de updates pendentes no embed
-
-### Arquivo: `public/nps-chat-embed.js`
-
-- Adicionar `resolverReady = false` e `pendingUpdates = []`
-- No `NPSChat.update()`: se `resolverReady` for false, acumular em `pendingUpdates` e retornar sem chamar o resolver
-- Apos `resolveVisitor()` completar com sucesso: setar `resolverReady = true` e processar todos os `pendingUpdates` em uma unica chamada ao resolver (merge de todos os props acumulados)
-- Incluir `visitor_token` do localStorage no payload quando disponivel
-
-## Fix 3: Resolver aceita `visitor_token` como fallback
-
-### Arquivo: `supabase/functions/resolve-chat-visitor/index.ts`
-
-Na branch `!external_id` (linha 91), apos o bloco `if (name && email)`, adicionar:
-
-```text
-// Se visitor_token fornecido, identificar por token
-if (visitor_token) {
-  buscar chat_visitors pelo token
-  se encontrar e tiver contact_id:
-    aplicar custom_data no contact
-    upsert company se necessario
-    retornar visitor_token + IDs
-}
-```
-
-Isso permite que updates enviados com token (mas sem name/email) ainda consigam persistir dados.
+Quando `onAuthStateChange` dispara um TOKEN_REFRESHED:
+1. `loadUserData` roda → seta `isAdmin = false` (resetando) → depois seta `isAdmin = true`
+2. `SidebarDataContext` effect depende de `isAdmin` → destroi canais → recria → refaz todas as queries
+3. `useChatRooms` depende de `ownerUserId` → se o user object muda (nova referencia), recria tudo
+4. Tela inteira fica bloqueada pelo spinner de `userDataLoading`
 
 ---
 
-## Detalhes tecnicos
+## Solucao
 
-### Funcao `isEmptyValue` (nova, no resolver)
-```text
-function isEmptyValue(val: any): boolean {
-  if (val === null || val === undefined || val === "") return true;
-  if (Array.isArray(val) && val.length === 0) return true;
-  if (typeof val === "object" && !Array.isArray(val) && Object.keys(val).length === 0) return true;
-  return false;
-}
-```
+### Mudanca 1: AuthContext -- Ignorar token refresh se usuario nao mudou
 
-Nota: `0` NAO e considerado vazio (e um valor numerico valido, ex: mrr=0 e um valor real).
+**Arquivo: `src/contexts/AuthContext.tsx`**
 
-### Arquivo: `supabase/functions/resolve-chat-visitor/index.ts`
-- Adicionar `visitor_token` ao destructuring do body (linha 16)
-- Adicionar funcao `isEmptyValue`
-- Modificar `applyCustomData` para filtrar valores vazios antes de persistir
-- Modificar `findOrCreateVisitor` para filtrar metadata vazia
-- Adicionar branch `visitor_token` na secao `!external_id`
+- Adicionar `useRef<string | null>` para guardar o `user.id` atual
+- No `onAuthStateChange`: se `session.user.id === currentUserIdRef.current`, NAO chamar `loadUserData` e NAO setar `userDataLoading = true`
+- Apenas executar `loadUserData` quando o user.id realmente muda (login/logout/troca de conta)
+- No `init()`, salvar o user.id no ref apos o primeiro load
 
-### Arquivo: `public/nps-chat-embed.js`
-- Adicionar variaveis `resolverReady` e `pendingUpdates`
-- Modificar `update()` para enfileirar quando nao pronto
-- Modificar callback de `resolveVisitor()` para processar fila
-- Incluir `visitor_token` salvo no payload do resolver
+Isso elimina a cascata inteira: sem `userDataLoading`, sem spinner, sem destruicao de canais.
 
-### Arquivos impactados:
-1. `supabase/functions/resolve-chat-visitor/index.ts`
-2. `public/nps-chat-embed.js`
+### Mudanca 2: SidebarLayout -- Loading apenas no boot inicial
+
+**Arquivo: `src/components/SidebarLayout.tsx`**
+
+- Mudar a condicao do spinner de tela cheia de `if (loading || userDataLoading)` para `if (loading)`
+- `loading` so e `true` durante o `init()` (primeiro boot da app)
+- `userDataLoading` passa a ser apenas informativo para componentes que queiram mostrar feedback sutil (nao bloqueia mais a tela)
+
+### Mudanca 3: SidebarDataContext -- Estabilizar canais realtime
+
+**Arquivo: `src/contexts/SidebarDataContext.tsx`**
+
+- Separar o effect de canais realtime do effect de inicializacao de dados
+- Canais realtime devem depender apenas de `user?.id` e `tenantId` (valores estaveis)
+- Remover `isAdmin` e `isImpersonating` das dependencias do effect de canais (esses valores podem flutuar durante reloads)
+- `initializeData` continua dependendo de `isAdmin` mas usando um ref para o valor atual, evitando re-execucao do effect
+
+---
+
+## Resultado Esperado
+
+- Trocar de aba e voltar: zero loading, zero requisicoes extras, canais realtime intactos
+- Token renovado automaticamente (~1h): transparente, sem interrupcao
+- Login real (novo usuario): loading normal como hoje
+- Atendente mantem todas as conversas e contadores em tempo real sem interrupcao
+
+## Arquivos Impactados
+
+1. `src/contexts/AuthContext.tsx` -- ref para user.id + skip de reload em token refresh
+2. `src/components/SidebarLayout.tsx` -- loading apenas no boot inicial
+3. `src/contexts/SidebarDataContext.tsx` -- separar canais realtime da inicializacao
 
