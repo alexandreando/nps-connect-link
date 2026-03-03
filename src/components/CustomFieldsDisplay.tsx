@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { ExternalLink } from "lucide-react";
 
 interface FieldDef {
   id: string;
@@ -19,8 +20,146 @@ interface CustomFieldsDisplayProps {
   target?: "company" | "contact";
 }
 
+// ── Helpers ──
+
+function isUrl(val: string) {
+  return /^(https?:\/\/|www\.)/i.test(val);
+}
+
+function makeHref(val: string) {
+  return val.startsWith("http") ? val : `https://${val}`;
+}
+
+function ClickableLink({ href, label }: { href: string; label?: string }) {
+  const display = label ?? href.replace(/^https?:\/\//, "").slice(0, 40);
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate inline-flex items-center gap-1">
+      {display}
+      <ExternalLink className="h-2.5 w-2.5 shrink-0 opacity-60" />
+    </a>
+  );
+}
+
+function autoLinkify(val: any): React.ReactNode {
+  const str = String(val);
+  if (isUrl(str)) return <ClickableLink href={makeHref(str)} />;
+  return str;
+}
+
+// ── Complex type renderers (exported for reuse) ──
+
+export function SimpleList({ items }: { items: any[] }) {
+  return (
+    <ul className="space-y-0.5 text-xs">
+      {items.map((item, i) => (
+        <li key={i} className="flex items-start gap-1.5">
+          <span className="text-muted-foreground mt-1 shrink-0">•</span>
+          <span className="break-words">{autoLinkify(item)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function UrlList({ items }: { items: any[] }) {
+  return (
+    <ul className="space-y-1 text-xs">
+      {items.map((item, i) => {
+        const str = String(item);
+        const href = str.startsWith("http") ? str : `https://${str}`;
+        return (
+          <li key={i}>
+            <ClickableLink href={href} />
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+export function ObjectList({ items }: { items: Record<string, any>[] }) {
+  return (
+    <div className="space-y-1.5">
+      {items.map((obj, i) => (
+        <div key={i} className="border border-border rounded-md p-2 space-y-1 bg-muted/30">
+          {Object.entries(obj).map(([key, val]) => (
+            <div key={key} className="flex items-start justify-between text-[11px] gap-2">
+              <span className="text-muted-foreground shrink-0">{key}</span>
+              <span className="font-medium text-right break-words max-w-[65%]">
+                {val != null && isUrl(String(val)) ? <ClickableLink href={makeHref(String(val))} /> : autoLinkify(val)}
+              </span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function JsonDisplay({ obj }: { obj: Record<string, any> }) {
+  return (
+    <div className="space-y-1 text-[11px]">
+      {Object.entries(obj).map(([key, val]) => (
+        <div key={key} className="flex items-start justify-between gap-2">
+          <span className="text-muted-foreground shrink-0">{key}</span>
+          <span className="font-medium text-right break-words max-w-[65%]">
+            {val != null && isUrl(String(val)) ? <ClickableLink href={makeHref(String(val))} /> : autoLinkify(val)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Detect if value is complex ──
+
+export function isComplexValue(value: any, fieldType: string): boolean {
+  if (["list", "list_url", "list_object", "json"].includes(fieldType)) return true;
+  if (Array.isArray(value)) return true;
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) return true;
+  return false;
+}
+
+// ── Smart format ──
+
+function parseIfString(value: any): any {
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (typeof parsed === "object" && parsed !== null) return parsed;
+    } catch {}
+  }
+  return value;
+}
+
+export function formatComplexValue(value: any, fieldType: string): React.ReactNode | null {
+  const resolved = parseIfString(value);
+
+  // Explicit types
+  if (fieldType === "list" && Array.isArray(resolved)) return <SimpleList items={resolved} />;
+  if (fieldType === "list_url" && Array.isArray(resolved)) return <UrlList items={resolved} />;
+  if (fieldType === "list_object" && Array.isArray(resolved)) return <ObjectList items={resolved as Record<string, any>[]} />;
+  if (fieldType === "json" && typeof resolved === "object" && !Array.isArray(resolved)) return <JsonDisplay obj={resolved} />;
+
+  // Auto-detect for text or unknown types
+  if (Array.isArray(resolved)) {
+    if (resolved.length === 0) return null;
+    if (typeof resolved[0] === "object" && resolved[0] !== null) return <ObjectList items={resolved as Record<string, any>[]} />;
+    if (resolved.every(item => isUrl(String(item)))) return <UrlList items={resolved} />;
+    return <SimpleList items={resolved} />;
+  }
+
+  if (typeof resolved === "object" && resolved !== null) return <JsonDisplay obj={resolved} />;
+
+  return null;
+}
+
 function formatFieldValue(value: any, fieldType: string) {
   if (value === null || value === undefined || value === "") return null;
+
+  // Check complex types first
+  const complex = formatComplexValue(value, fieldType);
+  if (complex) return complex;
 
   switch (fieldType) {
     case "decimal":
@@ -34,16 +173,7 @@ function formatFieldValue(value: any, fieldType: string) {
         return String(value);
       }
     case "url":
-      return (
-        <a
-          href={String(value).startsWith("http") ? String(value) : `https://${value}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary hover:underline truncate"
-        >
-          {String(value).replace(/^https?:\/\//, "").slice(0, 40)}
-        </a>
-      );
+      return <ClickableLink href={makeHref(String(value))} />;
     case "boolean":
       return (
         <Badge variant={value === true || value === "true" ? "default" : "secondary"} className="text-[10px]">
@@ -52,14 +182,7 @@ function formatFieldValue(value: any, fieldType: string) {
       );
     default: {
       const str = String(value);
-      if (/^(https?:\/\/|www\.)/i.test(str)) {
-        const href = str.startsWith("http") ? str : `https://${str}`;
-        return (
-          <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">
-            {str.replace(/^https?:\/\//, "").slice(0, 40)}
-          </a>
-        );
-      }
+      if (isUrl(str)) return <ClickableLink href={makeHref(str)} />;
       return str;
     }
   }
@@ -84,11 +207,7 @@ export function CustomFieldsDisplay({ fields, target }: CustomFieldsDisplayProps
 
   if (!fields || Object.keys(fields).length === 0) return null;
 
-  // Build display entries: match definitions with field values
-  const defsForTarget = target
-    ? fieldDefs.filter((d) => d.target === target)
-    : fieldDefs;
-
+  const defsForTarget = target ? fieldDefs.filter((d) => d.target === target) : fieldDefs;
   const defsByKey = new Map(defsForTarget.map((d) => [d.key, d]));
 
   type DisplayEntry = { key: string; label: string; value: any; fieldType: string; order: number };
@@ -98,28 +217,13 @@ export function CustomFieldsDisplay({ fields, target }: CustomFieldsDisplayProps
     if (val === null || val === undefined || val === "") continue;
     const def = defsByKey.get(key);
     if (def) {
-      entries.push({
-        key,
-        label: def.label,
-        value: val,
-        fieldType: def.field_type,
-        order: def.display_order ?? 999,
-      });
+      entries.push({ key, label: def.label, value: val, fieldType: def.field_type, order: def.display_order ?? 999 });
     } else {
-      // Fallback: show raw key
-      entries.push({
-        key,
-        label: key,
-        value: val,
-        fieldType: "text",
-        order: 9999,
-      });
+      entries.push({ key, label: key, value: val, fieldType: "text", order: 9999 });
     }
   }
 
-  // Sort by display_order
   entries.sort((a, b) => a.order - b.order);
-
   if (entries.length === 0) return null;
 
   return (
@@ -131,10 +235,15 @@ export function CustomFieldsDisplay({ fields, target }: CustomFieldsDisplayProps
         {entries.map((entry) => {
           const formatted = formatFieldValue(entry.value, entry.fieldType);
           if (formatted === null) return null;
+          const complex = isComplexValue(parseIfString(entry.value), entry.fieldType);
           return (
-            <div key={entry.key} className="flex justify-between items-center">
+            <div key={entry.key} className={complex ? "space-y-1" : "flex justify-between items-center"}>
               <span className="text-muted-foreground">{entry.label}</span>
-              <span className="font-medium text-right max-w-[60%] truncate">{formatted}</span>
+              {complex ? (
+                <div className="pl-1">{formatted}</div>
+              ) : (
+                <span className="font-medium text-right max-w-[60%] truncate">{formatted}</span>
+              )}
             </div>
           );
         })}
@@ -165,10 +274,7 @@ export function CustomFieldsInline({
 
   if (!fields || Object.keys(fields).length === 0) return null;
 
-  const defsForTarget = target
-    ? fieldDefs.filter((d) => d.target === target)
-    : fieldDefs;
-
+  const defsForTarget = target ? fieldDefs.filter((d) => d.target === target) : fieldDefs;
   const defsByKey = new Map(defsForTarget.map((d) => [d.key, d]));
 
   const entries: { key: string; label: string; value: any; fieldType: string; order: number }[] = [];
@@ -191,10 +297,15 @@ export function CustomFieldsInline({
       {visible.map((entry) => {
         const formatted = formatFieldValue(entry.value, entry.fieldType);
         if (formatted === null) return null;
+        const complex = isComplexValue(parseIfString(entry.value), entry.fieldType);
         return (
-          <div key={entry.key} className="flex items-center justify-between text-xs">
+          <div key={entry.key} className={complex ? "space-y-1 text-xs" : "flex items-center justify-between text-xs"}>
             <span className="text-muted-foreground truncate mr-2">{entry.label}</span>
-            <span className="font-medium text-right truncate max-w-[60%]">{formatted}</span>
+            {complex ? (
+              <div className="pl-1">{formatted}</div>
+            ) : (
+              <span className="font-medium text-right truncate max-w-[60%]">{formatted}</span>
+            )}
           </div>
         );
       })}

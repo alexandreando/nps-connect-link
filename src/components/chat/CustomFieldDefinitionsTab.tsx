@@ -29,7 +29,18 @@ const FIELD_TYPES = [
   { value: "date", label: "Data" },
   { value: "url", label: "URL" },
   { value: "boolean", label: "Booleano" },
+  { value: "list", label: "Lista" },
+  { value: "list_url", label: "Lista de Links" },
+  { value: "list_object", label: "Lista de Objetos" },
+  { value: "json", label: "JSON / Objeto" },
 ];
+
+const FIELD_TYPE_HINTS: Record<string, string> = {
+  list: 'Array de valores simples. Ex: ["Item A", "Item B", "Item C"]',
+  list_url: 'Array de URLs. Ex: ["https://link1.com", "https://link2.com"]',
+  list_object: 'Array de objetos. Ex: [{"Titulo": "X", "Link": "https://...", "Status": "Ativo"}]',
+  json: 'Objeto chave-valor. Ex: {"chave": "valor", "outra": 123}',
+};
 
 const COMPANY_COLUMNS = [
   { value: "mrr", label: "MRR" },
@@ -244,6 +255,11 @@ export default function CustomFieldDefinitionsTab() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {FIELD_TYPE_HINTS[form.field_type] && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      <code className="bg-muted px-1 rounded text-[10px]">{FIELD_TYPE_HINTS[form.field_type]}</code>
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
