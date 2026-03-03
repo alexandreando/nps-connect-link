@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
 
     const tenantId = profile?.tenant_id || null;
 
-    // Get field definitions for maps_to resolution
+    // Get field definitions for maps_to resolution (load early for all branches)
     let fieldDefs: any[] = [];
     if (tenantId && custom_data && Object.keys(custom_data).length > 0) {
       const { data: defs } = await supabase
@@ -97,6 +97,11 @@ Deno.serve(async (req) => {
           .maybeSingle();
 
         if (existingCC) {
+          // Apply custom_data to company if available
+          if (custom_data && Object.keys(custom_data).length > 0 && existingCC.company_id) {
+            await applyCustomData(supabase, existingCC.company_id, custom_data, fieldDefs);
+          }
+
           // Find or create visitor linked to this contact
           const visitorResult = await findOrCreateVisitor(supabase, {
             companyContactId: existingCC.id,
