@@ -324,13 +324,15 @@
         );
       }
 
-      if (resolvedToken && apiKey) {
+      if (apiKey) {
         var payload = buildResolverPayload(visitorProps);
         fetch(supabaseUrl + "/functions/v1/resolve-chat-visitor", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
-        }).catch(function () {});
+        }).catch(function (err) {
+          console.warn("[NPSChat] update failed:", err);
+        });
       }
     },
   };
