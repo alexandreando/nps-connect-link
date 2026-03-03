@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
 
     const { data: apiKeyData, error: apiKeyError } = await supabase
       .from("api_keys")
-      .select("id, user_id, key_hash, is_active")
+      .select("id, user_id, key_hash, is_active, tenant_id")
       .eq("key_prefix", keyPrefix)
       .eq("is_active", true)
       .maybeSingle();
@@ -64,14 +64,16 @@ Deno.serve(async (req) => {
       .update({ last_used_at: new Date().toISOString() })
       .eq("id", apiKeyData.id);
 
-    // Get tenant_id
-    const { data: profile } = await supabase
-      .from("user_profiles")
-      .select("tenant_id")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    const tenantId = profile?.tenant_id || null;
+    // Get tenant_id - prefer from api_keys table, fallback to user_profiles
+    let tenantId = apiKeyData.tenant_id || null;
+    if (!tenantId) {
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("tenant_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+      tenantId = profile?.tenant_id || null;
+    }
 
     // Get field definitions for maps_to resolution (load early for all branches)
     let fieldDefs: any[] = [];
@@ -88,25 +90,46 @@ Deno.serve(async (req) => {
     // Also handle name+email without external_id
     if (!external_id) {
       if (name && email) {
-        // Try to find existing company_contact by email
-        const { data: existingCC } = await supabase
+        // Try to find existing company_contact by email using tenant_id
+        const ccQuery = supabase
           .from("company_contacts")
           .select("id, company_id, name, email")
-          .eq("user_id", userId)
-          .eq("email", email)
-          .maybeSingle();
+          .eq("email", email);
+
+        // Use tenant_id for lookup if available, fallback to user_id
+        if (tenantId) {
+          ccQuery.eq("tenant_id", tenantId);
+        } else {
+          ccQuery.eq("user_id", userId);
+        }
+
+        const { data: existingCC } = await ccQuery.maybeSingle();
 
         if (existingCC) {
-          // Apply custom_data to company if available
-          if (custom_data && Object.keys(custom_data).length > 0 && existingCC.company_id) {
-            await applyCustomData(supabase, existingCC.company_id, custom_data, fieldDefs);
+          // Upsert company if company_id/company_name provided
+          let contactId = existingCC.company_id;
+          if (company_id || company_name) {
+            contactId = await upsertCompany(supabase, {
+              userId, tenantId, companyId: company_id, companyName: company_name,
+              contactId, customData: custom_data, fieldDefs,
+            });
+            // Link company_contact to company if not linked
+            if (contactId && !existingCC.company_id) {
+              await supabase
+                .from("company_contacts")
+                .update({ company_id: contactId, updated_at: new Date().toISOString() })
+                .eq("id", existingCC.id);
+            }
+          } else if (custom_data && Object.keys(custom_data).length > 0 && contactId) {
+            // Apply custom_data to existing company
+            await applyCustomData(supabase, contactId, custom_data, fieldDefs);
           }
 
           // Find or create visitor linked to this contact
           const visitorResult = await findOrCreateVisitor(supabase, {
             companyContactId: existingCC.id,
-            contactId: existingCC.company_id,
-            name, email, phone, userId, customData: custom_data,
+            contactId: contactId,
+            name, email, phone, userId, tenantId, customData: custom_data,
           });
 
           return new Response(
@@ -114,7 +137,7 @@ Deno.serve(async (req) => {
               visitor_token: visitorResult.visitor_token,
               visitor_name: name,
               visitor_email: email,
-              contact_id: existingCC.company_id,
+              contact_id: contactId,
               company_contact_id: existingCC.id,
               user_id: userId,
               auto_start: true,
@@ -145,13 +168,19 @@ Deno.serve(async (req) => {
 
     // --- external_id provided ---
 
-    // Find company_contact by external_id + user_id
-    const { data: companyContact } = await supabase
+    // Find company_contact by external_id + tenant_id (fallback to user_id)
+    const ccExtQuery = supabase
       .from("company_contacts")
       .select("id, name, email, phone, company_id")
-      .eq("user_id", userId)
-      .eq("external_id", external_id)
-      .maybeSingle();
+      .eq("external_id", external_id);
+
+    if (tenantId) {
+      ccExtQuery.eq("tenant_id", tenantId);
+    } else {
+      ccExtQuery.eq("user_id", userId);
+    }
+
+    const { data: companyContact } = await ccExtQuery.maybeSingle();
 
     if (companyContact) {
       // UPSERT: update contact fields if different
@@ -171,7 +200,7 @@ Deno.serve(async (req) => {
       let contactId = companyContact.company_id;
       if (company_id || company_name) {
         contactId = await upsertCompany(supabase, {
-          userId, companyId: company_id, companyName: company_name,
+          userId, tenantId, companyId: company_id, companyName: company_name,
           contactId, customData: custom_data, fieldDefs,
         });
       } else if (custom_data && contactId) {
@@ -187,6 +216,7 @@ Deno.serve(async (req) => {
         email: email || companyContact.email,
         phone: phone || companyContact.phone,
         userId,
+        tenantId,
         customData: custom_data,
       });
 
@@ -212,12 +242,12 @@ Deno.serve(async (req) => {
       let contactId: string | null = null;
       if (company_id || company_name) {
         contactId = await upsertCompany(supabase, {
-          userId, companyId: company_id, companyName: company_name,
+          userId, tenantId, companyId: company_id, companyName: company_name,
           contactId: null, customData: custom_data, fieldDefs,
         });
       }
 
-      // Create company_contact
+      // Create company_contact with tenant_id
       const { data: newCC } = await supabase
         .from("company_contacts")
         .insert({
@@ -227,6 +257,7 @@ Deno.serve(async (req) => {
           phone: phone || null,
           external_id,
           user_id: userId,
+          tenant_id: tenantId,
         } as any)
         .select("id, company_id")
         .single();
@@ -244,7 +275,7 @@ Deno.serve(async (req) => {
       const visitorResult = await findOrCreateVisitor(supabase, {
         companyContactId: newCC.id,
         contactId: finalContactId,
-        name, email, phone, userId, customData: custom_data,
+        name, email, phone, userId, tenantId, customData: custom_data,
       });
 
       // Sync bidirectional link
@@ -300,10 +331,11 @@ async function findOrCreateVisitor(
     email?: string | null;
     phone?: string | null;
     userId: string;
+    tenantId?: string | null;
     customData?: Record<string, any>;
   }
 ) {
-  const { companyContactId, contactId, name, email, phone, userId, customData } = opts;
+  const { companyContactId, contactId, name, email, phone, userId, tenantId, customData } = opts;
 
   // Check existing visitor
   const { data: existing } = await supabase
@@ -342,7 +374,7 @@ async function findOrCreateVisitor(
     };
   }
 
-  // Create new visitor
+  // Create new visitor with tenant_id
   const { data: newVisitor } = await supabase
     .from("chat_visitors")
     .insert({
@@ -352,6 +384,7 @@ async function findOrCreateVisitor(
       owner_user_id: userId,
       company_contact_id: companyContactId,
       contact_id: contactId,
+      tenant_id: tenantId,
       ...(customData && Object.keys(customData).length > 0 ? { metadata: customData } : {}),
     })
     .select("id, visitor_token")
@@ -377,6 +410,7 @@ async function upsertCompany(
   supabase: any,
   opts: {
     userId: string;
+    tenantId?: string | null;
     companyId?: string;
     companyName?: string;
     contactId: string | null;
@@ -384,20 +418,25 @@ async function upsertCompany(
     fieldDefs: any[];
   }
 ): Promise<string | null> {
-  const { userId, companyId, companyName, contactId, customData, fieldDefs } = opts;
+  const { userId, tenantId, companyId, companyName, contactId, customData, fieldDefs } = opts;
 
   let finalContactId = contactId;
 
-  // Try to find by external_id
+  // Try to find by external_id using tenant_id
   if (companyId && !finalContactId) {
-    const { data: existing } = await supabase
+    const findQuery = supabase
       .from("contacts")
       .select("id")
       .eq("external_id", String(companyId))
-      .eq("user_id", userId)
-      .eq("is_company", true)
-      .maybeSingle();
+      .eq("is_company", true);
 
+    if (tenantId) {
+      findQuery.eq("tenant_id", tenantId);
+    } else {
+      findQuery.eq("user_id", userId);
+    }
+
+    const { data: existing } = await findQuery.maybeSingle();
     if (existing) finalContactId = existing.id;
   }
 
@@ -411,6 +450,7 @@ async function upsertCompany(
         external_id: companyId ? String(companyId) : null,
         is_company: true,
         user_id: userId,
+        tenant_id: tenantId,
       })
       .select("id")
       .single();
