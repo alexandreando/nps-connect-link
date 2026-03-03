@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
@@ -47,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [userDataLoading, setUserDataLoading] = useState(false);
+  const currentUserIdRef = useRef<string | null>(null);
 
   // Multi-tenant state
   const [availableTenants, setAvailableTenants] = useState<TenantOption[]>([]);
@@ -198,6 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
+        currentUserIdRef.current = currentUser.id;
         await loadUserData(currentUser);
       }
       setLoading(false);
@@ -207,11 +209,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const currentUser = session?.user ?? null;
-      setUser(currentUser);
+
       if (currentUser) {
+        // Same user — token refresh or tab focus: skip full reload
+        if (currentUser.id === currentUserIdRef.current) {
+          setUser(currentUser);
+          return;
+        }
+        // Different user (new login / account switch)
+        currentUserIdRef.current = currentUser.id;
+        setUser(currentUser);
         setUserDataLoading(true);
         setTimeout(() => loadUserData(currentUser), 0);
       } else {
+        // Logout
+        currentUserIdRef.current = null;
+        setUser(null);
         setIsAdmin(false);
         setIsMaster(false);
         setIsChatEnabled(false);
