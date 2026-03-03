@@ -1,66 +1,101 @@
 
 
-# Fix: Embed Identity Persistence + Side Panel Realtime Refresh
+# Fix: Protecao Contra Sobrescrita com Valores Vazios + Fila de Updates + Token Fallback
 
-## Problem
+## Problema
 
-Two issues causing data to show incorrectly in the side panel:
+Tres problemas combinados:
 
-### Issue 1: Embed loses identity on reload
-On page reload, `visitorProps = {}`. The `resolveVisitor()` call returns `visitor_name`/`visitor_email`, but these are stored in separate variables (`resolvedName`/`resolvedEmail`) and never added back to `visitorProps`. When the customer later calls `NPSChat.update({ mrr: 66.97 })`, the payload has no name/email, so the resolver enters the "no name/email" branch and returns `needs_form: true` without saving `custom_data`.
+1. **Valores vazios sobrescrevem dados existentes**: Quando o payload envia `null`, `""`, `0` ou `[]` para um campo que ja tem valor no banco, o valor e apagado. O correto e ignorar envios vazios -- so atualizar quando o novo valor e diferente E nao-vazio.
 
-### Issue 2: Side panel doesn't auto-refresh
-The `VisitorInfoPanel` fetches data once on mount. If `NPSChat.update()` fires after the panel loaded, the attendant sees stale values until manually clicking the refresh button.
+2. **Race condition no reload**: `NPSChat.update()` dispara antes de `resolveVisitor()` completar, causando perda de identidade e dados.
+
+3. **Sem fallback por token**: Se `name`/`email` estao ausentes no payload, o resolver nao consegue identificar o visitante mesmo tendo o `visitor_token` salvo no localStorage.
 
 ---
 
-## Fix 1: Persist resolved identity in visitorProps (embed script)
+## Fix 1: Ignorar valores vazios em `applyCustomData` e `findOrCreateVisitor`
 
-**File: `public/nps-chat-embed.js`**
+### Arquivo: `supabase/functions/resolve-chat-visitor/index.ts`
 
-After `resolveVisitor()` succeeds (line 236-245), inject the resolved identity back into `visitorProps`:
+Criar funcao auxiliar `isEmptyValue(val)` que retorna `true` para `null`, `undefined`, `""`, arrays vazios `[]` e objetos vazios `{}`.
+
+**Em `applyCustomData`** (linha 499-508): Antes de adicionar ao `directUpdate` ou `customUpdate`, verificar se o valor NAO e vazio. Se for vazio, ignorar silenciosamente (nao sobrescrever o campo existente).
 
 ```text
-if (data.visitor_token) {
-  resolvedToken = data.visitor_token;
-  resolvedName = data.visitor_name || "";
-  resolvedEmail = data.visitor_email || "";
-  // NEW: Persist resolved identity for future update() calls
-  if (resolvedName && !visitorProps.name) visitorProps.name = resolvedName;
-  if (resolvedEmail && !visitorProps.email) visitorProps.email = resolvedEmail;
-  ...
+// Antes:
+directUpdate[mapsTo] = val;
+
+// Depois:
+if (!isEmptyValue(val)) {
+  directUpdate[mapsTo] = val;
 }
 ```
 
-This ensures that when `NPSChat.update({ mrr: 66.97 })` is called later, `buildResolverPayload(visitorProps)` will include the name/email as reserved keys, allowing the resolver to find the contact and apply custom_data.
+Mesma logica para `customUpdate`. Alem disso, ao fazer merge de `custom_fields`, so sobrescrever chaves cujo novo valor nao seja vazio.
 
-## Fix 2: Add realtime subscription to VisitorInfoPanel
+**Em `findOrCreateVisitor`** (linhas 349-355): Aplicar mesma logica -- so incluir `metadata` se `customData` tiver pelo menos uma chave com valor nao-vazio. Nao sobrescrever `phone` com valor vazio.
 
-**File: `src/components/chat/VisitorInfoPanel.tsx`**
+**Na atualizacao de `company_contacts`** (linhas 187-190): Ja esta correto (so atualiza se valor e truthy e diferente). Manter como esta.
 
-Add a Supabase realtime subscription on the `contacts` table filtered by `contact_id`. When a change is detected (from `applyCustomData` updating mrr, custom_fields, etc.), auto-refresh the panel data.
+## Fix 2: Fila de updates pendentes no embed
 
-Changes:
-- Subscribe to `contacts` changes for the resolved `contactId` using `postgres_changes`
-- Subscribe to `chat_visitors` changes for the `visitorId` (for metadata updates)
-- On change event, call `fetchData(true)` to silently refresh
-- Clean up subscriptions on unmount
+### Arquivo: `public/nps-chat-embed.js`
 
-This ensures that when `NPSChat.update()` fires and the resolver updates the `contacts` table, the attendant's panel refreshes automatically within seconds.
+- Adicionar `resolverReady = false` e `pendingUpdates = []`
+- No `NPSChat.update()`: se `resolverReady` for false, acumular em `pendingUpdates` e retornar sem chamar o resolver
+- Apos `resolveVisitor()` completar com sucesso: setar `resolverReady = true` e processar todos os `pendingUpdates` em uma unica chamada ao resolver (merge de todos os props acumulados)
+- Incluir `visitor_token` do localStorage no payload quando disponivel
+
+## Fix 3: Resolver aceita `visitor_token` como fallback
+
+### Arquivo: `supabase/functions/resolve-chat-visitor/index.ts`
+
+Na branch `!external_id` (linha 91), apos o bloco `if (name && email)`, adicionar:
+
+```text
+// Se visitor_token fornecido, identificar por token
+if (visitor_token) {
+  buscar chat_visitors pelo token
+  se encontrar e tiver contact_id:
+    aplicar custom_data no contact
+    upsert company se necessario
+    retornar visitor_token + IDs
+}
+```
+
+Isso permite que updates enviados com token (mas sem name/email) ainda consigam persistir dados.
 
 ---
 
-## Technical Details
+## Detalhes tecnicos
 
-### File: `public/nps-chat-embed.js` (lines ~236-245)
-- After setting `resolvedName`/`resolvedEmail`, also set `visitorProps.name` and `visitorProps.email` if not already present
-- This is the minimal change to fix the identity loss on reload
+### Funcao `isEmptyValue` (nova, no resolver)
+```text
+function isEmptyValue(val: any): boolean {
+  if (val === null || val === undefined || val === "") return true;
+  if (Array.isArray(val) && val.length === 0) return true;
+  if (typeof val === "object" && !Array.isArray(val) && Object.keys(val).length === 0) return true;
+  return false;
+}
+```
 
-### File: `src/components/chat/VisitorInfoPanel.tsx`
-- Add a `useEffect` that creates a realtime channel subscribing to:
-  - `postgres_changes` on `contacts` table filtered by `id = resolvedContactId`
-  - `postgres_changes` on `chat_visitors` table filtered by `id = visitorId`
-- On any `UPDATE` event, call `fetchData(true)` (silent refresh)
-- Return cleanup function to remove the channel on unmount
-- Add a debounce (e.g., 2 seconds) to avoid multiple rapid refreshes
+Nota: `0` NAO e considerado vazio (e um valor numerico valido, ex: mrr=0 e um valor real).
+
+### Arquivo: `supabase/functions/resolve-chat-visitor/index.ts`
+- Adicionar `visitor_token` ao destructuring do body (linha 16)
+- Adicionar funcao `isEmptyValue`
+- Modificar `applyCustomData` para filtrar valores vazios antes de persistir
+- Modificar `findOrCreateVisitor` para filtrar metadata vazia
+- Adicionar branch `visitor_token` na secao `!external_id`
+
+### Arquivo: `public/nps-chat-embed.js`
+- Adicionar variaveis `resolverReady` e `pendingUpdates`
+- Modificar `update()` para enfileirar quando nao pronto
+- Modificar callback de `resolveVisitor()` para processar fila
+- Incluir `visitor_token` salvo no payload do resolver
+
+### Arquivos impactados:
+1. `supabase/functions/resolve-chat-visitor/index.ts`
+2. `public/nps-chat-embed.js`
 
