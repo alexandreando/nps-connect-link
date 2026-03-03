@@ -505,16 +505,18 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
           {(() => {
             const allCustomEntries: { key: string; label: string; value: any; fieldType: string; order: number }[] = [];
 
-            // From visitor metadata
+            // From visitor metadata — skip fields with maps_to (shown in Metrics section)
             fieldDefs.forEach((fd) => {
+              if (fd.maps_to) return; // Displayed in Metrics section via direct column
               if (visitorMetadata[fd.key] !== undefined && visitorMetadata[fd.key] !== null) {
                 allCustomEntries.push({ key: `v_${fd.key}`, label: fd.label, value: visitorMetadata[fd.key], fieldType: fd.field_type, order: fd.display_order ?? 999 });
               }
             });
 
-            // From company custom_fields
+            // From company custom_fields — skip fields with maps_to
             const companyDefs = fieldDefs.filter(fd => fd.target === "company");
             companyDefs.forEach(fd => {
+              if (fd.maps_to) return; // Displayed in Metrics section via direct column
               if (companyCustomFields[fd.key] !== undefined && companyCustomFields[fd.key] !== null && !allCustomEntries.some(e => e.label === fd.label)) {
                 allCustomEntries.push({ key: `c_${fd.key}`, label: fd.label, value: companyCustomFields[fd.key], fieldType: fd.field_type, order: fd.display_order ?? 999 });
               }
