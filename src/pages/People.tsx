@@ -150,7 +150,7 @@ const People = () => {
 
           return (
             <div className="flex items-center gap-3 flex-wrap">
-              <div className="relative max-w-md flex-1 min-w-[200px]">
+              <div className="relative max-w-md flex-1 min-w-[140px] sm:min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder={t("people.search")}
@@ -219,18 +219,18 @@ const People = () => {
             <p>{t("people.noResults")}</p>
           </div>
         ) : (
-          <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
+          <div className="rounded-lg border bg-card shadow-sm overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("contacts.name")}</TableHead>
                   <TableHead>{t("contacts.email")}</TableHead>
                   <TableHead>{t("people.company")}</TableHead>
-                  <TableHead>{t("people.role")}</TableHead>
-                  <TableHead>{t("people.phone")}</TableHead>
-                  <TableHead className="text-center">{t("people.chats")}</TableHead>
-                  <TableHead className="text-center">{t("people.csat")}</TableHead>
-                  <TableHead className="text-center">{t("people.portal")}</TableHead>
+                   <TableHead className="hidden md:table-cell">{t("people.role")}</TableHead>
+                   <TableHead className="hidden md:table-cell">{t("people.phone")}</TableHead>
+                   <TableHead className="text-center hidden lg:table-cell">{t("people.chats")}</TableHead>
+                   <TableHead className="text-center hidden lg:table-cell">{t("people.csat")}</TableHead>
+                   <TableHead className="text-center hidden md:table-cell">{t("people.portal")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -256,15 +256,15 @@ const People = () => {
                     </TableCell>
                     <TableCell className="text-muted-foreground">{person.email}</TableCell>
                     <TableCell>{person.company_trade_name || person.company_name}</TableCell>
-                    <TableCell className="text-muted-foreground">{person.role || "-"}</TableCell>
-                    <TableCell className="text-muted-foreground">{person.phone || "-"}</TableCell>
-                    <TableCell className="text-center">{person.chat_total || 0}</TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-muted-foreground hidden md:table-cell">{person.role || "-"}</TableCell>
+                    <TableCell className="text-muted-foreground hidden md:table-cell">{person.phone || "-"}</TableCell>
+                    <TableCell className="text-center hidden lg:table-cell">{person.chat_total || 0}</TableCell>
+                    <TableCell className="text-center hidden lg:table-cell">
                       {person.chat_avg_csat
                         ? `${Number(person.chat_avg_csat).toFixed(1)}/5`
                         : "-"}
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-center hidden md:table-cell">
                       {person.public_token ? (
                         <Button
                           variant="ghost"

@@ -323,7 +323,7 @@ const AdminChatHistory = () => {
 
         {/* Filters */}
         <div className="flex items-center gap-2 flex-wrap bg-muted/30 rounded-xl px-4 py-3">
-          <div className="relative flex-1 min-w-[200px]">
+          <div className="relative flex-1 min-w-[140px] sm:min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder={t("chat.history.search_client")} value={search} onChange={(e) => { setSearch(e.target.value); handleFilterChange(); }} className="pl-9 h-9" />
           </div>
@@ -398,20 +398,21 @@ const AdminChatHistory = () => {
               <p className="text-[13px] text-muted-foreground text-center py-8">{t("chat.history.no_data")}</p>
             ) : (
               <>
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[40px]"><Checkbox checked={selectedIds.size === rooms.length && rooms.length > 0} onCheckedChange={toggleSelectAll} /></TableHead>
                       <TableHead className="w-[40px] text-[10px] font-medium uppercase tracking-wider text-muted-foreground"></TableHead>
-                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">ID</TableHead>
+                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground hidden md:table-cell">ID</TableHead>
                       <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{t("chat.history.client")}</TableHead>
-                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{t("chat.history.attendant")}</TableHead>
+                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground hidden md:table-cell">{t("chat.history.attendant")}</TableHead>
                       <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{t("chat.history.resolution")}</TableHead>
-                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{t("chat.history.csat")}</TableHead>
-                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Duração</TableHead>
-                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{t("chat.history.tags")}</TableHead>
-                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{t("chat.history.started_at")}</TableHead>
-                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{t("chat.history.closed_at")}</TableHead>
+                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground hidden lg:table-cell">{t("chat.history.csat")}</TableHead>
+                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground hidden lg:table-cell">Duração</TableHead>
+                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground hidden lg:table-cell">{t("chat.history.tags")}</TableHead>
+                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground hidden md:table-cell">{t("chat.history.started_at")}</TableHead>
+                      <TableHead className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground hidden md:table-cell">{t("chat.history.closed_at")}</TableHead>
                       <TableHead className="w-[80px] text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -424,27 +425,27 @@ const AdminChatHistory = () => {
                         <TableRow key={room.id} className="hover:bg-muted/50">
                           <TableCell onClick={(e) => e.stopPropagation()}><Checkbox checked={selectedIds.has(room.id)} onCheckedChange={() => toggleSelect(room.id)} /></TableCell>
                           <TableCell className="cursor-pointer" onClick={() => setReadOnlyRoom({ id: room.id, name: room.visitor_name ?? "Visitante", resolution_status: room.resolution_status })}><Eye className="h-4 w-4 text-muted-foreground" /></TableCell>
-                          <TableCell className="font-mono text-[11px]">{room.id.slice(0, 8)}</TableCell>
+                          <TableCell className="font-mono text-[11px] hidden md:table-cell">{room.id.slice(0, 8)}</TableCell>
                           <TableCell className="text-[13px]">{room.visitor_name ?? "—"}</TableCell>
-                          <TableCell className="text-[13px]">{room.attendant_name ?? "—"}</TableCell>
+                          <TableCell className="text-[13px] hidden md:table-cell">{room.attendant_name ?? "—"}</TableCell>
                           <TableCell>{resolutionBadge(room.resolution_status)}</TableCell>
-                          <TableCell>
+                          <TableCell className="hidden lg:table-cell">
                             {room.csat_score != null ? (
                               <span className={`flex items-center gap-1 text-[13px] font-medium ${csatColor(room.csat_score)}`}>
                                 <Star className="h-3 w-3 fill-current" />{room.csat_score}/5
                               </span>
                             ) : "—"}
                           </TableCell>
-                          <TableCell className="text-[13px] tabular-nums">{formatDuration(duration)}</TableCell>
-                          <TableCell>
+                          <TableCell className="text-[13px] tabular-nums hidden lg:table-cell">{formatDuration(duration)}</TableCell>
+                          <TableCell className="hidden lg:table-cell">
                             <div className="flex gap-1 flex-wrap">
                               {room.tags.length > 0
                                 ? room.tags.map((tag, i) => <Badge key={i} variant="outline" className="text-[10px]" style={{ borderColor: tag.color, color: tag.color }}>{tag.name}</Badge>)
                                 : "—"}
                             </div>
                           </TableCell>
-                          <TableCell className="text-[13px] tabular-nums">{format(new Date(room.created_at), "dd/MM/yyyy HH:mm")}</TableCell>
-                          <TableCell className="text-[13px] tabular-nums">{room.closed_at ? format(new Date(room.closed_at), "dd/MM/yyyy HH:mm") : "—"}</TableCell>
+                          <TableCell className="text-[13px] tabular-nums hidden md:table-cell">{format(new Date(room.created_at), "dd/MM/yyyy HH:mm")}</TableCell>
+                          <TableCell className="text-[13px] tabular-nums hidden md:table-cell">{room.closed_at ? format(new Date(room.closed_at), "dd/MM/yyyy HH:mm") : "—"}</TableCell>
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -460,6 +461,7 @@ const AdminChatHistory = () => {
                     })}
                   </TableBody>
                 </Table>
+                </div>
 
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between mt-4">

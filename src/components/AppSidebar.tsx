@@ -126,7 +126,7 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
 
   // Active item style — subtle bg + Metric Blue left border
   const activeItemCls =
-    "bg-sidebar-accent border-l-[3px] border-accent pl-[calc(theme(spacing.3)-3px)] text-foreground";
+    "bg-accent/10 border-l-[3px] border-accent pl-[calc(theme(spacing.3)-3px)] text-foreground";
   const groupLabelCls = "text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/70 px-2 py-1.5";
 
   const logoSrc = isDark ? "/logo-light.svg" : "/logo-dark.svg";
@@ -134,28 +134,42 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
 
   return (
     <Sidebar className="border-r border-sidebar-border" collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border px-2 py-3">
-        <div className="flex items-center justify-between w-full">
-          <button
-            onClick={() => {
-              if (isAdmin) navigate("/admin/dashboard");
-              else if (showCS) navigate("/cs-dashboard");
-              else if (showNPS) navigate("/nps/dashboard");
-              else if (showChat) navigate("/admin/dashboard");
-              else navigate("/nps/dashboard");
-            }}
-            className="flex items-center gap-3 min-w-0"
-          >
-            {collapsed ? (
-              <img src={iconSrc} alt="Journey" className="h-8 w-8 object-contain flex-shrink-0" />
-            ) : (
-              <img src={logoSrc} alt="Journey" className="h-10 w-auto object-contain max-w-[200px]" />
-            )}
-          </button>
-          <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors h-7 w-7 shrink-0" />
-        </div>
+      <SidebarHeader className="border-b border-sidebar-border/50 px-3 py-2.5">
+        {collapsed ? (
+          <div className="flex flex-col items-center gap-2 w-full">
+            <button
+              onClick={() => {
+                if (isAdmin) navigate("/admin/dashboard");
+                else if (showCS) navigate("/cs-dashboard");
+                else if (showNPS) navigate("/nps/dashboard");
+                else if (showChat) navigate("/admin/dashboard");
+                else navigate("/nps/dashboard");
+              }}
+              className="flex items-center justify-center"
+            >
+              <img src={iconSrc} alt="Journey" className="h-6 w-6 object-contain" />
+            </button>
+            <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors h-6 w-6" />
+          </div>
+        ) : (
+          <div className="flex items-center justify-between w-full">
+            <button
+              onClick={() => {
+                if (isAdmin) navigate("/admin/dashboard");
+                else if (showCS) navigate("/cs-dashboard");
+                else if (showNPS) navigate("/nps/dashboard");
+                else if (showChat) navigate("/admin/dashboard");
+                else navigate("/nps/dashboard");
+              }}
+              className="flex items-center min-w-0"
+            >
+              <img src={logoSrc} alt="Journey" className="h-7 w-auto object-contain max-w-[160px]" />
+            </button>
+            <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors h-7 w-7 shrink-0" />
+          </div>
+        )}
         {isImpersonating && !collapsed && (
-          <div className="mt-2 text-[10px] font-medium text-muted-foreground text-center truncate px-2">
+          <div className="mt-2 text-[10px] font-medium text-muted-foreground text-center truncate px-1">
             {impersonatedTenantName}
           </div>
         )}
@@ -567,13 +581,13 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
         )}
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-border p-3">
+      <SidebarFooter className="border-t border-sidebar-border/50 p-3">
         <div className="flex flex-col gap-1">
           <SidebarMenuButton
             onClick={() => navigate("/profile")}
             isActive={isActive("/profile")}
             tooltip={t("profile.title")}
-            className={cn("w-full justify-start", isActive("/profile") ? activeItemCls : "hover:bg-sidebar-accent")}
+            className={cn("w-full justify-start", isActive("/profile") ? activeItemCls : "hover:bg-sidebar-accent/70")}
           >
             <User className="h-4 w-4" />
             {!collapsed && <span>{t("profile.title")}</span>}
@@ -592,14 +606,14 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
               tooltip={t("nav.config")}
               className={cn(
                 "w-full justify-start",
-                isActive("/nps/settings") ? activeItemCls : "hover:bg-sidebar-accent",
+                isActive("/nps/settings") ? activeItemCls : "hover:bg-sidebar-accent/70",
               )}
             >
               <Settings className="h-4 w-4" />
               {!collapsed && <span>{t("nav.config")}</span>}
             </SidebarMenuButton>
           )}
-          <div className="flex items-center gap-1 mt-1">
+          <div className={cn("mt-1", collapsed ? "flex flex-col items-center gap-1" : "flex items-center gap-1")}>
             <Button
               variant="ghost"
               size="icon"
@@ -609,21 +623,23 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
             >
               {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/50 hover:text-foreground">
-                  <Languages className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" side="top">
-                <DropdownMenuItem onClick={() => setLanguage("en")}>
-                  {language === "en" && "✓ "}English
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setLanguage("pt-BR")}>
-                  {language === "pt-BR" && "✓ "}Português (BR)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {!collapsed && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground/50 hover:text-foreground">
+                    <Languages className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" side="top">
+                  <DropdownMenuItem onClick={() => setLanguage("en")}>
+                    {language === "en" && "✓ "}English
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLanguage("pt-BR")}>
+                    {language === "pt-BR" && "✓ "}Português (BR)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             <Button
               variant="ghost"
               size="icon"
