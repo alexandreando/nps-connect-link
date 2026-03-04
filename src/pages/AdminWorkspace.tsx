@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { ChatRoomList } from "@/components/chat/ChatRoomList";
 import { ChatMessageList } from "@/components/chat/ChatMessageList";
 import { ChatInput } from "@/components/chat/ChatInput";
-import { VisitorInfoPanel } from "@/components/chat/VisitorInfoPanel";
+import { VisitorInfoPanel, type WorkspaceDisplaySettings } from "@/components/chat/VisitorInfoPanel";
 import { CloseRoomDialog } from "@/components/chat/CloseRoomDialog";
 import { ReassignDialog } from "@/components/chat/ReassignDialog";
 import ProactiveChatDialog from "@/components/chat/ProactiveChatDialog";
@@ -49,6 +49,7 @@ const AdminWorkspace = () => {
   const isMobile = useIsMobile();
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(paramRoomId ?? null);
   const [infoPanelOpen, setInfoPanelOpen] = useState(true);
+  const [wsDisplaySettings, setWsDisplaySettings] = useState<WorkspaceDisplaySettings | undefined>(undefined);
   const [mobileView, setMobileView] = useState<MobileView>("list");
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [closingRoomId, setClosingRoomId] = useState<string | null>(null);
@@ -72,6 +73,44 @@ const AdminWorkspace = () => {
       Notification.requestPermission();
     }
   }, []);
+
+  // Fetch workspace display settings
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("chat_settings")
+        .select("ws_show_company_info, ws_show_company_cnpj, ws_show_company_external_id, ws_show_company_sector, ws_show_company_location, ws_show_metrics, ws_show_metric_health, ws_show_metric_mrr, ws_show_metric_contract, ws_show_metric_nps, ws_show_metric_renewal, ws_show_contact_data, ws_show_contact_department, ws_show_contact_external_id, ws_show_contact_chat_stats, ws_show_custom_fields, ws_hidden_custom_fields, ws_show_timeline, ws_timeline_max_events, ws_show_recent_chats, ws_recent_chats_count, ws_default_panel_open")
+        .maybeSingle();
+      if (data) {
+        const d = data as any;
+        setWsDisplaySettings({
+          ws_show_company_info: d.ws_show_company_info ?? true,
+          ws_show_company_cnpj: d.ws_show_company_cnpj ?? true,
+          ws_show_company_external_id: d.ws_show_company_external_id ?? true,
+          ws_show_company_sector: d.ws_show_company_sector ?? true,
+          ws_show_company_location: d.ws_show_company_location ?? true,
+          ws_show_metrics: d.ws_show_metrics ?? true,
+          ws_show_metric_health: d.ws_show_metric_health ?? true,
+          ws_show_metric_mrr: d.ws_show_metric_mrr ?? true,
+          ws_show_metric_contract: d.ws_show_metric_contract ?? true,
+          ws_show_metric_nps: d.ws_show_metric_nps ?? true,
+          ws_show_metric_renewal: d.ws_show_metric_renewal ?? true,
+          ws_show_contact_data: d.ws_show_contact_data ?? true,
+          ws_show_contact_department: d.ws_show_contact_department ?? true,
+          ws_show_contact_external_id: d.ws_show_contact_external_id ?? true,
+          ws_show_contact_chat_stats: d.ws_show_contact_chat_stats ?? true,
+          ws_show_custom_fields: d.ws_show_custom_fields ?? true,
+          ws_hidden_custom_fields: d.ws_hidden_custom_fields ?? [],
+          ws_show_timeline: d.ws_show_timeline ?? true,
+          ws_timeline_max_events: d.ws_timeline_max_events ?? 10,
+          ws_show_recent_chats: d.ws_show_recent_chats ?? true,
+          ws_recent_chats_count: d.ws_recent_chats_count ?? 5,
+        });
+        setInfoPanelOpen(d.ws_default_panel_open !== false);
+      }
+    })();
+  }, []);
+
   // Get the current user's attendant profile id and display name
   useEffect(() => {
     if (!user) return;
@@ -404,7 +443,7 @@ const AdminWorkspace = () => {
                       <Button size="icon" variant="ghost" className="h-8 w-8"><Info className="h-4 w-4" /></Button>
                     </SheetTrigger>
                     <SheetContent side="right" className="w-[85vw] p-0">
-                      <VisitorInfoPanel roomId={selectedRoom.id} visitorId={selectedRoom.visitor_id} contactId={selectedRoom.contact_id} companyContactId={selectedRoom.company_contact_id} />
+                      <VisitorInfoPanel roomId={selectedRoom.id} visitorId={selectedRoom.visitor_id} contactId={selectedRoom.contact_id} companyContactId={selectedRoom.company_contact_id} displaySettings={wsDisplaySettings} />
                     </SheetContent>
                   </Sheet>
                   {selectedRoom.status === "active" && (
@@ -586,7 +625,7 @@ const AdminWorkspace = () => {
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
                 <div className="h-full p-1.5 pr-3 pt-3 pb-3 overflow-y-auto">
-                  <VisitorInfoPanel roomId={effectiveRoom.id} visitorId={effectiveRoom.visitor_id} contactId={effectiveRoom.contact_id} companyContactId={effectiveRoom.company_contact_id} />
+                  <VisitorInfoPanel roomId={effectiveRoom.id} visitorId={effectiveRoom.visitor_id} contactId={effectiveRoom.contact_id} companyContactId={effectiveRoom.company_contact_id} displaySettings={wsDisplaySettings} />
                 </div>
               </ResizablePanel>
             </>

@@ -5,7 +5,6 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { SectionLabel } from "@/components/ui/section-label";
 import { Separator } from "@/components/ui/separator";
 
 interface WorkspaceSettings {
@@ -18,6 +17,21 @@ interface WorkspaceSettings {
   ws_show_company_external_id: boolean;
   ws_show_contact_external_id: boolean;
   ws_recent_chats_count: number;
+  // Granular
+  ws_show_company_info: boolean;
+  ws_show_company_cnpj: boolean;
+  ws_show_company_sector: boolean;
+  ws_show_company_location: boolean;
+  ws_show_metric_health: boolean;
+  ws_show_metric_mrr: boolean;
+  ws_show_metric_contract: boolean;
+  ws_show_metric_nps: boolean;
+  ws_show_metric_renewal: boolean;
+  ws_show_contact_department: boolean;
+  ws_show_contact_chat_stats: boolean;
+  ws_hidden_custom_fields: string[];
+  ws_timeline_max_events: number;
+  ws_default_panel_open: boolean;
 }
 
 const DEFAULTS: WorkspaceSettings = {
@@ -30,22 +44,73 @@ const DEFAULTS: WorkspaceSettings = {
   ws_show_company_external_id: true,
   ws_show_contact_external_id: true,
   ws_recent_chats_count: 5,
+  ws_show_company_info: true,
+  ws_show_company_cnpj: true,
+  ws_show_company_sector: true,
+  ws_show_company_location: true,
+  ws_show_metric_health: true,
+  ws_show_metric_mrr: true,
+  ws_show_metric_contract: true,
+  ws_show_metric_nps: true,
+  ws_show_metric_renewal: true,
+  ws_show_contact_department: true,
+  ws_show_contact_chat_stats: true,
+  ws_hidden_custom_fields: [],
+  ws_timeline_max_events: 10,
+  ws_default_panel_open: true,
 };
+
+interface CustomFieldDef {
+  id: string;
+  key: string;
+  label: string;
+  is_active: boolean;
+}
+
+function SectionCard({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">{children}</CardContent>
+    </Card>
+  );
+}
+
+function ToggleRow({ id, label, checked, onChange, disabled, indent }: { id: string; label: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; indent?: boolean }) {
+  return (
+    <div className={`flex items-center justify-between ${indent ? "pl-6" : ""}`}>
+      <Label htmlFor={id} className={disabled ? "text-muted-foreground" : ""}>{label}</Label>
+      <Switch id={id} checked={checked} onCheckedChange={onChange} disabled={disabled} />
+    </div>
+  );
+}
 
 const WorkspaceDisplayTab = () => {
   const { toast } = useToast();
   const [settingsId, setSettingsId] = useState<string | null>(null);
   const [ws, setWs] = useState<WorkspaceSettings>(DEFAULTS);
   const [loading, setLoading] = useState(true);
+  const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDef[]>([]);
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
-        .from("chat_settings")
-        .select("id, ws_sort_order, ws_show_metrics, ws_show_contact_data, ws_show_custom_fields, ws_show_timeline, ws_show_recent_chats, ws_show_company_external_id, ws_show_contact_external_id, ws_recent_chats_count")
-        .maybeSingle();
-      if (data) {
-        const d = data as any;
+      const [settingsRes, defsRes] = await Promise.all([
+        supabase
+          .from("chat_settings")
+          .select("*")
+          .maybeSingle(),
+        supabase
+          .from("chat_custom_field_definitions" as any)
+          .select("id, key, label, is_active")
+          .eq("is_active", true)
+          .order("display_order", { ascending: true }),
+      ]);
+
+      if (settingsRes.data) {
+        const d = settingsRes.data as any;
         setSettingsId(d.id);
         setWs({
           ws_sort_order: d.ws_sort_order ?? DEFAULTS.ws_sort_order,
@@ -57,8 +122,24 @@ const WorkspaceDisplayTab = () => {
           ws_show_company_external_id: d.ws_show_company_external_id ?? DEFAULTS.ws_show_company_external_id,
           ws_show_contact_external_id: d.ws_show_contact_external_id ?? DEFAULTS.ws_show_contact_external_id,
           ws_recent_chats_count: d.ws_recent_chats_count ?? DEFAULTS.ws_recent_chats_count,
+          ws_show_company_info: d.ws_show_company_info ?? DEFAULTS.ws_show_company_info,
+          ws_show_company_cnpj: d.ws_show_company_cnpj ?? DEFAULTS.ws_show_company_cnpj,
+          ws_show_company_sector: d.ws_show_company_sector ?? DEFAULTS.ws_show_company_sector,
+          ws_show_company_location: d.ws_show_company_location ?? DEFAULTS.ws_show_company_location,
+          ws_show_metric_health: d.ws_show_metric_health ?? DEFAULTS.ws_show_metric_health,
+          ws_show_metric_mrr: d.ws_show_metric_mrr ?? DEFAULTS.ws_show_metric_mrr,
+          ws_show_metric_contract: d.ws_show_metric_contract ?? DEFAULTS.ws_show_metric_contract,
+          ws_show_metric_nps: d.ws_show_metric_nps ?? DEFAULTS.ws_show_metric_nps,
+          ws_show_metric_renewal: d.ws_show_metric_renewal ?? DEFAULTS.ws_show_metric_renewal,
+          ws_show_contact_department: d.ws_show_contact_department ?? DEFAULTS.ws_show_contact_department,
+          ws_show_contact_chat_stats: d.ws_show_contact_chat_stats ?? DEFAULTS.ws_show_contact_chat_stats,
+          ws_hidden_custom_fields: d.ws_hidden_custom_fields ?? DEFAULTS.ws_hidden_custom_fields,
+          ws_timeline_max_events: d.ws_timeline_max_events ?? DEFAULTS.ws_timeline_max_events,
+          ws_default_panel_open: d.ws_default_panel_open ?? DEFAULTS.ws_default_panel_open,
         });
       }
+
+      setCustomFieldDefs((defsRes.data as any as CustomFieldDef[]) ?? []);
       setLoading(false);
     })();
   }, []);
@@ -71,6 +152,14 @@ const WorkspaceDisplayTab = () => {
     toast({ title: "Configurações salvas" });
   };
 
+  const toggleCustomFieldHidden = (key: string, hidden: boolean) => {
+    const current = ws.ws_hidden_custom_fields;
+    const next = hidden
+      ? [...current, key]
+      : current.filter((k) => k !== key);
+    save({ ws_hidden_custom_fields: next });
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -81,13 +170,12 @@ const WorkspaceDisplayTab = () => {
 
   return (
     <div className="space-y-6">
-      {/* Ordenação */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Ordenação da Lista de Chats</CardTitle>
-          <CardDescription>Defina como os chats devem ser ordenados na lista do workspace.</CardDescription>
-        </CardHeader>
-        <CardContent>
+      {/* Comportamento */}
+      <SectionCard title="Comportamento" description="Configurações gerais do workspace.">
+        <ToggleRow id="ws-default-open" label="Painel lateral aberto por padrão" checked={ws.ws_default_panel_open} onChange={(v) => save({ ws_default_panel_open: v })} />
+        <Separator />
+        <div className="space-y-1.5">
+          <Label>Ordenação da Lista de Chats</Label>
           <Select value={ws.ws_sort_order} onValueChange={(v) => save({ ws_sort_order: v })}>
             <SelectTrigger className="w-full max-w-xs">
               <SelectValue />
@@ -97,81 +185,110 @@ const WorkspaceDisplayTab = () => {
               <SelectItem value="wait_time">Tempo de espera</SelectItem>
             </SelectContent>
           </Select>
-        </CardContent>
-      </Card>
+        </div>
+      </SectionCard>
 
-      {/* Seções do Side Panel */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Seções do Painel Lateral</CardTitle>
-          <CardDescription>Escolha quais seções exibir no painel de informações do visitante.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="ws-metrics">Métricas (Health Score, MRR, NPS)</Label>
-            <Switch id="ws-metrics" checked={ws.ws_show_metrics} onCheckedChange={(v) => save({ ws_show_metrics: v })} />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <Label htmlFor="ws-contact">Dados do Contato</Label>
-            <Switch id="ws-contact" checked={ws.ws_show_contact_data} onCheckedChange={(v) => save({ ws_show_contact_data: v })} />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <Label htmlFor="ws-custom">Campos Customizados</Label>
-            <Switch id="ws-custom" checked={ws.ws_show_custom_fields} onCheckedChange={(v) => save({ ws_show_custom_fields: v })} />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <Label htmlFor="ws-timeline">Timeline</Label>
-            <Switch id="ws-timeline" checked={ws.ws_show_timeline} onCheckedChange={(v) => save({ ws_show_timeline: v })} />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <Label htmlFor="ws-recent">Chats Recentes</Label>
-            <Switch id="ws-recent" checked={ws.ws_show_recent_chats} onCheckedChange={(v) => save({ ws_show_recent_chats: v })} />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Empresa */}
+      <SectionCard title="Empresa" description="Controle quais campos da empresa exibir no painel lateral.">
+        <ToggleRow id="ws-company-info" label="Exibir seção Empresa" checked={ws.ws_show_company_info} onChange={(v) => save({ ws_show_company_info: v })} />
+        <Separator />
+        <ToggleRow id="ws-company-cnpj" label="CNPJ" checked={ws.ws_show_company_cnpj} onChange={(v) => save({ ws_show_company_cnpj: v })} disabled={!ws.ws_show_company_info} indent />
+        <ToggleRow id="ws-company-ext" label="External ID da Empresa" checked={ws.ws_show_company_external_id} onChange={(v) => save({ ws_show_company_external_id: v })} disabled={!ws.ws_show_company_info} indent />
+        <ToggleRow id="ws-company-sector" label="Setor" checked={ws.ws_show_company_sector} onChange={(v) => save({ ws_show_company_sector: v })} disabled={!ws.ws_show_company_info} indent />
+        <ToggleRow id="ws-company-location" label="Localização (Cidade/Estado)" checked={ws.ws_show_company_location} onChange={(v) => save({ ws_show_company_location: v })} disabled={!ws.ws_show_company_info} indent />
+      </SectionCard>
 
-      {/* IDs Externos */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Identificadores Externos</CardTitle>
-          <CardDescription>Controle a exibição de IDs externos no painel lateral.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="ws-company-ext">External ID da Empresa</Label>
-            <Switch id="ws-company-ext" checked={ws.ws_show_company_external_id} onCheckedChange={(v) => save({ ws_show_company_external_id: v })} />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <Label htmlFor="ws-contact-ext">External ID do Contato</Label>
-            <Switch id="ws-contact-ext" checked={ws.ws_show_contact_external_id} onCheckedChange={(v) => save({ ws_show_contact_external_id: v })} />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Métricas */}
+      <SectionCard title="Métricas" description="Controle quais métricas exibir no painel lateral.">
+        <ToggleRow id="ws-metrics" label="Exibir seção Métricas" checked={ws.ws_show_metrics} onChange={(v) => save({ ws_show_metrics: v })} />
+        <Separator />
+        <ToggleRow id="ws-metric-health" label="Health Score" checked={ws.ws_show_metric_health} onChange={(v) => save({ ws_show_metric_health: v })} disabled={!ws.ws_show_metrics} indent />
+        <ToggleRow id="ws-metric-mrr" label="MRR" checked={ws.ws_show_metric_mrr} onChange={(v) => save({ ws_show_metric_mrr: v })} disabled={!ws.ws_show_metrics} indent />
+        <ToggleRow id="ws-metric-contract" label="Valor Contrato" checked={ws.ws_show_metric_contract} onChange={(v) => save({ ws_show_metric_contract: v })} disabled={!ws.ws_show_metrics} indent />
+        <ToggleRow id="ws-metric-nps" label="NPS" checked={ws.ws_show_metric_nps} onChange={(v) => save({ ws_show_metric_nps: v })} disabled={!ws.ws_show_metrics} indent />
+        <ToggleRow id="ws-metric-renewal" label="Data de Renovação" checked={ws.ws_show_metric_renewal} onChange={(v) => save({ ws_show_metric_renewal: v })} disabled={!ws.ws_show_metrics} indent />
+      </SectionCard>
 
-      {/* Chats recentes count */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Quantidade de Chats Recentes</CardTitle>
-          <CardDescription>Quantos chats recentes exibir no painel lateral por página.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Select value={String(ws.ws_recent_chats_count)} onValueChange={(v) => save({ ws_recent_chats_count: Number(v) })}>
-            <SelectTrigger className="w-full max-w-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="5">5 chats</SelectItem>
-              <SelectItem value="10">10 chats</SelectItem>
-              <SelectItem value="15">15 chats</SelectItem>
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
+      {/* Dados do Contato */}
+      <SectionCard title="Dados do Contato" description="Controle quais informações do contato exibir.">
+        <ToggleRow id="ws-contact" label="Exibir seção Dados do Contato" checked={ws.ws_show_contact_data} onChange={(v) => save({ ws_show_contact_data: v })} />
+        <Separator />
+        <ToggleRow id="ws-contact-dept" label="Departamento" checked={ws.ws_show_contact_department} onChange={(v) => save({ ws_show_contact_department: v })} disabled={!ws.ws_show_contact_data} indent />
+        <ToggleRow id="ws-contact-ext" label="External ID do Contato" checked={ws.ws_show_contact_external_id} onChange={(v) => save({ ws_show_contact_external_id: v })} disabled={!ws.ws_show_contact_data} indent />
+        <ToggleRow id="ws-contact-stats" label="Estatísticas de Chat (sessões, CSAT, último chat)" checked={ws.ws_show_contact_chat_stats} onChange={(v) => save({ ws_show_contact_chat_stats: v })} disabled={!ws.ws_show_contact_data} indent />
+      </SectionCard>
+
+      {/* Campos Customizados */}
+      <SectionCard title="Campos Customizados" description="Controle quais campos customizados exibir. Todos são visíveis por padrão.">
+        <ToggleRow id="ws-custom" label="Exibir seção Campos Customizados" checked={ws.ws_show_custom_fields} onChange={(v) => save({ ws_show_custom_fields: v })} />
+        {ws.ws_show_custom_fields && customFieldDefs.length > 0 && (
+          <>
+            <Separator />
+            {customFieldDefs.map((fd) => {
+              const isHidden = ws.ws_hidden_custom_fields.includes(fd.key);
+              return (
+                <ToggleRow
+                  key={fd.id}
+                  id={`ws-cf-${fd.key}`}
+                  label={fd.label}
+                  checked={!isHidden}
+                  onChange={(v) => toggleCustomFieldHidden(fd.key, !v)}
+                  indent
+                />
+              );
+            })}
+          </>
+        )}
+        {ws.ws_show_custom_fields && customFieldDefs.length === 0 && (
+          <p className="text-xs text-muted-foreground pl-6">Nenhum campo customizado configurado.</p>
+        )}
+      </SectionCard>
+
+      {/* Timeline */}
+      <SectionCard title="Timeline" description="Controle a exibição de eventos na timeline.">
+        <ToggleRow id="ws-timeline" label="Exibir Timeline" checked={ws.ws_show_timeline} onChange={(v) => save({ ws_show_timeline: v })} />
+        {ws.ws_show_timeline && (
+          <>
+            <Separator />
+            <div className="pl-6 space-y-1.5">
+              <Label>Quantidade máxima de eventos</Label>
+              <Select value={String(ws.ws_timeline_max_events)} onValueChange={(v) => save({ ws_timeline_max_events: Number(v) })}>
+                <SelectTrigger className="w-full max-w-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5 eventos</SelectItem>
+                  <SelectItem value="10">10 eventos</SelectItem>
+                  <SelectItem value="20">20 eventos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        )}
+      </SectionCard>
+
+      {/* Chats Recentes */}
+      <SectionCard title="Chats Recentes" description="Controle a exibição de chats recentes no painel.">
+        <ToggleRow id="ws-recent" label="Exibir Chats Recentes" checked={ws.ws_show_recent_chats} onChange={(v) => save({ ws_show_recent_chats: v })} />
+        {ws.ws_show_recent_chats && (
+          <>
+            <Separator />
+            <div className="pl-6 space-y-1.5">
+              <Label>Quantidade por página</Label>
+              <Select value={String(ws.ws_recent_chats_count)} onValueChange={(v) => save({ ws_recent_chats_count: Number(v) })}>
+                <SelectTrigger className="w-full max-w-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5 chats</SelectItem>
+                  <SelectItem value="10">10 chats</SelectItem>
+                  <SelectItem value="15">15 chats</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        )}
+      </SectionCard>
     </div>
   );
 };
