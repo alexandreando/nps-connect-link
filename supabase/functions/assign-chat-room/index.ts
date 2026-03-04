@@ -132,11 +132,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Send welcome message for any new room (regardless of assignment)
-    await sendWelcomeMessage(supabase, room_id, room.tenant_id);
-
-    // If the trigger already assigned it, just return the result
+    // If the trigger already assigned it, send welcome message and return
     if (room.status === "active" && room.attendant_id) {
+      // Send welcome message when attendant is assigned
+      await sendWelcomeMessage(supabase, room_id, room.tenant_id);
+
       const { data: attendant } = await supabase
         .from("attendant_profiles")
         .select("display_name")
