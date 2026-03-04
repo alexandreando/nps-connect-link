@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     const { data: rules, error: rulesErr } = await supabase
       .from("chat_auto_rules")
       .select("id, rule_type, trigger_minutes, message_content, tenant_id")
-      .in("rule_type", ["inactivity_warning", "inactivity_warning_2", "auto_close", "attendant_absence", "welcome_message"])
+      .in("rule_type", ["inactivity_warning", "inactivity_warning_2", "auto_close", "attendant_absence"])
       .eq("is_enabled", true);
 
     if (rulesErr) throw rulesErr;
@@ -73,70 +73,12 @@ Deno.serve(async (req) => {
       // Build maps for chain rules and attendant_absence
       const chainRules = new Map<string, (typeof tenantRules)[0]>();
       let absenceRule: (typeof tenantRules)[0] | null = null;
-      let welcomeRule: (typeof tenantRules)[0] | null = null;
 
       for (const rule of tenantRules) {
         if (FLOW_ORDER.includes(rule.rule_type as any)) {
           chainRules.set(rule.rule_type, rule);
         } else if (rule.rule_type === "attendant_absence") {
           absenceRule = rule;
-        } else if (rule.rule_type === "welcome_message") {
-          welcomeRule = rule;
-        }
-      }
-
-      // === WELCOME MESSAGE (immediate, independent) ===
-      if (welcomeRule && welcomeRule.message_content) {
-        const welcomeQuery = supabase
-          .from("chat_rooms")
-          .select("id")
-          .eq("status", "waiting");
-
-        if (tenantId !== "__none__") {
-          welcomeQuery.eq("tenant_id", tenantId);
-        }
-
-        const { data: waitingRooms } = await welcomeQuery;
-        if (waitingRooms && waitingRooms.length > 0) {
-          const waitingRoomIds = waitingRooms.map((r) => r.id);
-
-          // Check which rooms already have a welcome_message
-          const { data: existingWelcome } = await supabase
-            .from("chat_messages")
-            .select("room_id")
-            .in("room_id", waitingRoomIds)
-            .eq("sender_type", "system")
-            .containedBy("metadata", { auto_rule: "welcome_message" } as any);
-
-          // Use a simpler approach: fetch system messages with metadata filter
-          const { data: systemMsgs } = await supabase
-            .from("chat_messages")
-            .select("room_id, metadata")
-            .in("room_id", waitingRoomIds)
-            .eq("sender_type", "system");
-
-          const roomsWithWelcome = new Set<string>();
-          if (systemMsgs) {
-            for (const sm of systemMsgs) {
-              if ((sm.metadata as any)?.auto_rule === "welcome_message") {
-                roomsWithWelcome.add(sm.room_id);
-              }
-            }
-          }
-
-          for (const wr of waitingRooms) {
-            if (!roomsWithWelcome.has(wr.id)) {
-              await supabase.from("chat_messages").insert({
-                room_id: wr.id,
-                sender_type: "system",
-                sender_name: "Sistema",
-                content: welcomeRule.message_content,
-                message_type: "text",
-                metadata: { auto_rule: "welcome_message" },
-              });
-              totalProcessed++;
-            }
-          }
         }
       }
 
@@ -230,15 +172,21 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Determine the last chain step executed
-        // chainSystemMsgs is ordered desc (newest first)
-        const lastChainMsg = chainSystemMsgs.length > 0 ? chainSystemMsgs[0] : null;
+        // Find latest chain_reset to use as boundary
+        const resetIdx = chainSystemMsgs.findIndex((m) => m.rule === "chain_reset");
+        const resetTime = resetIdx >= 0 ? chainSystemMsgs[resetIdx].created_at : null;
 
-        // If visitor responded OR chain was reset after the last chain message, skip
-        if (lastChainMsg && lastChainMsg.rule === "chain_reset") {
-          continue;
-        }
-        if (lastChainMsg && lastVisitorMsg && lastVisitorMsg.created_at > lastChainMsg.created_at) {
+        // Only consider chain messages AFTER the latest reset
+        const relevantChainMsgs = resetIdx >= 0 ? chainSystemMsgs.slice(0, resetIdx) : chainSystemMsgs;
+
+        // Filter visitor/attendant msgs to only those after reset
+        const effectiveVisitorMsg = lastVisitorMsg && (!resetTime || lastVisitorMsg.created_at > resetTime) ? lastVisitorMsg : null;
+        const effectiveAttendantMsg = lastAttendantMsg && (!resetTime || lastAttendantMsg.created_at > resetTime) ? lastAttendantMsg : null;
+
+        const lastChainMsg = relevantChainMsgs.length > 0 ? relevantChainMsgs[0] : null;
+
+        // If visitor responded after the last chain message, skip
+        if (lastChainMsg && effectiveVisitorMsg && effectiveVisitorMsg.created_at > lastChainMsg.created_at) {
           continue;
         }
 
@@ -247,13 +195,16 @@ Deno.serve(async (req) => {
         let referenceTime: string | null = null;
 
         if (!lastChainMsg) {
-          // No chain message sent yet -> next is inactivity_warning
+          // No chain message sent yet (or reset) -> next is inactivity_warning
           // But only if attendant spoke last and room is active
-          if (room.status === "active" && lastAttendantMsg) {
-            const lastNonSystem = roomMsgs.find((m) => m.sender_type !== "system");
+          if (room.status === "active" && effectiveAttendantMsg) {
+            // Find last non-system message after reset
+            const lastNonSystem = roomMsgs.find((m) => 
+              m.sender_type !== "system" && (!resetTime || m.created_at! > resetTime)
+            );
             if (lastNonSystem && lastNonSystem.sender_type === "attendant") {
               nextStep = "inactivity_warning";
-              referenceTime = lastAttendantMsg.created_at;
+              referenceTime = effectiveAttendantMsg.created_at;
             }
           }
         } else if (lastChainMsg.rule === "inactivity_warning") {

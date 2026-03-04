@@ -163,6 +163,8 @@ const AdminChatHistory = () => {
       is_internal: false,
       metadata: { auto_rule: "chain_reset" },
     });
+    // Trigger welcome message via assign-chat-room
+    supabase.functions.invoke("assign-chat-room", { body: { room_id: roomId } }).catch(() => {});
 
     toast.success("Chat reaberto e atribuído a você!");
     refetch();

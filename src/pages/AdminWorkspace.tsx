@@ -256,8 +256,11 @@ const AdminWorkspace = () => {
     }).eq("id", selectedRoomId);
     await supabase.from("chat_messages").insert({
       room_id: selectedRoomId, sender_type: "system", sender_name: "Sistema",
-      content: "[Sistema] Conversa reaberta pelo atendente", is_internal: true,
+      content: "[Sistema] Conversa reaberta pelo atendente", is_internal: false,
+      metadata: { auto_rule: "chain_reset" },
     });
+    // Trigger welcome message via assign-chat-room
+    supabase.functions.invoke("assign-chat-room", { body: { room_id: selectedRoomId } }).catch(() => {});
     setPendingSelectedRoom(null);
     toast.success("Conversa reaberta!");
   };
