@@ -22,6 +22,13 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { ChatTagSelector } from "@/components/chat/ChatTagSelector";
 import { MessageSquare, PanelRightClose, PanelRightOpen, ArrowLeft, Info, Clock, X, ArrowRightLeft, Tag, Plus, RotateCcw, CheckCircle2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal } from "lucide-react";
 
 type MobileView = "list" | "chat" | "info";
 
@@ -47,6 +54,9 @@ const AdminWorkspace = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  const [windowWidth, setWindowWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1920);
+  const isTablet = !isMobile && windowWidth < 1024;
+  const isCompact = windowWidth < 1280;
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(paramRoomId ?? null);
   const [infoPanelOpen, setInfoPanelOpen] = useState(true);
   const [wsDisplaySettings, setWsDisplaySettings] = useState<WorkspaceDisplaySettings | undefined>(undefined);
@@ -64,6 +74,18 @@ const AdminWorkspace = () => {
   const [typingUser, setTypingUser] = useState<string | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [visitorLastReadAt, setVisitorLastReadAt] = useState<string | null>(null);
+
+  // Track window width for responsive breakpoints
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Auto-collapse info panel on compact screens
+  useEffect(() => {
+    if (isCompact) setInfoPanelOpen(false);
+  }, [isCompact]);
 
   // Polling moved to SidebarLayout for reliability (runs even without Workspace open)
 
@@ -416,7 +438,7 @@ const AdminWorkspace = () => {
   if (isMobile) {
     return (
       <>
-        <div className="-m-4 md:-m-6 lg:-m-8 h-[calc(100vh-3.5rem)] flex flex-col bg-transparent">
+        <div className="-m-4 md:-m-6 lg:-m-8 h-screen flex flex-col bg-transparent">
           {mobileView === "list" && (
             <ChatRoomList rooms={filteredRooms} selectedRoomId={selectedRoomId} onSelectRoom={handleSelectRoom} loading={roomsLoading} />
           )}
@@ -506,10 +528,10 @@ const AdminWorkspace = () => {
   // Desktop layout with resizable panels
   return (
     <>
-      <div className="-m-4 md:-m-6 lg:-m-8 h-[calc(100vh-3.5rem)] flex flex-col bg-transparent">
+      <div className="-m-4 md:-m-6 lg:-m-8 h-screen flex flex-col bg-transparent">
         <ResizablePanelGroup direction="horizontal" className="flex-1">
           {/* Left: Room list */}
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={35}>
+          <ResizablePanel defaultSize={isTablet ? 25 : 20} minSize={18} maxSize={35}>
             <div className="h-full p-1.5 pl-3 pt-3 pb-3 flex flex-col">
               <div className="mb-2 px-1">
                 <Button size="sm" className="w-full gap-1" onClick={() => setProactiveChatOpen(true)}>
@@ -527,12 +549,12 @@ const AdminWorkspace = () => {
           <ResizableHandle withHandle />
 
           {/* Center: Chat area */}
-          <ResizablePanel defaultSize={infoPanelOpen ? 50 : 80} minSize={30}>
+          <ResizablePanel defaultSize={infoPanelOpen ? 50 : 80} minSize={isTablet ? 40 : 35}>
             <div className="h-full p-1.5 pt-3 pb-3">
               {effectiveRoom ? (
                 <Card className="h-full flex flex-col rounded-lg border bg-card shadow-sm overflow-hidden">
-                  <div className="p-3 flex items-center justify-between border-b">
-                    <div className="flex items-center gap-2 min-w-0">
+                  <div className="p-3 flex items-center justify-between border-b gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       <MessageSquare className="h-4 w-4 text-primary shrink-0" />
                       <span className="font-medium text-sm truncate">
                         {(effectiveRoom as any).visitor_name || `${t("chat.workspace.room")} #${effectiveRoom.id.slice(0, 8)}`}
@@ -544,29 +566,44 @@ const AdminWorkspace = () => {
                         "bg-muted text-muted-foreground"
                       }`}>{isPendingRoom ? "Pendente" : effectiveRoom.status === "active" ? "Ativo" : effectiveRoom.status === "waiting" ? "Aguardando" : effectiveRoom.status === "closed" ? "Encerrado" : effectiveRoom.status}</span>
                       {!isPendingRoom && renderDuration(selectedRoom)}
-                      <span className="text-[10px] text-muted-foreground">{msgCount} msgs</span>
+                      {!isCompact && <span className="text-[10px] text-muted-foreground">{msgCount} msgs</span>}
                     </div>
-                    <div className="flex gap-2 shrink-0">
+                    <div className="flex gap-1.5 shrink-0 items-center">
                       {isPendingRoom && (
                         <>
-                          <Button size="sm" variant="outline" className="gap-1" onClick={handleReopenRoom}>
-                            <RotateCcw className="h-3 w-3" />Reabrir
+                          <Button size="sm" variant="outline" className="gap-1 h-8" onClick={handleReopenRoom}>
+                            <RotateCcw className="h-3 w-3" />{!isCompact && "Reabrir"}
                           </Button>
-                          <Button size="sm" variant="default" className="gap-1" onClick={handleMarkResolved}>
-                            <CheckCircle2 className="h-3 w-3" />Resolvido
+                          <Button size="sm" variant="default" className="gap-1 h-8" onClick={handleMarkResolved}>
+                            <CheckCircle2 className="h-3 w-3" />{!isCompact && "Resolvido"}
                           </Button>
                         </>
                       )}
                       {selectedRoom?.status === "waiting" && !isPendingRoom && (
                         <>
-                          <Button size="sm" onClick={() => handleAssignRoom(selectedRoom.id)}>{t("chat.workspace.assign")}</Button>
-                          <Button size="sm" variant="outline" onClick={() => setReassignOpen(true)}>
-                            <ArrowRightLeft className="h-3 w-3 mr-1" />Transferir
-                          </Button>
+                          <Button size="sm" className="h-8" onClick={() => handleAssignRoom(selectedRoom.id)}>{t("chat.workspace.assign")}</Button>
+                          {isCompact ? (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="icon" variant="outline" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setReassignOpen(true)}>
+                                  <ArrowRightLeft className="h-3.5 w-3.5 mr-2" />Transferir
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          ) : (
+                            <Button size="sm" variant="outline" className="h-8" onClick={() => setReassignOpen(true)}>
+                              <ArrowRightLeft className="h-3 w-3 mr-1" />Transferir
+                            </Button>
+                          )}
                           <Popover>
                             <PopoverTrigger asChild>
-                              <Button size="sm" variant="outline">
-                                <Tag className="h-3 w-3 mr-1" />Tags
+                              <Button size="icon" variant="outline" className="h-8 w-8">
+                                <Tag className="h-3.5 w-3.5" />
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-72" align="end">
@@ -577,22 +614,54 @@ const AdminWorkspace = () => {
                       )}
                       {selectedRoom?.status === "active" && !isPendingRoom && (
                         <>
-                          <Button size="sm" variant="outline" onClick={() => setReassignOpen(true)}>
-                            <ArrowRightLeft className="h-3 w-3 mr-1" />Transferir
-                          </Button>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button size="sm" variant="outline">
-                                <Tag className="h-3 w-3 mr-1" />Tags
+                          {isCompact ? (
+                            <>
+                              <Button size="sm" variant="destructive" className="h-8" onClick={() => handleRequestClose(selectedRoom.id)}>
+                                {t("chat.workspace.close")}
                               </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-72" align="end">
-                              <ChatTagSelector roomId={selectedRoom.id} compact />
-                            </PopoverContent>
-                          </Popover>
-                          <Button size="sm" variant="destructive" onClick={() => handleRequestClose(selectedRoom.id)}>
-                            {t("chat.workspace.close")}
-                          </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button size="icon" variant="outline" className="h-8 w-8">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => setReassignOpen(true)}>
+                                    <ArrowRightLeft className="h-3.5 w-3.5 mr-2" />Transferir
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button size="icon" variant="outline" className="h-8 w-8">
+                                    <Tag className="h-3.5 w-3.5" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-72" align="end">
+                                  <ChatTagSelector roomId={selectedRoom.id} compact />
+                                </PopoverContent>
+                              </Popover>
+                            </>
+                          ) : (
+                            <>
+                              <Button size="sm" variant="outline" className="h-8" onClick={() => setReassignOpen(true)}>
+                                <ArrowRightLeft className="h-3 w-3 mr-1" />Transferir
+                              </Button>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button size="sm" variant="outline" className="h-8">
+                                    <Tag className="h-3 w-3 mr-1" />Tags
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-72" align="end">
+                                  <ChatTagSelector roomId={selectedRoom.id} compact />
+                                </PopoverContent>
+                              </Popover>
+                              <Button size="sm" variant="destructive" className="h-8" onClick={() => handleRequestClose(selectedRoom.id)}>
+                                {t("chat.workspace.close")}
+                              </Button>
+                            </>
+                          )}
                         </>
                       )}
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setInfoPanelOpen(!infoPanelOpen)}
@@ -623,7 +692,7 @@ const AdminWorkspace = () => {
           {effectiveRoom && infoPanelOpen && (
             <>
               <ResizableHandle withHandle />
-              <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
+              <ResizablePanel defaultSize={30} minSize={22} maxSize={40}>
                 <div className="h-full p-1.5 pr-3 pt-3 pb-3 overflow-y-auto">
                   <VisitorInfoPanel roomId={effectiveRoom.id} visitorId={effectiveRoom.visitor_id} contactId={effectiveRoom.contact_id} companyContactId={effectiveRoom.company_contact_id} displaySettings={wsDisplaySettings} />
                 </div>
