@@ -1,28 +1,57 @@
 
 
-# Fix: Welcome message not sent for auto-assigned chats
+# Fix: Welcome Message Rules + Inactivity Chain Reset
 
-## Problem
+## Problems
 
-When the DB trigger `trg_assign_chat_room` auto-assigns an attendant during room creation, the room is returned with `status=active` and `attendant_id` already set. The widget code (line 701) detects this and enters "chat" phase directly, **skipping** `checkRoomAssignment()` — which is the only place that calls the `sendWelcomeMessage` function in the edge function.
+1. **Duplicate welcome messages**: Two sources send welcome messages — `process-chat-auto-rules` (for waiting rooms, via polling) and `assign-chat-room` edge function (on assignment). Both can fire, causing duplicates.
 
-The same issue exists in the init flow (line ~880-891) and the `handleStartChat` flow (line ~940-948).
+2. **Welcome message timing wrong**: The welcome message should be sent when the chat becomes **active** (attendant assigned, widget shows chat view), not when it's still "waiting". Currently `process-chat-auto-rules` sends it for waiting rooms, which is incorrect per the desired behavior.
+
+3. **No welcome on reopen**: When a room is reopened from pending/closed back to active (via `AdminWorkspace.tsx` or `AdminChatHistory.tsx`), no welcome message is sent. The rule should fire every time the room transitions to `active`.
+
+4. **Inactivity chain not reset on workspace reopen**: `AdminWorkspace.tsx` `handleReopenRoom` inserts a system message with `is_internal: true` but WITHOUT `{ auto_rule: "chain_reset" }` metadata. The chain engine ignores it and continues the old chain. `AdminChatHistory.tsx` already does this correctly.
+
+5. **Chain doesn't restart after `chain_reset`**: When `chain_reset` is the latest chain message, the engine does `continue` (skips the room entirely). Even after the attendant sends a new message, the chain never restarts because `chain_reset` is still the most recent auto_rule. It should be treated as a boundary, not a permanent skip.
 
 ## Solution
 
-Call `checkRoomAssignment` in all cases where the room is already assigned, not just when it's "waiting". This ensures the edge function runs and sends the welcome message.
+### 1. Remove welcome message from `process-chat-auto-rules`
 
-**File:** `src/pages/ChatWidget.tsx`
+**File:** `supabase/functions/process-chat-auto-rules/index.ts`
 
-In `handleNewChat` (line 701-712): After detecting `newRoom.status === "active"`, still call `checkRoomAssignment(newRoom.id)` to trigger the welcome message. The function already handles the "already assigned" case correctly and returns the attendant name.
+Remove the entire "WELCOME MESSAGE" section (lines 88-141). Remove `"welcome_message"` from the `.in("rule_type", [...])` query. Welcome messages will only be sent by `assign-chat-room`.
 
-Same fix in:
-- Init flow (~line 880-891): when resuming an active room on widget load
-- `handleStartChat` (~line 940-948): when starting chat after form submission
+### 2. Fix `assign-chat-room` welcome to allow re-send after reopen
 
-The change is simple — move `checkRoomAssignment` call to happen in **both** branches (assigned and waiting), not just the waiting branch. When already assigned, it sends the welcome message and returns the attendant name with fallback resolution.
+**File:** `supabase/functions/assign-chat-room/index.ts`
+
+Update `sendWelcomeMessage` to check for welcome messages sent AFTER the latest `chain_reset`, not across the entire room history. This way, when a room is reopened (chain_reset inserted), the next call triggers a new welcome.
+
+### 3. Fix workspace reopen to include `chain_reset` + trigger welcome
+
+**File:** `src/pages/AdminWorkspace.tsx` — `handleReopenRoom` (line 252-263)
+
+- Add `metadata: { auto_rule: "chain_reset" }` to the system message
+- Set `is_internal: false` so visitor sees it
+- After reopening, call `assign-chat-room` edge function to trigger welcome message
+
+### 4. Fix chain engine to restart after `chain_reset`
+
+**File:** `supabase/functions/process-chat-auto-rules/index.ts`
+
+Replace the `continue` on `chain_reset` (line 238-240) with boundary logic: find the latest `chain_reset` in `chainSystemMsgs`, then only consider chain messages and visitor/attendant messages AFTER that reset timestamp. If `chain_reset` is the latest, treat it as if no chain has been sent yet (fresh room).
+
+### 5. AdminChatHistory reopen — trigger welcome after chain_reset
+
+**File:** `src/pages/AdminChatHistory.tsx` — `handleReopenChat` (after line 165)
+
+Add a call to `assign-chat-room` edge function after inserting the chain_reset message, so the welcome message is sent immediately on reopen.
 
 ## Files impacted
 
-1. **`src/pages/ChatWidget.tsx`** — Add `checkRoomAssignment` call in the "already assigned" branches of `handleNewChat`, init flow, and `handleStartChat`
+1. `supabase/functions/process-chat-auto-rules/index.ts` — Remove welcome section, fix chain_reset boundary logic
+2. `supabase/functions/assign-chat-room/index.ts` — Welcome respects chain_reset boundary
+3. `src/pages/AdminWorkspace.tsx` — Add chain_reset metadata + call assign-chat-room on reopen
+4. `src/pages/AdminChatHistory.tsx` — Call assign-chat-room after reopen to trigger welcome
 
