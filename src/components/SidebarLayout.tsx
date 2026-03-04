@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarDataProvider } from "@/contexts/SidebarDataContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -231,9 +231,6 @@ export default function SidebarLayout() {
               </div>
             )}
 
-            <header className="h-14 border-b border-sidebar-border flex items-center px-4 bg-sidebar">
-              <SidebarTrigger className="text-foreground/50 hover:text-foreground transition-colors" />
-            </header>
             <div className="flex-1 p-4 md:p-6 lg:p-8 overflow-auto bg-background">
               <Outlet />
             </div>

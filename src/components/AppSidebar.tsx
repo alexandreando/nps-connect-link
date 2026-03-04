@@ -56,6 +56,7 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -134,22 +135,25 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
   return (
     <Sidebar className="border-r border-sidebar-border" collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border px-2 py-3">
-        <button
-        onClick={() => {
-            if (isAdmin) navigate("/admin/dashboard");
-            else if (showCS) navigate("/cs-dashboard");
-            else if (showNPS) navigate("/nps/dashboard");
-            else if (showChat) navigate("/admin/dashboard");
-            else navigate("/nps/dashboard");
-          }}
-          className="flex items-center justify-center gap-3 min-w-0 w-full"
-        >
-          {collapsed ? (
-            <img src={iconSrc} alt="Journey" className="h-8 w-8 object-contain flex-shrink-0" />
-          ) : (
-            <img src={logoSrc} alt="Journey" className="h-10 w-auto object-contain max-w-[200px]" />
-          )}
-        </button>
+        <div className="flex items-center justify-between w-full">
+          <button
+            onClick={() => {
+              if (isAdmin) navigate("/admin/dashboard");
+              else if (showCS) navigate("/cs-dashboard");
+              else if (showNPS) navigate("/nps/dashboard");
+              else if (showChat) navigate("/admin/dashboard");
+              else navigate("/nps/dashboard");
+            }}
+            className="flex items-center gap-3 min-w-0"
+          >
+            {collapsed ? (
+              <img src={iconSrc} alt="Journey" className="h-8 w-8 object-contain flex-shrink-0" />
+            ) : (
+              <img src={logoSrc} alt="Journey" className="h-10 w-auto object-contain max-w-[200px]" />
+            )}
+          </button>
+          <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors h-7 w-7 shrink-0" />
+        </div>
         {isImpersonating && !collapsed && (
           <div className="mt-2 text-[10px] font-medium text-muted-foreground text-center truncate px-2">
             {impersonatedTenantName}
