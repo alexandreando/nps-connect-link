@@ -1028,7 +1028,8 @@ const ChatWidget = () => {
     return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   };
 
-  const statusLabel = (status: string) => {
+  const statusLabel = (status: string, resolutionStatus?: string) => {
+    if (status === "closed" && resolutionStatus === "pending") return "Pendente";
     switch (status) {
       case "waiting": return "Aguardando";
       case "active": return "Em andamento";
@@ -1192,7 +1193,7 @@ const ChatWidget = () => {
         )}
 
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm leading-tight">{companyName}</p>
+          <p className="font-semibold text-sm leading-tight">{phase === "chat" && attendantName ? attendantName : companyName}</p>
           <p className="text-xs opacity-80 animate-fade-in truncate" key={phase + (attendantName || "")}>
             {phase === "chat" ? (attendantName ? `Você está falando com ${attendantName}` : "Você está sendo atendido") : phase === "waiting" ? "Aguardando..." : phase === "history" ? "Suas conversas" : phase === "viewTranscript" ? "Histórico" : "Suporte"}
           </p>
@@ -1315,11 +1316,8 @@ const ChatWidget = () => {
                                   <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
                                 )}
                                 <span className="text-xs font-medium" style={isActive ? { color: primaryColor } : {}}>
-                                  {statusLabel(room.status)}
+                                  {statusLabel(room.status, (room as any).resolution_status)}
                                 </span>
-                                {isPending && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">Pendente</span>
-                                )}
                               </div>
                               {room.csat_score != null && (
                                 <div className="flex items-center gap-0.5">
