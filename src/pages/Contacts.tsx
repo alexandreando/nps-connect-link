@@ -356,7 +356,7 @@ const Contacts = () => {
           return (
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <div className="relative max-w-md flex-1 min-w-[200px]">
+                <div className="relative max-w-md flex-1 min-w-[140px] sm:min-w-[200px]">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder={t("companies.searchPlaceholder")}
