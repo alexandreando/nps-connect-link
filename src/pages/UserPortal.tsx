@@ -292,6 +292,7 @@ const UserPortal = () => {
       sender_name: "Sistema",
       content: "[Sistema] Chat reaberto pelo cliente",
       is_internal: false,
+      metadata: { auto_rule: "chain_reset" },
     });
 
     const visitorId = contact.chat_visitor_id ?? (await getOrCreateVisitor());
