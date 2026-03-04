@@ -1369,15 +1369,29 @@ export type Database = {
           widget_company_name: string | null
           widget_position: string | null
           widget_primary_color: string | null
+          ws_default_panel_open: boolean
+          ws_hidden_custom_fields: string[]
           ws_recent_chats_count: number
+          ws_show_company_cnpj: boolean
           ws_show_company_external_id: boolean
+          ws_show_company_info: boolean
+          ws_show_company_location: boolean
+          ws_show_company_sector: boolean
+          ws_show_contact_chat_stats: boolean
           ws_show_contact_data: boolean
+          ws_show_contact_department: boolean
           ws_show_contact_external_id: boolean
           ws_show_custom_fields: boolean
+          ws_show_metric_contract: boolean
+          ws_show_metric_health: boolean
+          ws_show_metric_mrr: boolean
+          ws_show_metric_nps: boolean
+          ws_show_metric_renewal: boolean
           ws_show_metrics: boolean
           ws_show_recent_chats: boolean
           ws_show_timeline: boolean
           ws_sort_order: string
+          ws_timeline_max_events: number
         }
         Insert: {
           all_busy_message?: string | null
@@ -1410,15 +1424,29 @@ export type Database = {
           widget_company_name?: string | null
           widget_position?: string | null
           widget_primary_color?: string | null
+          ws_default_panel_open?: boolean
+          ws_hidden_custom_fields?: string[]
           ws_recent_chats_count?: number
+          ws_show_company_cnpj?: boolean
           ws_show_company_external_id?: boolean
+          ws_show_company_info?: boolean
+          ws_show_company_location?: boolean
+          ws_show_company_sector?: boolean
+          ws_show_contact_chat_stats?: boolean
           ws_show_contact_data?: boolean
+          ws_show_contact_department?: boolean
           ws_show_contact_external_id?: boolean
           ws_show_custom_fields?: boolean
+          ws_show_metric_contract?: boolean
+          ws_show_metric_health?: boolean
+          ws_show_metric_mrr?: boolean
+          ws_show_metric_nps?: boolean
+          ws_show_metric_renewal?: boolean
           ws_show_metrics?: boolean
           ws_show_recent_chats?: boolean
           ws_show_timeline?: boolean
           ws_sort_order?: string
+          ws_timeline_max_events?: number
         }
         Update: {
           all_busy_message?: string | null
@@ -1451,15 +1479,29 @@ export type Database = {
           widget_company_name?: string | null
           widget_position?: string | null
           widget_primary_color?: string | null
+          ws_default_panel_open?: boolean
+          ws_hidden_custom_fields?: string[]
           ws_recent_chats_count?: number
+          ws_show_company_cnpj?: boolean
           ws_show_company_external_id?: boolean
+          ws_show_company_info?: boolean
+          ws_show_company_location?: boolean
+          ws_show_company_sector?: boolean
+          ws_show_contact_chat_stats?: boolean
           ws_show_contact_data?: boolean
+          ws_show_contact_department?: boolean
           ws_show_contact_external_id?: boolean
           ws_show_custom_fields?: boolean
+          ws_show_metric_contract?: boolean
+          ws_show_metric_health?: boolean
+          ws_show_metric_mrr?: boolean
+          ws_show_metric_nps?: boolean
+          ws_show_metric_renewal?: boolean
           ws_show_metrics?: boolean
           ws_show_recent_chats?: boolean
           ws_show_timeline?: boolean
           ws_sort_order?: string
+          ws_timeline_max_events?: number
         }
         Relationships: [
           {

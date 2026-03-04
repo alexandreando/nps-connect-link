@@ -87,11 +87,60 @@ interface RecentChat {
   tags: { name: string; color: string | null }[];
 }
 
+export interface WorkspaceDisplaySettings {
+  ws_show_company_info: boolean;
+  ws_show_company_cnpj: boolean;
+  ws_show_company_external_id: boolean;
+  ws_show_company_sector: boolean;
+  ws_show_company_location: boolean;
+  ws_show_metrics: boolean;
+  ws_show_metric_health: boolean;
+  ws_show_metric_mrr: boolean;
+  ws_show_metric_contract: boolean;
+  ws_show_metric_nps: boolean;
+  ws_show_metric_renewal: boolean;
+  ws_show_contact_data: boolean;
+  ws_show_contact_department: boolean;
+  ws_show_contact_external_id: boolean;
+  ws_show_contact_chat_stats: boolean;
+  ws_show_custom_fields: boolean;
+  ws_hidden_custom_fields: string[];
+  ws_show_timeline: boolean;
+  ws_timeline_max_events: number;
+  ws_show_recent_chats: boolean;
+  ws_recent_chats_count: number;
+}
+
+const DEFAULT_SETTINGS: WorkspaceDisplaySettings = {
+  ws_show_company_info: true,
+  ws_show_company_cnpj: true,
+  ws_show_company_external_id: true,
+  ws_show_company_sector: true,
+  ws_show_company_location: true,
+  ws_show_metrics: true,
+  ws_show_metric_health: true,
+  ws_show_metric_mrr: true,
+  ws_show_metric_contract: true,
+  ws_show_metric_nps: true,
+  ws_show_metric_renewal: true,
+  ws_show_contact_data: true,
+  ws_show_contact_department: true,
+  ws_show_contact_external_id: true,
+  ws_show_contact_chat_stats: true,
+  ws_show_custom_fields: true,
+  ws_hidden_custom_fields: [],
+  ws_show_timeline: true,
+  ws_timeline_max_events: 10,
+  ws_show_recent_chats: true,
+  ws_recent_chats_count: 5,
+};
+
 interface VisitorInfoPanelProps {
   roomId: string;
   visitorId: string;
   contactId?: string | null;
   companyContactId?: string | null;
+  displaySettings?: WorkspaceDisplaySettings;
 }
 
 function getHealthColor(score: number) {
@@ -128,7 +177,8 @@ function ClickableValue({ value, type }: { value: string; type?: string }) {
   return <span className="truncate">{value}</span>;
 }
 
-export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, companyContactId: propCompanyContactId }: VisitorInfoPanelProps) {
+export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, companyContactId: propCompanyContactId, displaySettings }: VisitorInfoPanelProps) {
+  const s = displaySettings ?? DEFAULT_SETTINGS;
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [visitor, setVisitor] = useState<Visitor | null>(null);
@@ -143,7 +193,7 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
   const [chatPage, setChatPage] = useState(0);
   const [hasMoreChats, setHasMoreChats] = useState(false);
   const [readOnlyRoom, setReadOnlyRoom] = useState<{ id: string; name: string } | null>(null);
-  const CHAT_PAGE_SIZE = 5;
+  const CHAT_PAGE_SIZE = s.ws_recent_chats_count;
 
   const fetchRecentChats = async (contactId: string | null | undefined, companyContactId: string | null | undefined, page: number) => {
     if (!contactId && !companyContactId) return;
@@ -247,7 +297,7 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
             .select("id, type, title, description, date, user_name, metadata")
             .eq("contact_id", resolvedContactId)
             .order("date", { ascending: false })
-            .limit(10);
+            .limit(s.ws_timeline_max_events);
           setTimelineEvents((data as TimelineEvent[]) ?? []);
         })()
       );
@@ -326,7 +376,6 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
   const displayContact = companyContact || visitor;
   const hasCompany = !!company;
 
-  // Merge custom fields from visitor metadata + company custom_fields + contact custom_fields
   const companyCustomFields = company?.custom_fields ?? {};
   const contactCustomFields = (companyContact?.custom_fields as Record<string, any>) ?? {};
 
@@ -375,7 +424,7 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
         <div className="p-4 space-y-4">
 
           {/* EMPRESA */}
-          {hasCompany && (
+          {hasCompany && s.ws_show_company_info && (
             <section>
               <SectionLabel>Empresa</SectionLabel>
               <div className="space-y-1.5">
@@ -389,25 +438,25 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
                   )}
                 </button>
 
-                {company!.company_document && (
+                {s.ws_show_company_cnpj && company!.company_document && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <FileText className="h-3 w-3 shrink-0" />
                     <span>CNPJ: {company!.company_document}</span>
                   </div>
                 )}
-                {company!.external_id && (
+                {s.ws_show_company_external_id && company!.external_id && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Hash className="h-3 w-3 shrink-0" />
                     <span>ID Externo: {company!.external_id}</span>
                   </div>
                 )}
-                {company!.company_sector && (
+                {s.ws_show_company_sector && company!.company_sector && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Briefcase className="h-3 w-3 shrink-0" />
                     <span>{company!.company_sector}</span>
                   </div>
                 )}
-                {(company!.city || company!.state) && (
+                {s.ws_show_company_location && (company!.city || company!.state) && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <MapPin className="h-3 w-3 shrink-0" />
                     <span>{[company!.city, company!.state].filter(Boolean).join(", ")}</span>
@@ -418,12 +467,12 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
           )}
 
           {/* MÉTRICAS */}
-          {hasCompany && (
+          {hasCompany && s.ws_show_metrics && (
             <section className="border-t border-border pt-3">
               <SectionLabel>Métricas</SectionLabel>
 
               {/* Health Score */}
-              {company!.health_score != null && (
+              {s.ws_show_metric_health && company!.health_score != null && (
                 <button onClick={() => navigate("/cs-health")} className="w-full text-left group mb-2">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[11px] text-muted-foreground group-hover:text-primary transition-colors flex items-center gap-1">
@@ -445,7 +494,7 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
 
               {/* Metric pills */}
               <div className="flex flex-wrap gap-1.5">
-                {company!.mrr != null && Number(company!.mrr) > 0 && (
+                {s.ws_show_metric_mrr && company!.mrr != null && Number(company!.mrr) > 0 && (
                   <button onClick={() => navigate("/cs-financial")} className="group">
                     <Badge variant="outline" className="text-[10px] font-medium gap-1 group-hover:border-primary group-hover:text-primary transition-colors">
                       <DollarSign className="h-2.5 w-2.5" />
@@ -453,14 +502,14 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
                     </Badge>
                   </button>
                 )}
-                {company!.contract_value != null && Number(company!.contract_value) > 0 && (
+                {s.ws_show_metric_contract && company!.contract_value != null && Number(company!.contract_value) > 0 && (
                   <button onClick={() => navigate("/cs-financial")} className="group">
                     <Badge variant="outline" className="text-[10px] font-medium gap-1 group-hover:border-primary group-hover:text-primary transition-colors">
                       Contrato R$ {Number(company!.contract_value).toLocaleString("pt-BR")}
                     </Badge>
                   </button>
                 )}
-                {company!.last_nps_score != null && (
+                {s.ws_show_metric_nps && company!.last_nps_score != null && (
                   <button onClick={() => navigate("/nps/dashboard")} className="group">
                     <Badge variant="outline" className={`text-[10px] font-medium gap-1 ${getNpsBadge(company!.last_nps_score!).className}`}>
                       <Star className="h-2.5 w-2.5" />
@@ -468,7 +517,7 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
                     </Badge>
                   </button>
                 )}
-                {company!.renewal_date && (
+                {s.ws_show_metric_renewal && company!.renewal_date && (
                   <Badge variant="outline" className="text-[10px] font-medium gap-1">
                     <Calendar className="h-2.5 w-2.5" />
                     Renov. {new Date(company!.renewal_date).toLocaleDateString("pt-BR")}
@@ -479,71 +528,75 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
           )}
 
           {/* DADOS DO CONTATO */}
-          <section className="border-t border-border pt-3">
-            <SectionLabel>Dados do Contato</SectionLabel>
-            <div className="space-y-1.5">
-              {companyContact?.department && (
-                <InfoRow label="Departamento" value={companyContact.department} />
-              )}
-              {companyContact?.external_id && (
-                <InfoRow label="External ID" value={companyContact.external_id} />
-              )}
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                <Badge variant="secondary" className="text-[10px] font-medium gap-1">
-                  <Clock className="h-2.5 w-2.5" />
-                  {companyContact?.chat_total ?? 0} sessões
-                </Badge>
-                {companyContact?.chat_avg_csat != null && Number(companyContact.chat_avg_csat) > 0 && (
-                  <Badge variant="secondary" className="text-[10px] font-medium gap-1">
-                    <Star className="h-2.5 w-2.5" />
-                    CSAT {Number(companyContact.chat_avg_csat).toFixed(1)}
-                  </Badge>
+          {s.ws_show_contact_data && (
+            <section className="border-t border-border pt-3">
+              <SectionLabel>Dados do Contato</SectionLabel>
+              <div className="space-y-1.5">
+                {s.ws_show_contact_department && companyContact?.department && (
+                  <InfoRow label="Departamento" value={companyContact.department} />
                 )}
-                {companyContact?.chat_last_at && (
-                  <Badge variant="secondary" className="text-[10px] font-medium gap-1">
-                    Último: {new Date(companyContact.chat_last_at).toLocaleDateString("pt-BR")}
-                  </Badge>
+                {s.ws_show_contact_external_id && companyContact?.external_id && (
+                  <InfoRow label="External ID" value={companyContact.external_id} />
+                )}
+                {s.ws_show_contact_chat_stats && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    <Badge variant="secondary" className="text-[10px] font-medium gap-1">
+                      <Clock className="h-2.5 w-2.5" />
+                      {companyContact?.chat_total ?? 0} sessões
+                    </Badge>
+                    {companyContact?.chat_avg_csat != null && Number(companyContact.chat_avg_csat) > 0 && (
+                      <Badge variant="secondary" className="text-[10px] font-medium gap-1">
+                        <Star className="h-2.5 w-2.5" />
+                        CSAT {Number(companyContact.chat_avg_csat).toFixed(1)}
+                      </Badge>
+                    )}
+                    {companyContact?.chat_last_at && (
+                      <Badge variant="secondary" className="text-[10px] font-medium gap-1">
+                        Último: {new Date(companyContact.chat_last_at).toLocaleDateString("pt-BR")}
+                      </Badge>
+                    )}
+                  </div>
                 )}
               </div>
-            </div>
-          </section>
+            </section>
+          )}
 
-          {/* CAMPOS CUSTOMIZADOS (visitor metadata + company custom_fields + contact custom_fields) */}
-          {(() => {
+          {/* CAMPOS CUSTOMIZADOS */}
+          {s.ws_show_custom_fields && (() => {
+            const hiddenKeys = s.ws_hidden_custom_fields;
             const allCustomEntries: { key: string; label: string; value: any; fieldType: string; order: number }[] = [];
 
-            // From visitor metadata — skip fields with maps_to (shown in Metrics section)
             fieldDefs.forEach((fd) => {
-              if (fd.maps_to) return; // Displayed in Metrics section via direct column
+              if (fd.maps_to) return;
+              if (hiddenKeys.includes(fd.key)) return;
               if (visitorMetadata[fd.key] !== undefined && visitorMetadata[fd.key] !== null) {
                 allCustomEntries.push({ key: `v_${fd.key}`, label: fd.label, value: visitorMetadata[fd.key], fieldType: fd.field_type, order: fd.display_order ?? 999 });
               }
             });
 
-            // From company custom_fields — skip fields with maps_to
             const companyDefs = fieldDefs.filter(fd => fd.target === "company");
             companyDefs.forEach(fd => {
-              if (fd.maps_to) return; // Displayed in Metrics section via direct column
+              if (fd.maps_to) return;
+              if (hiddenKeys.includes(fd.key)) return;
               if (companyCustomFields[fd.key] !== undefined && companyCustomFields[fd.key] !== null && !allCustomEntries.some(e => e.label === fd.label)) {
                 allCustomEntries.push({ key: `c_${fd.key}`, label: fd.label, value: companyCustomFields[fd.key], fieldType: fd.field_type, order: fd.display_order ?? 999 });
               }
             });
-            // Fallback company custom fields without defs
             Object.entries(companyCustomFields).forEach(([key, val]) => {
-              if (val != null && !companyDefs.some(fd => fd.key === key) && !allCustomEntries.some(e => e.label === key)) {
+              if (val != null && !companyDefs.some(fd => fd.key === key) && !allCustomEntries.some(e => e.label === key) && !hiddenKeys.includes(key)) {
                 allCustomEntries.push({ key: `cf_${key}`, label: key, value: val, fieldType: "text", order: 9999 });
               }
             });
 
-            // From contact custom_fields
             const contactDefs = fieldDefs.filter(fd => fd.target === "contact");
             contactDefs.forEach(fd => {
+              if (hiddenKeys.includes(fd.key)) return;
               if (contactCustomFields[fd.key] !== undefined && contactCustomFields[fd.key] !== null && !allCustomEntries.some(e => e.label === fd.label)) {
                 allCustomEntries.push({ key: `cc_${fd.key}`, label: fd.label, value: contactCustomFields[fd.key], fieldType: fd.field_type, order: fd.display_order ?? 999 });
               }
             });
             Object.entries(contactCustomFields).forEach(([key, val]) => {
-              if (val != null && !contactDefs.some(fd => fd.key === key) && !allCustomEntries.some(e => e.label === key)) {
+              if (val != null && !contactDefs.some(fd => fd.key === key) && !allCustomEntries.some(e => e.label === key) && !hiddenKeys.includes(key)) {
                 allCustomEntries.push({ key: `ccf_${key}`, label: key, value: val, fieldType: "text", order: 9999 });
               }
             });
@@ -565,7 +618,7 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
           })()}
 
           {/* ÚLTIMOS CHATS */}
-          {recentChats.length > 0 && (
+          {s.ws_show_recent_chats && recentChats.length > 0 && (
             <section className="border-t border-border pt-3">
               <SectionLabel className="flex items-center gap-1">
                 <Clock className="h-3 w-3" /> Últimos Chats
@@ -616,17 +669,19 @@ export function VisitorInfoPanel({ roomId, visitorId, contactId: propContactId, 
           )}
 
           {/* TIMELINE */}
-          <section className="border-t border-border pt-3">
-            <SectionLabel>Timeline</SectionLabel>
-            {timelineEvents.length > 0 ? (
-              <TimelineComponent events={timelineEvents} />
-            ) : (
-              <div className="text-center py-4 text-muted-foreground">
-                <Activity className="h-6 w-6 mx-auto mb-1 opacity-40" />
-                <p className="text-xs">Nenhum evento registrado</p>
-              </div>
-            )}
-          </section>
+          {s.ws_show_timeline && (
+            <section className="border-t border-border pt-3">
+              <SectionLabel>Timeline</SectionLabel>
+              {timelineEvents.length > 0 ? (
+                <TimelineComponent events={timelineEvents} />
+              ) : (
+                <div className="text-center py-4 text-muted-foreground">
+                  <Activity className="h-6 w-6 mx-auto mb-1 opacity-40" />
+                  <p className="text-xs">Nenhum evento registrado</p>
+                </div>
+              )}
+            </section>
+          )}
         </div>
       </ScrollArea>
 
@@ -667,7 +722,6 @@ function CustomFieldRow({ label, value, fieldType }: { label: string; value: any
   const resolved = parseIfString(value);
   const complex = isComplexValue(resolved, fieldType);
 
-  // Try complex rendering first
   if (complex) {
     const rendered = formatComplexValue(value, fieldType);
     if (rendered) {
@@ -680,7 +734,6 @@ function CustomFieldRow({ label, value, fieldType }: { label: string; value: any
     }
   }
 
-  // Scalar rendering
   const formatScalar = () => {
     switch (fieldType) {
       case "decimal":
