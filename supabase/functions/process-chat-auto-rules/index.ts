@@ -217,7 +217,10 @@ Deno.serve(async (req) => {
         for (const msg of roomMsgs) {
           if (msg.sender_type === "system") {
             const autoRule = (msg.metadata as any)?.auto_rule;
-            if (autoRule && FLOW_ORDER.includes(autoRule)) {
+            if (autoRule === "chain_reset") {
+              // chain_reset acts as a full reset — treat like visitor response
+              chainSystemMsgs.push({ rule: "chain_reset", created_at: msg.created_at! });
+            } else if (autoRule && FLOW_ORDER.includes(autoRule)) {
               chainSystemMsgs.push({ rule: autoRule, created_at: msg.created_at! });
             }
           } else if (msg.sender_type === "visitor" && !lastVisitorMsg) {
@@ -231,7 +234,10 @@ Deno.serve(async (req) => {
         // chainSystemMsgs is ordered desc (newest first)
         const lastChainMsg = chainSystemMsgs.length > 0 ? chainSystemMsgs[0] : null;
 
-        // If visitor responded after the last chain message, chain is reset - skip
+        // If visitor responded OR chain was reset after the last chain message, skip
+        if (lastChainMsg && lastChainMsg.rule === "chain_reset") {
+          continue;
+        }
         if (lastChainMsg && lastVisitorMsg && lastVisitorMsg.created_at > lastChainMsg.created_at) {
           continue;
         }

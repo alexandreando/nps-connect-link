@@ -139,14 +139,26 @@ Deno.serve(async (req) => {
 
       const { data: attendant } = await supabase
         .from("attendant_profiles")
-        .select("display_name")
+        .select("display_name, user_id")
         .eq("id", room.attendant_id)
         .maybeSingle();
+
+      // Fallback: if display_name is empty, try user_profiles or default
+      let attName = attendant?.display_name || null;
+      if (!attName && attendant?.user_id) {
+        const { data: up } = await supabase
+          .from("user_profiles")
+          .select("display_name, email")
+          .eq("user_id", attendant.user_id)
+          .maybeSingle();
+        attName = up?.display_name || up?.email || "Atendente";
+      }
+      if (!attName) attName = "Atendente";
 
       return new Response(
         JSON.stringify({
           assigned: true,
-          attendant_name: attendant?.display_name ?? null,
+          attendant_name: attName,
           room_status: room.status,
           outside_hours: outsideHours,
         }),

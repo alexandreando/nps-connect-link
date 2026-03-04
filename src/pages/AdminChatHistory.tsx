@@ -161,6 +161,7 @@ const AdminChatHistory = () => {
       sender_name: "Sistema",
       content: `[Sistema] Chat reaberto e atribuído a ${attendantName}`,
       is_internal: false,
+      metadata: { auto_rule: "chain_reset" },
     });
 
     toast.success("Chat reaberto e atribuído a você!");

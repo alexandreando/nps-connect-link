@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { MessageSquare, Send, Star, Loader2, X, Plus, ArrowLeft, Clock, CheckCircle2, Paperclip, FileText, Download, ArrowRight, User, Mail, Phone, ArrowDown } from "lucide-react";
+import { MessageSquare, Send, Star, Loader2, X, Plus, ArrowLeft, Clock, CheckCircle2, Paperclip, FileText, Download, ArrowRight, User, Mail, Phone, ArrowDown, Archive } from "lucide-react";
 import { toast } from "sonner";
 
 type WidgetPhase = "form" | "history" | "waiting" | "chat" | "csat" | "closed" | "viewTranscript";
@@ -19,6 +19,9 @@ interface HistoryRoom {
   closed_at: string | null;
   csat_score: number | null;
   last_message?: string | null;
+  last_message_sender?: string | null;
+  attendant_name?: string | null;
+  resolution_status?: string | null;
 }
 
 interface ChatMsg {
@@ -206,23 +209,39 @@ const ChatWidget = () => {
     setHistoryLoading(true);
     const { data } = await supabase
       .from("chat_rooms")
-      .select("id, status, created_at, closed_at, csat_score, resolution_status")
+      .select("id, status, created_at, closed_at, csat_score, resolution_status, attendant_id")
       .eq("visitor_id", vId)
       .order("created_at", { ascending: false });
     
-    // Fetch last message for each room
+    // Fetch last message + attendant name for each room
     const rooms = data ?? [];
+    // Collect unique attendant_ids
+    const attIds = [...new Set(rooms.map(r => r.attendant_id).filter(Boolean))] as string[];
+    const attMap = new Map<string, string>();
+    if (attIds.length > 0) {
+      const { data: atts } = await supabase
+        .from("attendant_profiles")
+        .select("id, display_name")
+        .in("id", attIds);
+      atts?.forEach(a => attMap.set(a.id, a.display_name));
+    }
+
     const roomsWithPreview = await Promise.all(
       rooms.map(async (room) => {
         const { data: msgs } = await supabase
           .from("chat_messages")
-          .select("content")
+          .select("content, sender_type")
           .eq("room_id", room.id)
           .neq("sender_type", "system")
           .eq("is_internal", false)
           .order("created_at", { ascending: false })
           .limit(1);
-        return { ...room, last_message: msgs?.[0]?.content ?? null };
+        return {
+          ...room,
+          last_message: msgs?.[0]?.content ?? null,
+          last_message_sender: msgs?.[0]?.sender_type ?? null,
+          attendant_name: room.attendant_id ? (attMap.get(room.attendant_id) ?? null) : null,
+        };
       })
     );
     
@@ -283,7 +302,7 @@ const ChatWidget = () => {
                 .select("display_name")
                 .eq("id", room.attendant_id)
                 .maybeSingle();
-              setAttendantName(att?.display_name ?? null);
+              setAttendantName(att?.display_name || "Atendente");
             }
           }
         }
@@ -318,6 +337,7 @@ const ChatWidget = () => {
                   .select("display_name")
                   .eq("id", room.attendant_id)
                   .maybeSingle();
+                setAttendantName(att?.display_name || "Atendente");
                 setAttendantName(att?.display_name ?? null);
               }
             } else {
@@ -723,13 +743,14 @@ const ChatWidget = () => {
       resolution_status: null,
     }).eq("id", reopenRoomId);
 
-    // System message
+    // System message with chain_reset metadata
     await supabase.from("chat_messages").insert({
       room_id: reopenRoomId,
       sender_type: "system",
       sender_name: "Sistema",
       content: "[Sistema] Chat reaberto pelo cliente",
       is_internal: false,
+      metadata: { auto_rule: "chain_reset" },
     });
 
     setRoomId(reopenRoomId);
@@ -1028,8 +1049,32 @@ const ChatWidget = () => {
     return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   };
 
+  const formatDuration = (startStr: string, endStr: string) => {
+    const diffMs = new Date(endStr).getTime() - new Date(startStr).getTime();
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return "<1min";
+    if (mins < 60) return `${mins}min`;
+    const hrs = Math.floor(mins / 60);
+    const remMins = mins % 60;
+    return remMins > 0 ? `${hrs}h${remMins}min` : `${hrs}h`;
+  };
+
+  const smartTimestamp = (room: HistoryRoom) => {
+    const isActive = room.status === "waiting" || room.status === "active";
+    const isPending = room.status === "closed" && room.resolution_status === "pending";
+    if (isActive || isPending) {
+      return formatDate(room.created_at);
+    }
+    // Closed: show close date + duration
+    if (room.closed_at) {
+      return `${formatDate(room.closed_at)} · ${formatDuration(room.created_at, room.closed_at)}`;
+    }
+    return formatDate(room.created_at);
+  };
+
   const statusLabel = (status: string, resolutionStatus?: string) => {
     if (status === "closed" && resolutionStatus === "pending") return "Pendente";
+    if (status === "closed" && resolutionStatus === "archived") return "Arquivado";
     switch (status) {
       case "waiting": return "Aguardando";
       case "active": return "Em andamento";
@@ -1286,14 +1331,18 @@ const ChatWidget = () => {
               ) : (
                 historyRooms.map((room) => {
                   const isActive = room.status === "waiting" || room.status === "active";
-                  const isPending = room.status === "closed" && (room as any).resolution_status === "pending";
-                  const statusColor = isActive ? primaryColor : isPending ? "#f59e0b" : "#9ca3af";
+                  const isPending = room.status === "closed" && room.resolution_status === "pending";
+                  const isArchived = room.status === "closed" && room.resolution_status === "archived";
+                  const statusColor = isActive ? primaryColor : isPending ? "#f59e0b" : isArchived ? "#6b7280" : "#22c55e";
+                  const StatusIcon = isActive ? Clock : isPending ? Clock : isArchived ? Archive : CheckCircle2;
+                  const previewText = room.last_message
+                    ? (room.last_message_sender === "visitor" ? "Você: " : "") + (room.last_message.length > 50 ? room.last_message.slice(0, 50) + "…" : room.last_message)
+                    : null;
                   return (
                     <div
                       key={room.id}
                       className="w-full text-left rounded-xl border border-border/60 overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md group"
                     >
-                      {/* Status bar left */}
                       <div className="flex">
                         <div className="w-1 shrink-0 rounded-l-xl" style={{ backgroundColor: statusColor }} />
                         <div className="flex-1 p-3">
@@ -1311,12 +1360,15 @@ const ChatWidget = () => {
                             <div className="flex items-center justify-between mb-1">
                               <div className="flex items-center gap-2">
                                 {isActive ? (
-                                  <Clock className="h-3.5 w-3.5" style={{ color: primaryColor }} />
+                                  <span className="relative flex h-3.5 w-3.5">
+                                    <span className="absolute inset-0 rounded-full animate-ping opacity-40" style={{ backgroundColor: primaryColor }} />
+                                    <StatusIcon className="relative h-3.5 w-3.5" style={{ color: primaryColor }} />
+                                  </span>
                                 ) : (
-                                  <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
+                                  <StatusIcon className="h-3.5 w-3.5" style={{ color: statusColor }} />
                                 )}
-                                <span className="text-xs font-medium" style={isActive ? { color: primaryColor } : {}}>
-                                  {statusLabel(room.status, (room as any).resolution_status)}
+                                <span className="text-xs font-medium" style={{ color: statusColor }}>
+                                  {statusLabel(room.status, room.resolution_status)}
                                 </span>
                               </div>
                               {room.csat_score != null && (
@@ -1327,12 +1379,17 @@ const ChatWidget = () => {
                                 </div>
                               )}
                             </div>
-                            {room.last_message && (
-                              <p className="text-xs text-muted-foreground italic line-clamp-1 mt-0.5">{room.last_message}</p>
+                            {previewText && (
+                              <p className="text-xs text-muted-foreground/50 italic line-clamp-1 mt-0.5">{previewText}</p>
                             )}
-                            <p className="text-[10px] text-muted-foreground/70 mt-1.5">
-                              {formatDate(room.created_at)}
-                              {room.closed_at && ` — ${formatDate(room.closed_at)}`}
+                            <p className="text-[10px] text-muted-foreground/60 mt-1.5 flex items-center gap-1 flex-wrap">
+                              <span>{smartTimestamp(room)}</span>
+                              {room.attendant_name && (
+                                <>
+                                  <span>·</span>
+                                  <span>{room.attendant_name}</span>
+                                </>
+                              )}
                             </p>
                           </button>
                           {isPending && (
