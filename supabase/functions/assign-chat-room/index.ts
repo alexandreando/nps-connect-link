@@ -20,16 +20,29 @@ async function sendWelcomeMessage(supabase: any, roomId: string, tenantId: strin
 
   if (!welcomeRule || !welcomeRule.message_content) return;
 
-  // Check if room already has a welcome message
-  const { data: existingMsgs } = await supabase
+  // Fetch system messages to find latest chain_reset and existing welcomes
+  const { data: systemMsgs } = await supabase
     .from("chat_messages")
-    .select("id, metadata")
+    .select("id, metadata, created_at")
     .eq("room_id", roomId)
-    .eq("sender_type", "system");
+    .eq("sender_type", "system")
+    .order("created_at", { ascending: false });
 
-  const alreadySent = existingMsgs?.some(
-    (m: any) => (m.metadata as any)?.auto_rule === "welcome_message"
-  );
+  // Find latest chain_reset timestamp
+  let resetTime: string | null = null;
+  for (const m of systemMsgs || []) {
+    if ((m.metadata as any)?.auto_rule === "chain_reset") {
+      resetTime = m.created_at;
+      break;
+    }
+  }
+
+  // Check if welcome already sent AFTER the latest reset
+  const alreadySent = (systemMsgs || []).some((m: any) => {
+    if ((m.metadata as any)?.auto_rule !== "welcome_message") return false;
+    if (resetTime && m.created_at < resetTime) return false;
+    return true;
+  });
 
   if (alreadySent) return;
 
