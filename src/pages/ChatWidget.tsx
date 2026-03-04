@@ -297,12 +297,7 @@ const ChatWidget = () => {
             setRoomId(room.id);
             setPhase(room.status === "active" ? "chat" : "waiting");
             if (room.status === "active" && room.attendant_id) {
-              const { data: att } = await supabase
-                .from("attendant_profiles")
-                .select("display_name")
-                .eq("id", room.attendant_id)
-                .maybeSingle();
-              setAttendantName(att?.display_name || "Atendente");
+              await checkRoomAssignment(room.id);
             }
           }
         }
@@ -699,17 +694,11 @@ const ChatWidget = () => {
       setCsatScore(0);
       setCsatComment("");
       if (newRoom.status === "active" && newRoom.attendant_id) {
-        const { data: att } = await supabase
-          .from("attendant_profiles")
-          .select("display_name")
-          .eq("id", newRoom.attendant_id)
-          .maybeSingle();
-        setAttendantName(att?.display_name ?? null);
         setPhase("chat");
       } else {
         setPhase("waiting");
-        await checkRoomAssignment(newRoom.id);
       }
+      await checkRoomAssignment(newRoom.id);
       postMsg("chat-ready");
     }
     setLoading(false);
@@ -878,17 +867,11 @@ const ChatWidget = () => {
       if (room) {
         setRoomId(room.id);
         if (room.status === "active" && room.attendant_id) {
-          const { data: att } = await supabase
-            .from("attendant_profiles")
-            .select("display_name")
-            .eq("id", room.attendant_id)
-            .maybeSingle();
-          setAttendantName(att?.display_name ?? null);
           setPhase("chat");
-      } else {
+        } else {
           setPhase("waiting");
-          await checkRoomAssignment(room.id);
         }
+        await checkRoomAssignment(room.id);
         postMsg("chat-ready");
       }
       setLoading(false);
@@ -935,17 +918,11 @@ const ChatWidget = () => {
     if (room) {
       setRoomId(room.id);
       if (room.status === "active" && room.attendant_id) {
-        const { data: att } = await supabase
-          .from("attendant_profiles")
-          .select("display_name")
-          .eq("id", room.attendant_id)
-          .maybeSingle();
-        setAttendantName(att?.display_name ?? null);
         setPhase("chat");
       } else {
         setPhase("waiting");
-        await checkRoomAssignment(room.id);
       }
+      await checkRoomAssignment(room.id);
       postMsg("chat-ready");
     }
 
