@@ -142,6 +142,9 @@ Deno.serve(async (req) => {
           } else if (custom_data && Object.keys(custom_data).length > 0 && contactId) {
             // Apply custom_data to existing company
             await applyCustomData(supabase, contactId, custom_data, fieldDefs);
+          } else if (contactId) {
+            // Always check category rules even without new custom_data
+            await applyCategoryFieldRules(supabase, contactId, {});
           }
 
           // Find or create visitor linked to this contact
@@ -208,6 +211,8 @@ Deno.serve(async (req) => {
             });
           } else if (custom_data && Object.keys(custom_data).length > 0 && contactId) {
             await applyCustomData(supabase, contactId, custom_data, fieldDefs);
+          } else if (contactId) {
+            await applyCategoryFieldRules(supabase, contactId, {});
           }
 
           // Update visitor metadata if custom_data has non-empty values
@@ -289,6 +294,9 @@ Deno.serve(async (req) => {
       } else if (custom_data && contactId) {
         // Even without company_id/name, update custom_data on existing company
         await applyCustomData(supabase, contactId, custom_data, fieldDefs);
+      } else if (contactId) {
+        // Always check category rules even without new custom_data
+        await applyCategoryFieldRules(supabase, contactId, {});
       }
 
       // Find or create visitor
@@ -562,9 +570,12 @@ async function upsertCompany(
       .eq("id", finalContactId);
   }
 
-  // Apply custom data
+  // Apply custom data and/or category rules
   if (finalContactId && customData) {
     await applyCustomData(supabase, finalContactId, customData, fieldDefs);
+  } else if (finalContactId) {
+    // Always check category rules even without new custom_data
+    await applyCategoryFieldRules(supabase, finalContactId, {});
   }
 
   return finalContactId;
