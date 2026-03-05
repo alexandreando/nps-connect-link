@@ -1,50 +1,56 @@
 
-## Plan Atualizado: Workspace Responsiveness + Bubble Color + Room State + Internal Note Contrast
 
-### Issue 1: Internal Note Text Contrast in Dark Theme
-**Problem**: Internal notes (notas internas) use `bg-yellow-100 border border-yellow-300` (linha 126), que é um tom claro de amarelo. Em dark mode, o fundo da nota fica claro (yellow-100) mas o texto permanece com a cor padrão do tema escuro (text-foreground), resultando em muito contraste e dificuldade de leitura. O rótulo "(Nota interna)" usa `text-yellow-600` que também perde contraste em dark.
+# Plan: Improve Workspace Responsiveness for Small PC Screens
 
-**Fix**: 
-- Adicionar estilos diferenciados para dark mode nas notas internas
-- Mudar a nota interna para um tom mais escuro em dark: `bg-yellow-900/30 border border-yellow-700/50` com `text-yellow-100`
-- O rótulo "(Nota interna)" também precisa ajuste: `text-yellow-500` para melhor contraste
-- Em light mode, manter amarelo claro: `bg-yellow-100 border border-yellow-300 text-yellow-900` e rótulo `text-yellow-700`
+## Problem
 
-### Issue 2: Attendant Message Bubble Color Change (Orange → Light Blue)
-Replace `bg-primary text-primary-foreground` (coral/orange) com light blue para melhorar conforto visual prolongado.
+On smaller PC resolutions (1024px-1366px), the workspace can overflow horizontally due to fixed minimum panel sizes, wide header buttons, and the info panel competing for space. The `ResizablePanelGroup` enforces `minSize` percentages that, on narrow viewports, still demand too many pixels.
 
-**Fix**: 
-- Replace attendant bubbles com `bg-sky-100 text-sky-900 dark:bg-sky-900/40 dark:text-sky-100`
-- Ajustar quotes internas para attendant: `dark:bg-sky-950/50 dark:border-sky-700/50 dark:text-sky-100`
+## Changes
 
-### Issue 3: Room State Reset on Queue/Attendant Switch
-When clicking different attendants or "my queue", selectedRoomId persists.
+### `src/pages/AdminWorkspace.tsx`
 
-**Fix**:
-- Add useEffect in `AdminWorkspace.tsx` to reset `selectedRoomId` when `viewingAttendantId` or `viewingUnassigned` changes
-- Add useEffect to clear `selectedRoomId` when it's not in `filteredRooms` list
+**1. Adjust ResizablePanel min/max sizes based on viewport width:**
+- Room list panel: reduce `minSize` from 18 to 15 on compact screens
+- Chat panel: reduce `minSize` from 35 to 30 on compact/tablet
+- Info panel: reduce `minSize` from 22 to 18 on compact, and auto-close on screens < 1024px (tablet)
 
-### Issue 4: Responsiveness & Horizontal Scroll Prevention
-Prevent horizontal scrolling on mobile and tablet sizes.
+**2. Compact header actions for all small desktop screens:**
+- When `isCompact` (< 1280px): already groups Transfer into dropdown — also group the Tags button into the same dropdown to save more horizontal space
+- On very compact screens (< 1024px), hide text labels on "Reabrir" and "Resolvido" buttons (icon-only)
 
-**Fix**:
-- Group mobile action buttons (Transfer, Tags, Close) into single dropdown menu
-- Add `overflow-hidden` to outer workspace container
-- Ensure all panels use internal vertical scrolling only
-- Info panel: already collapses at <1280px
+**3. Prevent horizontal overflow on outer container:**
+- Ensure the root `div` uses `w-full max-w-full overflow-hidden` to hard-prevent any horizontal scroll
+- Add `min-w-0` to the chat panel inner container to allow flex children to shrink properly
+
+**4. Reduce padding on compact screens:**
+- Reduce the `p-1.5 pl-3 pt-3 pb-3` padding on panel containers to `p-1` on compact screens to reclaim space
+
+### `src/components/chat/ChatRoomList.tsx`
+
+**5. Prevent internal horizontal overflow:**
+- Add `overflow-hidden` and `min-w-0` to the root container
+- The search input placeholder is very long ("Buscar por nome, email ou mensagem...") — truncate naturally via CSS (already should, but ensure the container constrains it)
+
+### `src/components/chat/ChatInput.tsx`
+
+**6. Ensure input area doesn't cause overflow:**
+- Add `min-w-0` to the input wrapper to ensure it shrinks properly within flex layouts
+
+### `src/components/AppSidebar.tsx`
+
+**7. Auto-collapse sidebar on small PC resolutions:**
+- Pass `defaultOpen={false}` to `SidebarProvider` when viewport width < 1024px, keeping the sidebar collapsed by default on small PCs
+- This is handled in `SidebarLayout.tsx` where `SidebarProvider` is rendered
+
+### `src/components/SidebarLayout.tsx`
+
+**8. Default sidebar collapsed on small screens:**
+- Initialize `sidebarOpen` state based on viewport width: `false` when `window.innerWidth < 1024`
 
 ## Files to Change
 
-### `src/components/chat/ChatMessageList.tsx`
-- Line 125-130: Update internal note styling with dark mode support
-  - `bg-yellow-100 border border-yellow-300` → `bg-yellow-100 border border-yellow-300 text-yellow-900 dark:bg-yellow-900/30 dark:border-yellow-700/50 dark:text-yellow-100`
-- Line 137: Update "(Nota interna)" text color: `text-yellow-600` → `text-yellow-700 dark:text-yellow-500`
-- Line 129: Change attendant message color: `bg-primary text-primary-foreground` → `bg-sky-100 text-sky-900 dark:bg-sky-900/40 dark:text-sky-100`
-- Line 147-148: Update attendant quote styling for new bubble color
-
-### `src/pages/AdminWorkspace.tsx`
-- Add useEffect to reset selectedRoomId when viewingAttendantId or viewingUnassigned changes
-- Add useEffect to clear selectedRoomId if not in filteredRooms
-- Add mobile action dropdown menu to prevent horizontal overflow
-- Add `overflow-hidden` to root container
+1. `src/pages/AdminWorkspace.tsx` — Panel sizes, header compaction, overflow prevention
+2. `src/components/chat/ChatRoomList.tsx` — `min-w-0` and `overflow-hidden` on root
+3. `src/components/SidebarLayout.tsx` — Default sidebar collapsed on < 1024px
 
