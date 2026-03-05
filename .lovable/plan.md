@@ -1,61 +1,62 @@
 
 
-# Plan: Enhanced Auto-Assignment Rules — Native Fields, Comparison Operators, Dedicated UI
+# Fix: Bad Request on Contacts/People Pages for Large Tenants
 
-## Current State
-- Rules only support custom fields (`custom_fields` JSONB keys) with exact match
-- Rules are shown inline per category card — no dedicated management flow
+## Root Cause
 
-## Changes
+The tenant `aloco@aloco.com` has 668 companies and 777 contacts. Both pages build a `.in()` filter with hundreds of UUIDs, generating a request URL that exceeds PostgREST's maximum URL length (~8KB), resulting in a 400 Bad Request.
 
-### 1. Database Migration: Add `field_source` and `operator` columns
+**Affected code:**
 
-Add two columns to `chat_category_field_rules`:
-- `field_source text NOT NULL DEFAULT 'custom'` — values: `'custom'` (custom_fields JSONB) or `'native'` (direct column on contacts table)
-- `operator text NOT NULL DEFAULT 'equals'` — values: `'equals'`, `'greater_than'`, `'less_than'`, `'greater_or_equal'`, `'less_or_equal'`
+- `Contacts.tsx` line 131-134: `.in("company_id", companyIds)` with up to 668 UUIDs
+- `People.tsx` line 80-83: `.in("id", companyIds)` with up to 668 UUIDs
 
-### 2. UI Redesign: `CategoryFieldRules.tsx`
+## Fix
 
-Replace the current inline form with a button-triggered dialog flow:
+Batch the `.in()` calls into chunks of 100 IDs each, then merge results.
 
-- **Category card** shows a summary button: "Regras automáticas (N)" that opens a dialog
-- **Dialog** shows:
-  - List of existing rules as rows: `[source icon] field_label operator value [X remove]`
-  - "Add rule" form at bottom:
-    1. **Source selector**: "Campo customizado" / "Campo nativo" (radio or select)
-    2. **Field selector**: 
-       - If custom: dropdown from `chat_custom_field_definitions` (existing)
-       - If native: dropdown with relevant native fields: `name`, `email`, `company_document`, `company_sector`, `city`, `state`, `external_id`, `service_priority`, `cs_status`, `mrr`, `contract_value`, `health_score`
-    3. **Operator selector**: `=`, `>`, `<`, `>=`, `<=`
-    4. **Value input**: text field
-    5. **Add button**
-  - Rules display grouped by field for readability
-  - Sync runs on dialog close if changes were made
+### `src/pages/Contacts.tsx`
 
-### 3. Sync Logic Update: `syncCompanies` in `CategoryFieldRules.tsx`
+Replace the single `.in("company_id", companyIds)` call (lines 131-137) with a batched approach:
+```typescript
+const BATCH_SIZE = 100;
+let contactsData: any[] = [];
+if (companyIds.length > 0) {
+  for (let i = 0; i < companyIds.length; i += BATCH_SIZE) {
+    const batch = companyIds.slice(i, i + BATCH_SIZE);
+    const { data, error } = await supabase
+      .from("company_contacts")
+      .select("*")
+      .in("company_id", batch);
+    if (error) throw error;
+    contactsData.push(...(data || []));
+  }
+}
+```
 
-Update the matching logic to:
-- For `field_source === 'custom'`: read from `company.custom_fields[field_key]`
-- For `field_source === 'native'`: read from `company[field_key]` (direct column)
-- Apply the operator:
-  - `equals`: string comparison `String(val) === rule.field_value`
-  - `greater_than/less_than/etc`: numeric comparison `Number(val) > Number(rule.field_value)`
+### `src/pages/People.tsx`
 
-The contacts query will need to fetch the native fields used in rules.
+Replace the single `.in("id", companyIds)` call (lines 80-83) with the same batched pattern:
+```typescript
+const BATCH_SIZE = 100;
+let companies: any[] = [];
+for (let i = 0; i < companyIds.length; i += BATCH_SIZE) {
+  const batch = companyIds.slice(i, i + BATCH_SIZE);
+  const { data, error } = await supabase
+    .from("contacts")
+    .select("id, name, trade_name")
+    .in("id", batch);
+  if (error) throw error;
+  companies.push(...(data || []));
+}
+```
 
-### 4. Edge Function Update: `resolve-chat-visitor/index.ts`
+### `src/components/chat/CategoryFieldRules.tsx`
 
-Update `applyCategoryFieldRules` to handle `field_source` and `operator` columns with the same logic.
-
-### 5. Translations
-
-Add new keys for: source labels, operator labels, dialog title, native field labels.
+The `syncCompanies` function (line 138-141) also queries contacts with `.eq("is_company", true)` and fetches all companies -- this is fine since it doesn't use `.in()`, but the sync iterates and updates one-by-one. No URL-length issue here.
 
 ## Files
 
-1. **Migration** — `ALTER TABLE chat_category_field_rules ADD COLUMN field_source, ADD COLUMN operator`
-2. **`src/components/chat/CategoryFieldRules.tsx`** — Full rewrite: button + dialog, source/operator selectors, updated sync
-3. **`src/components/chat/CategoriesTab.tsx`** — Pass additional native field data to `CategoryFieldRules`, update contacts query to include native fields
-4. **`supabase/functions/resolve-chat-visitor/index.ts`** — Handle new columns in rule matching
-5. **`src/locales/pt-BR.ts`** and **`src/locales/en.ts`** — New translation keys
+1. `src/pages/Contacts.tsx` -- batch the company_contacts `.in()` query
+2. `src/pages/People.tsx` -- batch the contacts `.in()` query
 
