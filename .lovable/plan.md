@@ -1,68 +1,61 @@
 
 
-# Plan: Auto-Assignment Rules for Categories Based on Custom Fields
+# Plan: Enhanced Auto-Assignment Rules — Native Fields, Comparison Operators, Dedicated UI
 
-## Overview
+## Current State
+- Rules only support custom fields (`custom_fields` JSONB keys) with exact match
+- Rules are shown inline per category card — no dedicated management flow
 
-Add editable rules per category that automatically assign companies based on their custom field values. Rules are fully editable (add/remove fields and values, combine multiple field+value pairs). Changes take effect for new chats opened after the rule is saved.
+## Changes
 
-## 1. Database: New Table `chat_category_field_rules`
+### 1. Database Migration: Add `field_source` and `operator` columns
 
-```sql
-CREATE TABLE public.chat_category_field_rules (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  category_id uuid NOT NULL REFERENCES public.chat_service_categories(id) ON DELETE CASCADE,
-  tenant_id uuid,
-  field_key text NOT NULL,
-  field_value text NOT NULL,
-  created_at timestamptz DEFAULT now()
-);
+Add two columns to `chat_category_field_rules`:
+- `field_source text NOT NULL DEFAULT 'custom'` — values: `'custom'` (custom_fields JSONB) or `'native'` (direct column on contacts table)
+- `operator text NOT NULL DEFAULT 'equals'` — values: `'equals'`, `'greater_than'`, `'less_than'`, `'greater_or_equal'`, `'less_or_equal'`
 
-ALTER TABLE public.chat_category_field_rules ENABLE ROW LEVEL SECURITY;
+### 2. UI Redesign: `CategoryFieldRules.tsx`
 
-CREATE POLICY "Tenant members manage category field rules"
-  ON public.chat_category_field_rules FOR ALL TO authenticated
-  USING (tenant_id = get_user_tenant_id(auth.uid()))
-  WITH CHECK (tenant_id = get_user_tenant_id(auth.uid()));
-```
+Replace the current inline form with a button-triggered dialog flow:
 
-Each row = one field+value pair linked to a category. Multiple rows for same category = OR logic (any match assigns the company).
+- **Category card** shows a summary button: "Regras automáticas (N)" that opens a dialog
+- **Dialog** shows:
+  - List of existing rules as rows: `[source icon] field_label operator value [X remove]`
+  - "Add rule" form at bottom:
+    1. **Source selector**: "Campo customizado" / "Campo nativo" (radio or select)
+    2. **Field selector**: 
+       - If custom: dropdown from `chat_custom_field_definitions` (existing)
+       - If native: dropdown with relevant native fields: `name`, `email`, `company_document`, `company_sector`, `city`, `state`, `external_id`, `service_priority`, `cs_status`, `mrr`, `contract_value`, `health_score`
+    3. **Operator selector**: `=`, `>`, `<`, `>=`, `<=`
+    4. **Value input**: text field
+    5. **Add button**
+  - Rules display grouped by field for readability
+  - Sync runs on dialog close if changes were made
 
-## 2. UI: `CategoriesTab.tsx` — Editable Rules Section
+### 3. Sync Logic Update: `syncCompanies` in `CategoryFieldRules.tsx`
 
-Add a new section per category card: **"Regras automáticas"**
+Update the matching logic to:
+- For `field_source === 'custom'`: read from `company.custom_fields[field_key]`
+- For `field_source === 'native'`: read from `company[field_key]` (direct column)
+- Apply the operator:
+  - `equals`: string comparison `String(val) === rule.field_value`
+  - `greater_than/less_than/etc`: numeric comparison `Number(val) > Number(rule.field_value)`
 
-- Display existing rules as editable badges: `campo: valor` with X to remove
-- Inline form to add a rule:
-  - **Dropdown**: select field key from `chat_custom_field_definitions` (where `target = 'company'`)
-  - **Input**: type the value to match
-  - **Add button**: saves the rule immediately
-- On any add/remove, run a sync that scans all tenant companies and updates their `service_category_id` if they match the updated ruleset
-- Rules are fully mutable: users can add new field keys, add new values for existing keys, remove individual rules, or combine different fields for the same category
+The contacts query will need to fetch the native fields used in rules.
 
-## 3. Sync Logic (Client-Side in CategoriesTab)
+### 4. Edge Function Update: `resolve-chat-visitor/index.ts`
 
-When a rule is added or removed:
-1. Fetch all `chat_category_field_rules` for the tenant
-2. Fetch all companies (`contacts` where `is_company = true`)
-3. For each company, check if `custom_fields->>field_key` matches any rule's `field_value`
-4. If matched, update `service_category_id` to that category
-5. If a company no longer matches any rule (rule was removed), clear its `service_category_id`
+Update `applyCategoryFieldRules` to handle `field_source` and `operator` columns with the same logic.
 
-This ensures existing companies are updated when rules change.
+### 5. Translations
 
-## 4. Real-Time for New Chats: `resolve-chat-visitor` Edge Function
-
-After the edge function updates a company's `custom_fields`, add a step:
-1. Query `chat_category_field_rules` for the tenant
-2. Check if the company's custom fields match any rule
-3. If matched, update the company's `service_category_id`
-
-This makes rules effective for new chats immediately — the company gets categorized before the assignment trigger fires.
+Add new keys for: source labels, operator labels, dialog title, native field labels.
 
 ## Files
 
-1. **Migration** — Create `chat_category_field_rules` table + RLS
-2. **`src/components/chat/CategoriesTab.tsx`** — Add editable rules UI, sync on change
-3. **`supabase/functions/resolve-chat-visitor/index.ts`** — Auto-categorize on visitor resolution
+1. **Migration** — `ALTER TABLE chat_category_field_rules ADD COLUMN field_source, ADD COLUMN operator`
+2. **`src/components/chat/CategoryFieldRules.tsx`** — Full rewrite: button + dialog, source/operator selectors, updated sync
+3. **`src/components/chat/CategoriesTab.tsx`** — Pass additional native field data to `CategoryFieldRules`, update contacts query to include native fields
+4. **`supabase/functions/resolve-chat-visitor/index.ts`** — Handle new columns in rule matching
+5. **`src/locales/pt-BR.ts`** and **`src/locales/en.ts`** — New translation keys
 
