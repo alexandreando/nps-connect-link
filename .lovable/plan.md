@@ -1,56 +1,40 @@
 
 
-# Plan: Improve Workspace Responsiveness for Small PC Screens
+# Plan: Fix Internal Note Realtime + Clickable History Rows
 
-## Problem
+## Issue 1: Internal notes don't appear without refresh
 
-On smaller PC resolutions (1024px-1366px), the workspace can overflow horizontally due to fixed minimum panel sizes, wide header buttons, and the info panel competing for space. The `ResizablePanelGroup` enforces `minSize` percentages that, on narrow viewports, still demand too many pixels.
+The `ReadOnlyChatDialog` uses `useChatMessages(open ? roomId : null)`. This hook subscribes to realtime INSERT events on `chat_messages` filtered by `room_id` — so new messages should appear. However, the realtime channel name is `chat-messages-${roomId}`, which may conflict with another subscription in the active workspace using the same channel name for the same room.
 
-## Changes
+The real problem: the `useChatMessages` hook only subscribes when `roomId` is truthy. When the dialog opens, `open` becomes true and `roomId` is set, triggering the subscription. The subscription IS set up correctly. Let me re-check...
 
-### `src/pages/AdminWorkspace.tsx`
+Actually, looking more carefully: the `handleSendNote` inserts with `sender_type: "attendant"` and `is_internal: true`. The realtime subscription in `useChatMessages` listens for ALL inserts on `chat_messages` with `room_id=eq.${roomId}` — so it should pick it up.
 
-**1. Adjust ResizablePanel min/max sizes based on viewport width:**
-- Room list panel: reduce `minSize` from 18 to 15 on compact screens
-- Chat panel: reduce `minSize` from 35 to 30 on compact/tablet
-- Info panel: reduce `minSize` from 22 to 18 on compact, and auto-close on screens < 1024px (tablet)
+The issue is likely that the realtime publication for `chat_messages` may not be enabled, OR there's a channel name collision. But since other messages work in the workspace, the publication is enabled.
 
-**2. Compact header actions for all small desktop screens:**
-- When `isCompact` (< 1280px): already groups Transfer into dropdown — also group the Tags button into the same dropdown to save more horizontal space
-- On very compact screens (< 1024px), hide text labels on "Reabrir" and "Resolvido" buttons (icon-only)
+More likely root cause: the `ReadOnlyChatDialog` opens from `AdminChatHistory`, which is a different page from `AdminWorkspace`. The `useChatMessages` hook creates a channel `chat-messages-${roomId}`. If the room is closed, there may be RLS policies preventing the realtime subscription from receiving the INSERT event for the newly inserted message.
 
-**3. Prevent horizontal overflow on outer container:**
-- Ensure the root `div` uses `w-full max-w-full overflow-hidden` to hard-prevent any horizontal scroll
-- Add `min-w-0` to the chat panel inner container to allow flex children to shrink properly
+Simplest fix: after the insert succeeds, optimistically append the message to the local state. Since `useChatMessages` manages state internally and doesn't expose a setter, we need to either refetch or add an optimistic update.
 
-**4. Reduce padding on compact screens:**
-- Reduce the `p-1.5 pl-3 pt-3 pb-3` padding on panel containers to `p-1` on compact screens to reclaim space
+**Fix**: After successful insert in `handleSendNote`, call `refetch()` from `useChatMessages` — but the hook doesn't currently expose a way to append. It does expose `refetch: fetchMessages`. So we can call refetch after insert.
 
-### `src/components/chat/ChatRoomList.tsx`
+Actually `useChatMessages` returns `{ messages, loading, hasMore, loadingMore, loadMore, refetch: fetchMessages }`. The `ReadOnlyChatDialog` only destructures `{ messages, loading }`. We just need to also destructure `refetch` and call it after the insert.
 
-**5. Prevent internal horizontal overflow:**
-- Add `overflow-hidden` and `min-w-0` to the root container
-- The search input placeholder is very long ("Buscar por nome, email ou mensagem...") — truncate naturally via CSS (already should, but ensure the container constrains it)
+## Issue 2: History table rows should be fully clickable + hover effect
 
-### `src/components/chat/ChatInput.tsx`
+Currently only the Eye icon cell (line 429) opens the ReadOnlyChatDialog. The entire row should be clickable, and it should have a hover cursor.
 
-**6. Ensure input area doesn't cause overflow:**
-- Add `min-w-0` to the input wrapper to ensure it shrinks properly within flex layouts
-
-### `src/components/AppSidebar.tsx`
-
-**7. Auto-collapse sidebar on small PC resolutions:**
-- Pass `defaultOpen={false}` to `SidebarProvider` when viewport width < 1024px, keeping the sidebar collapsed by default on small PCs
-- This is handled in `SidebarLayout.tsx` where `SidebarProvider` is rendered
-
-### `src/components/SidebarLayout.tsx`
-
-**8. Default sidebar collapsed on small screens:**
-- Initialize `sidebarOpen` state based on viewport width: `false` when `window.innerWidth < 1024`
+**Fix**: Move the `onClick` handler to the `TableRow` itself, add `cursor-pointer`, and keep `e.stopPropagation()` on the Checkbox and Actions cells.
 
 ## Files to Change
 
-1. `src/pages/AdminWorkspace.tsx` — Panel sizes, header compaction, overflow prevention
-2. `src/components/chat/ChatRoomList.tsx` — `min-w-0` and `overflow-hidden` on root
-3. `src/components/SidebarLayout.tsx` — Default sidebar collapsed on < 1024px
+### `src/components/chat/ReadOnlyChatDialog.tsx`
+- Destructure `refetch` from `useChatMessages`
+- Call `refetch()` after successful insert in `handleSendNote`
+
+### `src/pages/AdminChatHistory.tsx`
+- Move `onClick={() => setReadOnlyRoom(...)}` from the Eye cell to the `TableRow`
+- Add `cursor-pointer` to row className
+- Keep `stopPropagation` on Checkbox and Actions cells
+- Remove the dedicated Eye icon cell (or keep it as visual indicator without its own click handler)
 
