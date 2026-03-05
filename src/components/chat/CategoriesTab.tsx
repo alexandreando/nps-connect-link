@@ -43,7 +43,7 @@ const CategoriesTab = () => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [categoryTeams, setCategoryTeams] = useState<{ id: string; category_id: string; team_id: string }[]>([]);
-  const [fieldRules, setFieldRules] = useState<{ id: string; category_id: string; field_key: string; field_value: string }[]>([]);
+  const [fieldRules, setFieldRules] = useState<{ id: string; category_id: string; field_key: string; field_value: string; field_source: string; operator: string }[]>([]);
   const [fieldDefs, setFieldDefs] = useState<{ key: string; label: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -64,7 +64,7 @@ const CategoriesTab = () => {
       supabase.from("chat_teams").select("id, name").order("name"),
       supabase.from("contacts").select("id, name, trade_name, service_category_id").eq("is_company", true).order("name"),
       supabase.from("chat_category_teams").select("id, category_id, team_id"),
-      supabase.from("chat_category_field_rules" as any).select("id, category_id, field_key, field_value"),
+      supabase.from("chat_category_field_rules" as any).select("id, category_id, field_key, field_value, field_source, operator"),
       supabase.from("chat_custom_field_definitions").select("key, label").eq("target", "company").eq("is_active", true),
     ]);
 
@@ -125,7 +125,7 @@ const CategoriesTab = () => {
     setTeams(tms ?? []);
     setCompanies((comps as Company[]) ?? []);
     setCategoryTeams((catTeams as any[]) ?? []);
-    setFieldRules(((rules as unknown) as { id: string; category_id: string; field_key: string; field_value: string }[]) ?? []);
+    setFieldRules(((rules as unknown) as { id: string; category_id: string; field_key: string; field_value: string; field_source: string; operator: string }[]) ?? []);
     setFieldDefs(((defs as unknown) as { key: string; label: string }[]) ?? []);
     setLoading(false);
   };

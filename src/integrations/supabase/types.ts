@@ -905,24 +905,30 @@ export type Database = {
           category_id: string
           created_at: string | null
           field_key: string
+          field_source: string
           field_value: string
           id: string
+          operator: string
           tenant_id: string | null
         }
         Insert: {
           category_id: string
           created_at?: string | null
           field_key: string
+          field_source?: string
           field_value: string
           id?: string
+          operator?: string
           tenant_id?: string | null
         }
         Update: {
           category_id?: string
           created_at?: string | null
           field_key?: string
+          field_source?: string
           field_value?: string
           id?: string
+          operator?: string
           tenant_id?: string | null
         }
         Relationships: [
