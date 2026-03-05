@@ -160,7 +160,7 @@ export function ChatRoomList({ rooms, selectedRoomId, onSelectRoom, loading }: C
   };
 
   return (
-    <div className="glass-card h-full flex flex-col">
+    <div className="glass-card h-full flex flex-col min-w-0 overflow-hidden">
       <div className="p-3 border-b border-border space-y-2">
         <div>
           <h3 className="font-semibold text-sm">{t("chat.workspace.conversations")}</h3>

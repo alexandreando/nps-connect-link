@@ -12,9 +12,11 @@ import { Card, CardContent } from "@/components/ui/card";
 export default function SidebarLayout() {
   const navigate = useNavigate();
   const { user, loading, userDataLoading, tenantId, isAdmin, isImpersonating, impersonatedTenantName, clearImpersonation, availableTenants, selectTenant, needsTenantSelection } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(
-    () => localStorage.getItem("sidebar-open") !== "false"
-  );
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const stored = localStorage.getItem("sidebar-open");
+    if (stored !== null) return stored !== "false";
+    return typeof window !== "undefined" ? window.innerWidth >= 1024 : true;
+  });
   const [isDark, setIsDark] = useState(
     () => localStorage.getItem("journey-theme") !== "light"
   );

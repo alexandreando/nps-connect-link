@@ -348,7 +348,7 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); };
 
   return (
-    <div className="border-t p-3 space-y-2" onDrop={handleDrop} onDragOver={handleDragOver}>
+    <div className="border-t p-3 space-y-2 min-w-0" onDrop={handleDrop} onDragOver={handleDragOver}>
       {isInternal && (
         <div className="text-xs text-yellow-600 flex items-center gap-1">
           <Eye className="h-3 w-3" />
