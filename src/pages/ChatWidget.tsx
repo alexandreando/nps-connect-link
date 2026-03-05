@@ -482,8 +482,13 @@ const ChatWidget = () => {
               setPhase("closed");
             }
             setAttendantName(null);
+          } else if (resStatus === "pending") {
+            // Show reopen buttons by switching to viewTranscript phase
+            setViewTranscriptResolutionStatus("pending");
+            setPhase("viewTranscript");
+            fetchMessages(room.id);
+            setAttendantName(null);
           }
-          // For "pending" — stay on current chat phase, do nothing
         }
         // visitor_last_read_at is now only updated on widget open and new message arrival
       })
@@ -728,12 +733,49 @@ const ChatWidget = () => {
       }
     }
 
-    // Reopen the room
-    await supabase.from("chat_rooms").update({
-      status: "waiting",
-      closed_at: null,
-      resolution_status: null,
-    }).eq("id", reopenRoomId);
+    // Check if original attendant is available for direct re-assignment
+    const { data: roomData } = await supabase
+      .from("chat_rooms")
+      .select("attendant_id")
+      .eq("id", reopenRoomId)
+      .maybeSingle();
+
+    let directAssigned = false;
+
+    if (roomData?.attendant_id) {
+      // Check attendant availability
+      const { data: att } = await supabase
+        .from("attendant_profiles")
+        .select("id, status, active_conversations, max_conversations")
+        .eq("id", roomData.attendant_id)
+        .maybeSingle();
+
+      if (att && att.status === "online" && (att.active_conversations ?? 0) < (att.max_conversations ?? 5)) {
+        // Direct assign — attendant is available
+        await supabase.from("chat_rooms").update({
+          status: "active",
+          closed_at: null,
+          resolution_status: null,
+        }).eq("id", reopenRoomId);
+
+        // Increment active_conversations
+        await supabase.from("attendant_profiles").update({
+          active_conversations: (att.active_conversations ?? 0) + 1,
+        }).eq("id", att.id);
+
+        directAssigned = true;
+      }
+    }
+
+    if (!directAssigned) {
+      // Fallback: go to waiting queue
+      await supabase.from("chat_rooms").update({
+        status: "waiting",
+        closed_at: null,
+        resolution_status: null,
+        attendant_id: null,
+      }).eq("id", reopenRoomId);
+    }
 
     // System message with chain_reset metadata
     await supabase.from("chat_messages").insert({
@@ -746,10 +788,11 @@ const ChatWidget = () => {
     });
 
     setRoomId(reopenRoomId);
-    setPhase("waiting");
-    // Load full history instead of clearing
+    setPhase(directAssigned ? "chat" : "waiting");
     fetchMessages(reopenRoomId);
-    await checkRoomAssignment(reopenRoomId);
+    if (!directAssigned) {
+      await checkRoomAssignment(reopenRoomId);
+    }
     setLoading(false);
   };
 
