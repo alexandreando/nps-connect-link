@@ -123,10 +123,10 @@ export function ChatMessageList({ messages, loading, onReply, hasMore, loadingMo
               <div
                 className={`max-w-[75%] rounded-lg px-3 py-2 text-sm ${
                   msg.is_internal
-                    ? "bg-yellow-100 border border-yellow-300"
+                    ? "bg-yellow-100 border border-yellow-300 text-yellow-900 dark:bg-yellow-900/30 dark:border-yellow-700/50 dark:text-yellow-100"
                     : msg.sender_type === "visitor"
                     ? "bg-muted"
-                    : "bg-primary text-primary-foreground"
+                    : "bg-sky-100 text-sky-900 dark:bg-sky-900/40 dark:text-sky-100"
                 }`}
               >
                 <div className="flex items-center gap-2 mb-1">
@@ -134,7 +134,7 @@ export function ChatMessageList({ messages, loading, onReply, hasMore, loadingMo
                     {msg.sender_name ?? msg.sender_type}
                   </span>
                   {msg.is_internal && (
-                    <span className="text-[10px] font-medium text-yellow-600">
+                    <span className="text-[10px] font-medium text-yellow-700 dark:text-yellow-500">
                       (Nota interna)
                     </span>
                   )}
@@ -144,7 +144,7 @@ export function ChatMessageList({ messages, loading, onReply, hasMore, loadingMo
                   <div className={`text-[11px] rounded px-2 py-1 mb-1 border-l-2 ${
                     msg.sender_type === "visitor"
                       ? "bg-background/50 border-muted-foreground/30 text-muted-foreground"
-                      : "bg-primary-foreground/10 border-primary-foreground/30 text-primary-foreground/70"
+                      : "bg-sky-200/50 border-sky-400/40 text-sky-800 dark:bg-sky-950/50 dark:border-sky-700/50 dark:text-sky-200"
                   }`}>
                     {quoteText}
                   </div>
