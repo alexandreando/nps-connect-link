@@ -473,15 +473,17 @@ const ChatWidget = () => {
           const resStatus = room.resolution_status;
           if (resStatus === "resolved") {
             setPhase("csat");
-          } else {
-            // pending or archived — skip CSAT
+            setAttendantName(null);
+          } else if (resStatus === "archived") {
+            // Only navigate away for archived
             if (isResolvedVisitor) {
               handleBackToHistory();
             } else {
               setPhase("closed");
             }
+            setAttendantName(null);
           }
-          setAttendantName(null);
+          // For "pending" — stay on current chat phase, do nothing
         }
         // visitor_last_read_at is now only updated on widget open and new message arrival
       })
@@ -559,8 +561,7 @@ const ChatWidget = () => {
         if (oldRoom.status === "closed" && (updatedRoom.status === "active" || updatedRoom.status === "waiting")) {
           // If not in an active chat, auto-enter
           if (phase !== "chat" && phase !== "waiting" && phase !== "csat") {
-            setRoomId(updatedRoom.id);
-            setMessages([]);
+          setRoomId(updatedRoom.id);
             setCsatScore(0);
             setCsatComment("");
             if (updatedRoom.status === "active") {
@@ -573,6 +574,8 @@ const ChatWidget = () => {
               setPhase("waiting");
             }
             postMsg("chat-ready");
+            // Load full history instead of clearing
+            fetchMessages(updatedRoom.id);
           }
           // Notify unread
           if (!isOpenRef.current || (roomId && roomId !== updatedRoom.id)) {
@@ -743,8 +746,9 @@ const ChatWidget = () => {
     });
 
     setRoomId(reopenRoomId);
-    setMessages([]);
     setPhase("waiting");
+    // Load full history instead of clearing
+    fetchMessages(reopenRoomId);
     await checkRoomAssignment(reopenRoomId);
     setLoading(false);
   };
