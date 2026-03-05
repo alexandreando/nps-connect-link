@@ -22,14 +22,14 @@ interface ReadOnlyChatDialogProps {
 export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange, resolutionStatus, onReopen }: ReadOnlyChatDialogProps) {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const { messages, loading } = useChatMessages(open ? roomId : null);
+  const { messages, loading, refetch } = useChatMessages(open ? roomId : null);
   const [note, setNote] = useState("");
   const [sending, setSending] = useState(false);
 
   const handleSendNote = async () => {
     if (!note.trim() || !roomId || !user) return;
     setSending(true);
-    await supabase.from("chat_messages").insert({
+    const { error } = await supabase.from("chat_messages").insert({
       room_id: roomId,
       sender_type: "attendant",
       sender_id: user.id,
@@ -39,6 +39,7 @@ export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange, re
     });
     setNote("");
     setSending(false);
+    if (!error) refetch();
   };
 
   return (
