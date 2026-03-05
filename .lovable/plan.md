@@ -1,46 +1,50 @@
 
+## Plan Atualizado: Workspace Responsiveness + Bubble Color + Room State + Internal Note Contrast
 
-# Plan: Fix Auto-Categorization Bug + Add Pagination to Contacts/People Pages
+### Issue 1: Internal Note Text Contrast in Dark Theme
+**Problem**: Internal notes (notas internas) use `bg-yellow-100 border border-yellow-300` (linha 126), que é um tom claro de amarelo. Em dark mode, o fundo da nota fica claro (yellow-100) mas o texto permanece com a cor padrão do tema escuro (text-foreground), resultando em muito contraste e dificuldade de leitura. O rótulo "(Nota interna)" usa `text-yellow-600` que também perde contraste em dark.
 
-## Issue 1: Auto-Categorization Not Working
+**Fix**: 
+- Adicionar estilos diferenciados para dark mode nas notas internas
+- Mudar a nota interna para um tom mais escuro em dark: `bg-yellow-900/30 border border-yellow-700/50` com `text-yellow-100`
+- O rótulo "(Nota interna)" também precisa ajuste: `text-yellow-500` para melhor contraste
+- Em light mode, manter amarelo claro: `bg-yellow-100 border border-yellow-300 text-yellow-900` e rótulo `text-yellow-700`
 
-**Root cause identified:** The company "Teste Gustavomarqponto" has `perfil_company: B` in `custom_fields` and a rule exists matching `perfil_company = B` → "Fila A, B e C". However, `service_category_id` is NULL.
+### Issue 2: Attendant Message Bubble Color Change (Orange → Light Blue)
+Replace `bg-primary text-primary-foreground` (coral/orange) com light blue para melhorar conforto visual prolongado.
 
-The problem is that `applyCategoryFieldRules` in the edge function **only runs inside `applyCustomData`**, which only executes when `custom_data` is present in the widget payload. If the company already had the custom field value from a previous session and the widget doesn't re-send it, the categorization never fires.
+**Fix**: 
+- Replace attendant bubbles com `bg-sky-100 text-sky-900 dark:bg-sky-900/40 dark:text-sky-100`
+- Ajustar quotes internas para attendant: `dark:bg-sky-950/50 dark:border-sky-700/50 dark:text-sky-100`
 
-Additionally, the client-side sync (`syncCompanies` in `CategoryFieldRules.tsx`) only runs when the rules dialog is closed with changes — if the sync failed silently or was never triggered after rule creation, existing companies won't be categorized.
+### Issue 3: Room State Reset on Queue/Attendant Switch
+When clicking different attendants or "my queue", selectedRoomId persists.
 
-**Fix:**
-1. **Edge function (`resolve-chat-visitor`):** Call `applyCategoryFieldRules` independently after company identification, even when no `custom_data` is provided. Add this call in `upsertCompany` after the company is found/created (regardless of custom_data), and also after identifying an existing company via company_contact lookup.
-2. **Immediate fix for existing data:** The sync logic already exists; the fix ensures the edge function always checks rules on every visitor resolution.
+**Fix**:
+- Add useEffect in `AdminWorkspace.tsx` to reset `selectedRoomId` when `viewingAttendantId` or `viewingUnassigned` changes
+- Add useEffect to clear `selectedRoomId` when it's not in `filteredRooms` list
 
-### Files changed:
-- `supabase/functions/resolve-chat-visitor/index.ts` — Call `applyCategoryFieldRules` after every company identification, not just inside `applyCustomData`
+### Issue 4: Responsiveness & Horizontal Scroll Prevention
+Prevent horizontal scrolling on mobile and tablet sizes.
 
----
+**Fix**:
+- Group mobile action buttons (Transfer, Tags, Close) into single dropdown menu
+- Add `overflow-hidden` to outer workspace container
+- Ensure all panels use internal vertical scrolling only
+- Info panel: already collapses at <1280px
 
-## Issue 2: Pagination for Contacts and People Pages
+## Files to Change
 
-Both pages currently load ALL records at once (668+ companies, 777+ contacts), causing slow load times.
+### `src/components/chat/ChatMessageList.tsx`
+- Line 125-130: Update internal note styling with dark mode support
+  - `bg-yellow-100 border border-yellow-300` → `bg-yellow-100 border border-yellow-300 text-yellow-900 dark:bg-yellow-900/30 dark:border-yellow-700/50 dark:text-yellow-100`
+- Line 137: Update "(Nota interna)" text color: `text-yellow-600` → `text-yellow-700 dark:text-yellow-500`
+- Line 129: Change attendant message color: `bg-primary text-primary-foreground` → `bg-sky-100 text-sky-900 dark:bg-sky-900/40 dark:text-sky-100`
+- Line 147-148: Update attendant quote styling for new bubble color
 
-### Contacts Page (`src/pages/Contacts.tsx`)
-- Add server-side pagination with a page size of 50
-- Move the `contacts` query to use `.range(from, to)` for offset-based pagination
-- Add pagination controls at the bottom (Previous/Next + page indicator)
-- Server-side search: use `.ilike()` filters on name/trade_name/company_document instead of client-side filtering
-- Server-side filters: apply sector, state, city, cs_status, priority, health, NPS filters as query parameters
-- Fetch filter options (unique sectors, states, etc.) with a separate lightweight query or keep them from the first page load
-- Show total count using `.select('*', { count: 'exact', head: false })`
-
-### People Page (`src/pages/People.tsx`)
-- Add server-side pagination with `.range(from, to)`, page size of 50
-- Already has debounced search — keep that, apply server-side
-- Add pagination controls at the bottom
-- Use `.select('*', { count: 'exact' })` for total count
-- Batch company name lookups only for the current page's contacts (much smaller set)
-
-### Files changed:
-- `src/pages/Contacts.tsx` — Server-side pagination, search, and filters
-- `src/pages/People.tsx` — Server-side pagination
-- `src/locales/pt-BR.ts` and `src/locales/en.ts` — Pagination labels (e.g., "Página X de Y", "Anterior", "Próximo")
+### `src/pages/AdminWorkspace.tsx`
+- Add useEffect to reset selectedRoomId when viewingAttendantId or viewingUnassigned changes
+- Add useEffect to clear selectedRoomId if not in filteredRooms
+- Add mobile action dropdown menu to prevent horizontal overflow
+- Add `overflow-hidden` to root container
 
