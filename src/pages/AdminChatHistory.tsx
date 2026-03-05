@@ -424,9 +424,9 @@ const AdminChatHistory = () => {
                         ? Math.floor((new Date(room.closed_at).getTime() - new Date(room.created_at).getTime()) / 60000)
                         : null;
                       return (
-                        <TableRow key={room.id} className="hover:bg-muted/50">
+                        <TableRow key={room.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => setReadOnlyRoom({ id: room.id, name: room.visitor_name ?? "Visitante", resolution_status: room.resolution_status })}>
                           <TableCell onClick={(e) => e.stopPropagation()}><Checkbox checked={selectedIds.has(room.id)} onCheckedChange={() => toggleSelect(room.id)} /></TableCell>
-                          <TableCell className="cursor-pointer" onClick={() => setReadOnlyRoom({ id: room.id, name: room.visitor_name ?? "Visitante", resolution_status: room.resolution_status })}><Eye className="h-4 w-4 text-muted-foreground" /></TableCell>
+                          <TableCell><Eye className="h-4 w-4 text-muted-foreground" /></TableCell>
                           <TableCell className="font-mono text-[11px] hidden md:table-cell">{room.id.slice(0, 8)}</TableCell>
                           <TableCell className="text-[13px]">{room.visitor_name ?? "—"}</TableCell>
                           <TableCell className="text-[13px] hidden md:table-cell">{room.attendant_name ?? "—"}</TableCell>
