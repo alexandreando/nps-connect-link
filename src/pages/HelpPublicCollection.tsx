@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronRight, FileText } from "lucide-react";
+import { ChevronRight, FileText, Home } from "lucide-react";
 import HelpPublicLayout from "@/components/help/HelpPublicLayout";
 
 interface Article {
@@ -56,11 +56,9 @@ export default function HelpPublicCollection() {
 
     if (!tenantIdResolved) { setLoading(false); return; }
 
-    // Load settings
     const { data: settings } = await supabase.from("help_site_settings").select("*").eq("tenant_id", tenantIdResolved).maybeSingle();
     setSiteSettings(settings);
 
-    // Find collection
     const { data: col } = await supabase.from("help_collections")
       .select("id, name, description, icon")
       .eq("tenant_id", tenantIdResolved)
@@ -70,7 +68,6 @@ export default function HelpPublicCollection() {
     if (!col) { setLoading(false); return; }
     setCollection(col);
 
-    // Get articles
     const { data: arts } = await supabase.from("help_articles")
       .select("id, title, subtitle, slug")
       .eq("tenant_id", tenantIdResolved)
@@ -82,52 +79,88 @@ export default function HelpPublicCollection() {
     setLoading(false);
   };
 
+  const primaryColor = siteSettings?.brand_primary_color || "#3B82F6";
+
   if (loading) return (
-    <div className="light flex items-center justify-center min-h-screen" style={{ background: "#fff" }}>
+    <div className="light flex items-center justify-center min-h-screen" style={{ background: "#f8fafc" }}>
       <div className="h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: "#3B82F6", borderTopColor: "transparent" }} />
     </div>
   );
   if (!collection) return (
-    <div className="light flex items-center justify-center min-h-screen" style={{ background: "#fff", color: "#6b7280" }}>Coleção não encontrada</div>
+    <div className="light flex items-center justify-center min-h-screen" style={{ background: "#f8fafc", color: "#64748b" }}>Coleção não encontrada</div>
   );
 
   return (
     <HelpPublicLayout settings={siteSettings} helpBase={helpBase}>
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-sm mb-8 flex-wrap">
-          <Link to={helpBase} className="hover:underline transition-colors" style={{ color: "#6b7280" }}>Help Center</Link>
-          <ChevronRight className="h-3.5 w-3.5" style={{ color: "#d1d5db" }} />
-          <span className="font-medium" style={{ color: "#111827" }}>{collection.name}</span>
+        <nav className="flex items-center gap-2 text-sm mb-8 flex-wrap">
+          <Link
+            to={helpBase}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm transition-all duration-200"
+            style={{ color: "#64748b", backgroundColor: "#f1f5f9" }}
+            onMouseEnter={e => { e.currentTarget.style.backgroundColor = `${primaryColor}10`; e.currentTarget.style.color = primaryColor; }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#f1f5f9"; e.currentTarget.style.color = "#64748b"; }}
+          >
+            <Home className="h-3.5 w-3.5" />
+            Help Center
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5" style={{ color: "#cbd5e1" }} />
+          <span className="font-medium px-3 py-1 rounded-full" style={{ color: "#0f172a", backgroundColor: "#f1f5f9" }}>{collection.name}</span>
         </nav>
 
-        <div className="mb-10 p-6 rounded-xl" style={{ backgroundColor: "#f9fafb" }}>
-          <span className="text-4xl mb-3 block">{collection.icon || "📚"}</span>
-          <h1 className="text-2xl font-bold mb-2" style={{ color: "#111827" }}>{collection.name}</h1>
-          {collection.description && <p className="text-base" style={{ color: "#6b7280" }}>{collection.description}</p>}
+        {/* Collection header */}
+        <div
+          className="mb-10 p-8 rounded-2xl relative overflow-hidden"
+          style={{ backgroundColor: "#ffffff", border: "1px solid #e2e8f0" }}
+        >
+          {/* Top accent strip */}
+          <div
+            className="absolute top-0 left-0 right-0 h-1"
+            style={{ background: `linear-gradient(90deg, ${primaryColor}, ${primaryColor}60)` }}
+          />
+          <div className="flex items-start gap-5">
+            <span className="text-4xl flex-shrink-0">{collection.icon || "📚"}</span>
+            <div>
+              <h1 className="text-2xl font-bold mb-2" style={{ color: "#0f172a" }}>{collection.name}</h1>
+              {collection.description && <p className="text-base leading-relaxed" style={{ color: "#64748b" }}>{collection.description}</p>}
+              <p className="text-sm mt-3" style={{ color: "#94a3b8" }}>
+                {articles.length} {articles.length === 1 ? "artigo" : "artigos"}
+              </p>
+            </div>
+          </div>
         </div>
 
         {articles.length === 0 ? (
-          <p style={{ color: "#6b7280" }}>Nenhum artigo nesta coleção.</p>
+          <div className="text-center py-16">
+            <FileText className="h-12 w-12 mx-auto mb-4 opacity-20" style={{ color: "#94a3b8" }} />
+            <p style={{ color: "#64748b" }}>Nenhum artigo nesta coleção.</p>
+          </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-1">
             {articles.map(art => (
               <Link
                 key={art.id}
                 to={`${helpBase}/a/${art.slug}`}
-                className="flex items-center justify-between p-4 rounded-lg border transition-colors group"
-                style={{ borderColor: "#f3f4f6" }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f9fafb")}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+                className="flex items-center justify-between p-4 rounded-xl transition-all duration-200 group"
+                style={{ borderLeft: "3px solid transparent" }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.backgroundColor = "#f8fafc";
+                  e.currentTarget.style.borderLeftColor = primaryColor;
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.borderLeftColor = "transparent";
+                }}
               >
                 <div className="flex items-center gap-3">
-                  <FileText className="h-4 w-4 flex-shrink-0" style={{ color: "#d1d5db" }} />
+                  <FileText className="h-4 w-4 flex-shrink-0" style={{ color: "#cbd5e1" }} />
                   <div>
-                    <p className="font-medium" style={{ color: "#111827" }}>{art.title}</p>
-                    {art.subtitle && <p className="text-sm mt-0.5" style={{ color: "#6b7280" }}>{art.subtitle}</p>}
+                    <p className="font-medium" style={{ color: "#0f172a" }}>{art.title}</p>
+                    {art.subtitle && <p className="text-sm mt-0.5" style={{ color: "#64748b" }}>{art.subtitle}</p>}
                   </div>
                 </div>
-                <ChevronRight className="h-4 w-4 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "#9ca3af" }} />
+                <ChevronRight className="h-4 w-4 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all duration-200 group-hover:translate-x-0.5" style={{ color: primaryColor }} />
               </Link>
             ))}
           </div>

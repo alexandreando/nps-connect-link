@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Menu, X } from "lucide-react";
 
 interface HelpSiteSettings {
   home_title?: string;
   brand_logo_url?: string | null;
   brand_primary_color?: string;
+  brand_secondary_color?: string;
   header_bg_color?: string | null;
   header_links_json?: Array<{ label: string; url: string }> | null;
   footer_logo_url?: string | null;
@@ -46,6 +48,7 @@ export default function HelpPublicLayout({ children, settings, helpBase }: HelpP
   const headerLinks = settings?.header_links_json || [];
   const footerLinks = settings?.footer_links_json || [];
   const footerSocial = settings?.footer_social_json || [];
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Set favicon
   useEffect(() => {
@@ -61,41 +64,91 @@ export default function HelpPublicLayout({ children, settings, helpBase }: HelpP
   }, [settings?.favicon_url]);
 
   const isFooterDark = isColorDark(footerBg);
+  const isHeaderDark = isColorDark(headerBg);
 
   return (
-    <div className="light min-h-screen flex flex-col" style={{ background: "#ffffff", color: "#111827" }}>
+    <div className="light min-h-screen flex flex-col" style={{ background: "#f8fafc", color: "#111827" }}>
       {/* Header */}
       <header
-        className="sticky top-0 z-30 border-b"
-        style={{ backgroundColor: headerBg, borderColor: "#e5e7eb" }}
+        className="sticky top-0 z-30 backdrop-blur-xl border-b transition-all duration-300"
+        style={{
+          backgroundColor: `${headerBg}f0`,
+          borderColor: isHeaderDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+        }}
       >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link to={helpBase} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             {settings?.brand_logo_url && (
               <img src={settings.brand_logo_url} alt="" className="h-8 object-contain" />
             )}
-            <span className="font-semibold text-base" style={{ color: "#111827" }}>
+            <span className="font-semibold text-base" style={{ color: isHeaderDark ? "#ffffff" : "#111827" }}>
               {settings?.home_title || "Help Center"}
             </span>
           </Link>
 
+          {/* Desktop nav */}
           {headerLinks.length > 0 && (
-            <nav className="hidden md:flex items-center gap-6">
+            <nav className="hidden md:flex items-center gap-1">
               {headerLinks.map((link, i) => (
                 <a
                   key={i}
                   href={link.url}
                   target={link.url.startsWith("http") ? "_blank" : undefined}
                   rel={link.url.startsWith("http") ? "noopener noreferrer" : undefined}
-                  className="text-sm font-medium hover:opacity-70 transition-opacity"
-                  style={{ color: "#374151" }}
+                  className="text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-200"
+                  style={{ color: isHeaderDark ? "rgba(255,255,255,0.8)" : "#4b5563" }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.color = primaryColor;
+                    e.currentTarget.style.backgroundColor = `${primaryColor}08`;
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.color = isHeaderDark ? "rgba(255,255,255,0.8)" : "#4b5563";
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }}
                 >
                   {link.label}
                 </a>
               ))}
             </nav>
           )}
+
+          {/* Mobile menu button */}
+          {headerLinks.length > 0 && (
+            <button
+              className="md:hidden p-2 rounded-lg transition-colors"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              style={{ color: isHeaderDark ? "#ffffff" : "#374151" }}
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          )}
         </div>
+
+        {/* Mobile nav */}
+        {mobileMenuOpen && headerLinks.length > 0 && (
+          <div
+            className="md:hidden border-t px-4 py-3 space-y-1"
+            style={{
+              backgroundColor: headerBg,
+              borderColor: isHeaderDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)",
+            }}
+          >
+            {headerLinks.map((link, i) => (
+              <a
+                key={i}
+                href={link.url}
+                target={link.url.startsWith("http") ? "_blank" : undefined}
+                rel={link.url.startsWith("http") ? "noopener noreferrer" : undefined}
+                className="block text-sm font-medium px-3 py-2 rounded-lg transition-colors"
+                style={{ color: isHeaderDark ? "rgba(255,255,255,0.8)" : "#4b5563" }}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+        )}
       </header>
 
       {/* Content */}
@@ -103,35 +156,43 @@ export default function HelpPublicLayout({ children, settings, helpBase }: HelpP
 
       {/* Footer */}
       <footer style={{ backgroundColor: footerBg }}>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="space-y-3">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
+          {/* Accent line */}
+          <div
+            className="h-0.5 w-16 rounded-full mb-8"
+            style={{ backgroundColor: `${primaryColor}40` }}
+          />
+
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
+            <div className="space-y-4">
               {settings?.footer_logo_url && (
                 <img src={settings.footer_logo_url} alt="" className="h-8 object-contain" />
               )}
               {settings?.footer_text && (
-                <p className="text-sm" style={{ color: isFooterDark ? "#9ca3af" : "#6b7280" }}>
+                <p className="text-sm max-w-md leading-relaxed" style={{ color: isFooterDark ? "#9ca3af" : "#6b7280" }}>
                   {settings.footer_text}
                 </p>
               )}
               {!settings?.footer_text && !settings?.footer_logo_url && (
-                <p className="text-sm" style={{ color: isFooterDark ? "#9ca3af" : "#6b7280" }}>
+                <p className="text-sm" style={{ color: isFooterDark ? "#6b7280" : "#9ca3af" }}>
                   Powered by Journey
                 </p>
               )}
             </div>
 
-            <div className="flex flex-col items-start md:items-end gap-4">
+            <div className="flex flex-col items-start md:items-end gap-5">
               {footerLinks.length > 0 && (
-                <nav className="flex flex-wrap gap-4">
+                <nav className="flex flex-wrap gap-x-6 gap-y-2">
                   {footerLinks.map((link, i) => (
                     <a
                       key={i}
                       href={link.url}
                       target={link.url.startsWith("http") ? "_blank" : undefined}
                       rel={link.url.startsWith("http") ? "noopener noreferrer" : undefined}
-                      className="text-sm hover:underline transition-colors"
+                      className="text-sm transition-colors duration-200"
                       style={{ color: isFooterDark ? "#d1d5db" : "#374151" }}
+                      onMouseEnter={e => (e.currentTarget.style.color = primaryColor)}
+                      onMouseLeave={e => (e.currentTarget.style.color = isFooterDark ? "#d1d5db" : "#374151")}
                     >
                       {link.label}
                     </a>
@@ -147,8 +208,16 @@ export default function HelpPublicLayout({ children, settings, helpBase }: HelpP
                       href={social.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hover:opacity-70 transition-opacity"
+                      className="p-2 rounded-lg transition-all duration-200"
                       style={{ color: isFooterDark ? "#9ca3af" : "#6b7280" }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.color = primaryColor;
+                        e.currentTarget.style.backgroundColor = `${primaryColor}15`;
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.color = isFooterDark ? "#9ca3af" : "#6b7280";
+                        e.currentTarget.style.backgroundColor = "transparent";
+                      }}
                     >
                       {socialIcons[social.type] || <span className="text-sm">{social.type}</span>}
                     </a>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Home, Clock } from "lucide-react";
 import HelpPublicLayout from "@/components/help/HelpPublicLayout";
 
 interface ArticleData {
@@ -13,6 +13,7 @@ interface ArticleData {
   current_version_id: string | null;
   collection_id: string | null;
   tenant_id: string;
+  updated_at?: string;
 }
 
 export default function HelpPublicArticle() {
@@ -43,7 +44,7 @@ export default function HelpPublicArticle() {
     }
 
     let query = supabase.from("help_articles")
-      .select("id, title, subtitle, slug, status, current_version_id, collection_id, tenant_id")
+      .select("id, title, subtitle, slug, status, current_version_id, collection_id, tenant_id, updated_at")
       .eq("slug", articleSlug!);
     if (tenantIdResolved) query = query.eq("tenant_id", tenantIdResolved);
 
@@ -59,7 +60,6 @@ export default function HelpPublicArticle() {
 
     setArticle(art);
 
-    // Load settings, version, collection in parallel
     const settingsPromise = supabase.from("help_site_settings").select("*").eq("tenant_id", art.tenant_id).maybeSingle();
     const versionPromise = art.current_version_id
       ? supabase.from("help_article_versions").select("html_snapshot").eq("id", art.current_version_id).single()
@@ -69,9 +69,7 @@ export default function HelpPublicArticle() {
       : null;
 
     const [settingsRes, versionRes, collectionRes] = await Promise.all([
-      settingsPromise,
-      versionPromise,
-      collectionPromise,
+      settingsPromise, versionPromise, collectionPromise,
     ]);
 
     setSiteSettings(settingsRes?.data);
@@ -148,38 +146,95 @@ export default function HelpPublicArticle() {
     setMeta("og:type", "article");
   }, [article]);
 
+  const primaryColor = siteSettings?.brand_primary_color || "#3B82F6";
+
+  // Estimate reading time from HTML
+  const estimateReadingTime = (html: string) => {
+    const text = html.replace(/<[^>]*>/g, "");
+    const words = text.split(/\s+/).filter(Boolean).length;
+    return Math.max(1, Math.ceil(words / 200));
+  };
+
   if (loading) return (
-    <div className="light flex items-center justify-center min-h-screen" style={{ background: "#fff" }}>
+    <div className="light flex items-center justify-center min-h-screen" style={{ background: "#f8fafc" }}>
       <div className="h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: "#3B82F6", borderTopColor: "transparent" }} />
     </div>
   );
   if (!article) return (
-    <div className="light flex items-center justify-center min-h-screen" style={{ background: "#fff", color: "#6b7280" }}>Artigo não encontrado</div>
+    <div className="light flex items-center justify-center min-h-screen" style={{ background: "#f8fafc", color: "#64748b" }}>Artigo não encontrado</div>
   );
+
+  const readingTime = estimateReadingTime(htmlContent);
 
   return (
     <HelpPublicLayout settings={siteSettings} helpBase={helpBase}>
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-sm mb-8 flex-wrap">
-          <Link to={helpBase} className="hover:underline transition-colors" style={{ color: "#6b7280" }}>Help Center</Link>
+        <nav className="flex items-center gap-2 text-sm mb-8 flex-wrap">
+          <Link
+            to={helpBase}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm transition-all duration-200"
+            style={{ color: "#64748b", backgroundColor: "#f1f5f9" }}
+            onMouseEnter={e => { e.currentTarget.style.backgroundColor = `${primaryColor}10`; e.currentTarget.style.color = primaryColor; }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#f1f5f9"; e.currentTarget.style.color = "#64748b"; }}
+          >
+            <Home className="h-3.5 w-3.5" />
+            Help Center
+          </Link>
           {collectionName && collectionSlug && (
             <>
-              <ChevronRight className="h-3.5 w-3.5" style={{ color: "#d1d5db" }} />
-              <Link to={`${helpBase}/c/${collectionSlug}`} className="hover:underline transition-colors" style={{ color: "#6b7280" }}>{collectionName}</Link>
+              <ChevronRight className="h-3.5 w-3.5" style={{ color: "#cbd5e1" }} />
+              <Link
+                to={`${helpBase}/c/${collectionSlug}`}
+                className="px-3 py-1 rounded-full text-sm transition-all duration-200"
+                style={{ color: "#64748b", backgroundColor: "#f1f5f9" }}
+                onMouseEnter={e => { e.currentTarget.style.backgroundColor = `${primaryColor}10`; e.currentTarget.style.color = primaryColor; }}
+                onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#f1f5f9"; e.currentTarget.style.color = "#64748b"; }}
+              >
+                {collectionName}
+              </Link>
             </>
           )}
-          <ChevronRight className="h-3.5 w-3.5" style={{ color: "#d1d5db" }} />
-          <span className="font-medium" style={{ color: "#111827" }}>{article.title}</span>
         </nav>
 
         <article>
-          <h1 className="text-3xl font-bold mb-3 tracking-tight" style={{ color: "#111827" }}>{article.title}</h1>
-          {article.subtitle && <p className="text-lg mb-8" style={{ color: "#6b7280" }}>{article.subtitle}</p>}
+          {/* Article header */}
+          <div className="mb-8">
+            <h1 className="text-3xl sm:text-4xl font-bold mb-3 tracking-tight leading-tight" style={{ color: "#0f172a" }}>{article.title}</h1>
+            {article.subtitle && <p className="text-lg font-light leading-relaxed" style={{ color: "#64748b" }}>{article.subtitle}</p>}
 
+            {/* Meta info */}
+            <div className="flex items-center gap-4 mt-5 pt-5" style={{ borderTop: "1px solid #f1f5f9" }}>
+              <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "#94a3b8" }}>
+                <Clock className="h-3.5 w-3.5" />
+                {readingTime} min de leitura
+              </span>
+              {article.updated_at && (
+                <span className="text-xs" style={{ color: "#94a3b8" }}>
+                  Atualizado em {new Date(article.updated_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Content */}
           <div
             ref={contentRef}
-            className="prose prose-sm max-w-none help-article-content"
+            className="prose prose-slate max-w-none help-article-content
+              prose-headings:font-semibold prose-headings:tracking-tight
+              prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg
+              prose-p:leading-relaxed prose-p:text-[#334155]
+              prose-a:font-medium prose-a:no-underline hover:prose-a:underline
+              prose-img:rounded-xl prose-img:shadow-md
+              prose-table:text-sm prose-th:bg-[#f8fafc]
+              prose-blockquote:border-l-4 prose-blockquote:not-italic
+              prose-code:text-sm prose-code:bg-[#f1f5f9] prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md
+              prose-pre:bg-[#1e293b] prose-pre:rounded-xl"
+            style={{
+              "--tw-prose-links": primaryColor,
+              "--tw-prose-quotes": primaryColor,
+              "--tw-prose-quote-borders": primaryColor,
+            } as React.CSSProperties}
             dangerouslySetInnerHTML={{ __html: htmlContent }}
           />
         </article>

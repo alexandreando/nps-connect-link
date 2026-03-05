@@ -44,7 +44,7 @@ export default function HelpCollections() {
     const { data: cols } = await supabase.from("help_collections").select("*").eq("tenant_id", tenantId!).order("order_index");
 
     // Get article counts
-    const { data: articles } = await supabase.from("help_articles").select("collection_id").eq("tenant_id", tenantId!).not("collection_id", "is", null);
+    const { data: articles } = await supabase.from("help_articles").select("collection_id").eq("tenant_id", tenantId!).eq("status", "published").not("collection_id", "is", null);
     const countMap: Record<string, number> = {};
     (articles ?? []).forEach(a => { if (a.collection_id) countMap[a.collection_id] = (countMap[a.collection_id] || 0) + 1; });
 

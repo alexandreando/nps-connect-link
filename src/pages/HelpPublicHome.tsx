@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, FileText, ChevronRight } from "lucide-react";
+import { Search, FileText, ChevronRight, BookOpen } from "lucide-react";
 import HelpPublicLayout from "@/components/help/HelpPublicLayout";
 
 interface SiteSettings {
@@ -80,17 +80,21 @@ export default function HelpPublicHome() {
   useEffect(() => { if (tenantId) loadData(); }, [tenantId]);
 
   const loadData = async () => {
-    const [{ data: site }, { data: cols }, { data: arts }] = await Promise.all([
+    // Fetch settings, collections, recent articles, and ALL published article counts in parallel
+    const [{ data: site }, { data: cols }, { data: arts }, { data: allArticles }] = await Promise.all([
       supabase.from("help_site_settings").select("*").eq("tenant_id", tenantId!).maybeSingle(),
       supabase.from("help_collections").select("id, name, slug, description, icon").eq("tenant_id", tenantId!).eq("status", "active").order("order_index"),
       supabase.from("help_articles").select("id, title, subtitle, slug, collection_id").eq("tenant_id", tenantId!).eq("status", "published").order("published_at", { ascending: false }).limit(10),
+      // Separate count query — no limit, only collection_id
+      supabase.from("help_articles").select("collection_id").eq("tenant_id", tenantId!).eq("status", "published").not("collection_id", "is", null),
     ]);
 
     if (site) setSettings(site as any);
     else setSettings({ home_title: "Central de Ajuda", home_subtitle: "Como podemos ajudar?", theme: "light", brand_logo_url: null, brand_primary_color: "#3B82F6" });
 
+    // Build count map from ALL published articles (not limited to 10)
     const countMap: Record<string, number> = {};
-    (arts ?? []).forEach(a => { if (a.collection_id) countMap[a.collection_id] = (countMap[a.collection_id] || 0) + 1; });
+    (allArticles ?? []).forEach(a => { if (a.collection_id) countMap[a.collection_id] = (countMap[a.collection_id] || 0) + 1; });
     setCollections((cols ?? []).map(c => ({ ...c, article_count: countMap[c.id] || 0 })));
     setRecentArticles((arts ?? []).map(a => ({ id: a.id, title: a.title, subtitle: a.subtitle, slug: a.slug })));
     setLoading(false);
@@ -112,12 +116,12 @@ export default function HelpPublicHome() {
   }, [search, tenantId]);
 
   if (loading) return (
-    <div className="light flex items-center justify-center min-h-screen" style={{ background: "#fff" }}>
+    <div className="light flex items-center justify-center min-h-screen" style={{ background: "#f8fafc" }}>
       <div className="h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: "#3B82F6", borderTopColor: "transparent" }} />
     </div>
   );
   if (!tenantId) return (
-    <div className="light flex items-center justify-center min-h-screen" style={{ background: "#fff", color: "#6b7280" }}>Help Center not found</div>
+    <div className="light flex items-center justify-center min-h-screen" style={{ background: "#f8fafc", color: "#6b7280" }}>Help Center not found</div>
   );
 
   const primaryColor = settings?.brand_primary_color || "#3B82F6";
@@ -128,11 +132,11 @@ export default function HelpPublicHome() {
     <HelpPublicLayout settings={settings} helpBase={helpBase}>
       {/* Hero */}
       <div
-        className="relative py-20 px-4 text-center overflow-hidden"
+        className="relative py-24 px-4 text-center overflow-hidden"
         style={{
           background: heroImage
             ? undefined
-            : `linear-gradient(135deg, ${primaryColor}15, ${primaryColor}05, #f9fafb)`,
+            : `linear-gradient(180deg, ${primaryColor}0a 0%, ${primaryColor}03 50%, #f8fafc 100%)`,
         }}
       >
         {heroImage && (
@@ -150,53 +154,52 @@ export default function HelpPublicHome() {
 
         <div className="relative z-10 max-w-2xl mx-auto">
           <h1
-            className="text-4xl font-bold mb-3 tracking-tight"
-            style={{ color: heroImage ? "#ffffff" : "#111827" }}
+            className="text-4xl sm:text-5xl font-bold mb-4 tracking-tight leading-tight"
+            style={{ color: heroImage ? "#ffffff" : "#0f172a" }}
           >
             {settings?.home_title || "Central de Ajuda"}
           </h1>
           <p
-            className="text-lg mb-8"
-            style={{ color: heroImage ? "rgba(255,255,255,0.85)" : "#6b7280" }}
+            className="text-lg sm:text-xl mb-10 font-light"
+            style={{ color: heroImage ? "rgba(255,255,255,0.85)" : "#64748b" }}
           >
             {settings?.home_subtitle || "Como podemos ajudar?"}
           </p>
 
           {/* Search */}
-          <div className="relative max-w-lg mx-auto">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5" style={{ color: "#9ca3af" }} />
+          <div className="relative max-w-xl mx-auto">
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5" style={{ color: "#94a3b8" }} />
             <input
               placeholder="Buscar na base de conhecimento..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-12 pr-4 h-13 text-base rounded-xl border shadow-lg focus:outline-none focus:ring-2 transition-shadow"
+              className="w-full pl-14 pr-5 h-14 text-base rounded-2xl border-0 shadow-lg focus:outline-none focus:ring-2 transition-all duration-300"
               style={{
                 backgroundColor: "#ffffff",
-                borderColor: "#e5e7eb",
-                color: "#111827",
-                boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+                color: "#0f172a",
+                boxShadow: "0 4px 24px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
               }}
-              onFocus={e => { e.target.style.boxShadow = `0 4px 20px ${primaryColor}25`; e.target.style.borderColor = primaryColor; }}
-              onBlur={e => { e.target.style.boxShadow = "0 4px 20px rgba(0,0,0,0.08)"; e.target.style.borderColor = "#e5e7eb"; }}
+              onFocus={e => { e.target.style.boxShadow = `0 4px 24px ${primaryColor}20, 0 0 0 2px ${primaryColor}40`; }}
+              onBlur={e => { e.target.style.boxShadow = "0 4px 24px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)"; }}
             />
             {searchResults.length > 0 && (
               <div
-                className="absolute top-full left-0 right-0 mt-2 rounded-xl shadow-xl z-10 max-h-72 overflow-auto border"
-                style={{ backgroundColor: "#ffffff", borderColor: "#e5e7eb" }}
+                className="absolute top-full left-0 right-0 mt-3 rounded-2xl shadow-2xl z-10 max-h-80 overflow-auto border"
+                style={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0" }}
               >
-                {searchResults.map(r => (
+                {searchResults.map((r, idx) => (
                   <Link
                     key={r.id}
                     to={`${helpBase}/a/${r.slug}`}
-                    className="flex items-center gap-3 px-4 py-3 transition-colors border-b last:border-0"
-                    style={{ borderColor: "#f3f4f6" }}
-                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f9fafb")}
+                    className="flex items-center gap-3 px-5 py-3.5 transition-all duration-150"
+                    style={{ borderBottom: idx < searchResults.length - 1 ? "1px solid #f1f5f9" : "none" }}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f8fafc")}
                     onMouseLeave={e => (e.currentTarget.style.backgroundColor = "#ffffff")}
                   >
-                    <FileText className="h-4 w-4 flex-shrink-0" style={{ color: "#9ca3af" }} />
-                    <div>
-                      <p className="font-medium text-sm" style={{ color: "#111827" }}>{r.title}</p>
-                      {r.subtitle && <p className="text-xs mt-0.5" style={{ color: "#6b7280" }}>{r.subtitle}</p>}
+                    <FileText className="h-4 w-4 flex-shrink-0" style={{ color: "#94a3b8" }} />
+                    <div className="text-left">
+                      <p className="font-medium text-sm" style={{ color: "#0f172a" }}>{r.title}</p>
+                      {r.subtitle && <p className="text-xs mt-0.5" style={{ color: "#64748b" }}>{r.subtitle}</p>}
                     </div>
                   </Link>
                 ))}
@@ -206,25 +209,40 @@ export default function HelpPublicHome() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-14">
         {/* Collections grid */}
         {collections.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-14">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-16">
             {collections.map(col => (
               <Link
                 key={col.id}
                 to={`${helpBase}/c/${col.slug}`}
-                className="group block p-6 rounded-xl border transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
-                style={{ backgroundColor: "#ffffff", borderColor: "#e5e7eb" }}
+                className="group block p-6 rounded-2xl border transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative overflow-hidden"
+                style={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = `${primaryColor}40`; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; }}
               >
-                <span className="text-3xl mb-3 block">{col.icon || "📚"}</span>
-                <h3 className="font-semibold text-base mb-1.5" style={{ color: "#111827" }}>{col.name}</h3>
-                {col.description && (
-                  <p className="text-sm leading-relaxed mb-3 line-clamp-2" style={{ color: "#6b7280" }}>{col.description}</p>
-                )}
-                <span className="inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full" style={{ backgroundColor: `${primaryColor}10`, color: primaryColor }}>
-                  {col.article_count} artigos
-                </span>
+                {/* Accent bar */}
+                <div
+                  className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                  style={{ backgroundColor: primaryColor }}
+                />
+                <div className="flex items-start gap-4">
+                  <span className="text-3xl flex-shrink-0">{col.icon || "📚"}</span>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-base mb-1" style={{ color: "#0f172a" }}>{col.name}</h3>
+                    {col.description && (
+                      <p className="text-sm leading-relaxed mb-3 line-clamp-2" style={{ color: "#64748b" }}>{col.description}</p>
+                    )}
+                    <span
+                      className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full"
+                      style={{ backgroundColor: `${primaryColor}0d`, color: primaryColor }}
+                    >
+                      <BookOpen className="h-3 w-3" />
+                      {col.article_count} {col.article_count === 1 ? "artigo" : "artigos"}
+                    </span>
+                  </div>
+                </div>
               </Link>
             ))}
           </div>
@@ -233,25 +251,31 @@ export default function HelpPublicHome() {
         {/* Recent articles */}
         {recentArticles.length > 0 && (
           <div>
-            <h2 className="text-xl font-semibold mb-5" style={{ color: "#111827" }}>Artigos Recentes</h2>
-            <div className="space-y-2">
+            <h2 className="text-xl font-semibold mb-6" style={{ color: "#0f172a" }}>Artigos Recentes</h2>
+            <div className="space-y-1">
               {recentArticles.map(art => (
                 <Link
                   key={art.id}
                   to={`${helpBase}/a/${art.slug}`}
-                  className="flex items-center justify-between p-4 rounded-lg border transition-colors group"
-                  style={{ borderColor: "#f3f4f6" }}
-                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f9fafb")}
-                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+                  className="flex items-center justify-between p-4 rounded-xl transition-all duration-200 group"
+                  style={{ borderLeft: "3px solid transparent" }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.backgroundColor = "#f8fafc";
+                    e.currentTarget.style.borderLeftColor = primaryColor;
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                    e.currentTarget.style.borderLeftColor = "transparent";
+                  }}
                 >
                   <div className="flex items-center gap-3">
-                    <FileText className="h-4 w-4 flex-shrink-0" style={{ color: "#d1d5db" }} />
+                    <FileText className="h-4 w-4 flex-shrink-0" style={{ color: "#cbd5e1" }} />
                     <div>
-                      <p className="font-medium text-sm" style={{ color: "#111827" }}>{art.title}</p>
-                      {art.subtitle && <p className="text-xs mt-0.5" style={{ color: "#6b7280" }}>{art.subtitle}</p>}
+                      <p className="font-medium text-sm" style={{ color: "#0f172a" }}>{art.title}</p>
+                      {art.subtitle && <p className="text-xs mt-0.5" style={{ color: "#64748b" }}>{art.subtitle}</p>}
                     </div>
                   </div>
-                  <ChevronRight className="h-4 w-4 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "#9ca3af" }} />
+                  <ChevronRight className="h-4 w-4 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-0 group-hover:translate-x-0.5" style={{ color: primaryColor }} />
                 </Link>
               ))}
             </div>
