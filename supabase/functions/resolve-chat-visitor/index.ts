@@ -686,4 +686,44 @@ async function applyCustomData(
       .update({ custom_fields: merged, updated_at: new Date().toISOString() })
       .eq("id", contactId);
   }
+
+  // --- Auto-categorize based on field rules ---
+  await applyCategoryFieldRules(supabase, contactId, customData);
+}
+
+// --- Helper: Check category field rules and auto-assign service_category_id ---
+async function applyCategoryFieldRules(
+  supabase: any,
+  contactId: string,
+  customData: Record<string, any>
+) {
+  // Get tenant from contact
+  const { data: contact } = await supabase
+    .from("contacts")
+    .select("tenant_id, custom_fields")
+    .eq("id", contactId)
+    .single();
+
+  if (!contact?.tenant_id) return;
+
+  const { data: rules } = await supabase
+    .from("chat_category_field_rules")
+    .select("category_id, field_key, field_value")
+    .eq("tenant_id", contact.tenant_id);
+
+  if (!rules || rules.length === 0) return;
+
+  const cf = { ...(contact.custom_fields || {}), ...customData };
+
+  for (const rule of rules) {
+    const fieldVal = cf[rule.field_key];
+    if (fieldVal !== undefined && String(fieldVal) === rule.field_value) {
+      console.log(`[applyCategoryFieldRules] Match: ${rule.field_key}=${rule.field_value} → category ${rule.category_id}`);
+      await supabase
+        .from("contacts")
+        .update({ service_category_id: rule.category_id, updated_at: new Date().toISOString() })
+        .eq("id", contactId);
+      return; // First match wins
+    }
+  }
 }

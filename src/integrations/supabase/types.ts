@@ -900,6 +900,48 @@ export type Database = {
           },
         ]
       }
+      chat_category_field_rules: {
+        Row: {
+          category_id: string
+          created_at: string | null
+          field_key: string
+          field_value: string
+          id: string
+          tenant_id: string | null
+        }
+        Insert: {
+          category_id: string
+          created_at?: string | null
+          field_key: string
+          field_value: string
+          id?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          category_id?: string
+          created_at?: string | null
+          field_key?: string
+          field_value?: string
+          id?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_category_field_rules_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "chat_service_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_category_field_rules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_category_teams: {
         Row: {
           category_id: string
