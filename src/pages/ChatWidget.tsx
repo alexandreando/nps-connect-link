@@ -733,48 +733,32 @@ const ChatWidget = () => {
       }
     }
 
-    // Check if original attendant is available for direct re-assignment
+    // Client reopen: ALWAYS return to original attendant, no capacity/status check
     const { data: roomData } = await supabase
       .from("chat_rooms")
       .select("attendant_id")
       .eq("id", reopenRoomId)
       .maybeSingle();
 
-    let directAssigned = false;
+    // Reactivate room keeping the existing attendant_id
+    await supabase.from("chat_rooms").update({
+      status: "active",
+      closed_at: null,
+      resolution_status: null,
+    }).eq("id", reopenRoomId);
 
+    // Increment attendant's active_conversations
     if (roomData?.attendant_id) {
-      // Check attendant availability
       const { data: att } = await supabase
         .from("attendant_profiles")
-        .select("id, status, active_conversations, max_conversations")
+        .select("active_conversations")
         .eq("id", roomData.attendant_id)
         .maybeSingle();
-
-      if (att && att.status === "online" && (att.active_conversations ?? 0) < (att.max_conversations ?? 5)) {
-        // Direct assign — attendant is available
-        await supabase.from("chat_rooms").update({
-          status: "active",
-          closed_at: null,
-          resolution_status: null,
-        }).eq("id", reopenRoomId);
-
-        // Increment active_conversations
+      if (att) {
         await supabase.from("attendant_profiles").update({
           active_conversations: (att.active_conversations ?? 0) + 1,
-        }).eq("id", att.id);
-
-        directAssigned = true;
+        }).eq("id", roomData.attendant_id);
       }
-    }
-
-    if (!directAssigned) {
-      // Fallback: go to waiting queue
-      await supabase.from("chat_rooms").update({
-        status: "waiting",
-        closed_at: null,
-        resolution_status: null,
-        attendant_id: null,
-      }).eq("id", reopenRoomId);
     }
 
     // System message with chain_reset metadata
@@ -788,11 +772,8 @@ const ChatWidget = () => {
     });
 
     setRoomId(reopenRoomId);
-    setPhase(directAssigned ? "chat" : "waiting");
+    setPhase("chat");
     fetchMessages(reopenRoomId);
-    if (!directAssigned) {
-      await checkRoomAssignment(reopenRoomId);
-    }
     setLoading(false);
   };
 
