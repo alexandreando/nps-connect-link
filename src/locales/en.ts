@@ -1322,6 +1322,12 @@ export default {
   "chat.categories.default": "Default",
   "chat.categories.defaultQueue": "Default Queue",
   "chat.categories.cannotDeleteDefault": "The default queue cannot be deleted",
+  "chat.categories.autoRules": "Auto rules",
+  "chat.categories.selectField": "Select field",
+  "chat.categories.fieldValue": "Value",
+  "chat.categories.addRule": "Add",
+  "chat.categories.noFieldDefs": "No custom fields defined",
+  "chat.categories.syncing": "Syncing companies...",
 
   // Unified Add Button
   "companies.add": "Add",

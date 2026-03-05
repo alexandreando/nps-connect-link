@@ -1345,6 +1345,12 @@ export default {
   "chat.categories.default": "Padrão",
   "chat.categories.defaultQueue": "Fila Padrão",
   "chat.categories.cannotDeleteDefault": "A fila padrão não pode ser excluída",
+  "chat.categories.autoRules": "Regras automáticas",
+  "chat.categories.selectField": "Selecionar campo",
+  "chat.categories.fieldValue": "Valor",
+  "chat.categories.addRule": "Adicionar",
+  "chat.categories.noFieldDefs": "Nenhum campo customizado definido",
+  "chat.categories.syncing": "Sincronizando empresas...",
 
   // Unified Add Button
   "companies.add": "Adicionar",

@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Edit, Trash2, Tag, X, Search, Shield } from "lucide-react";
 import { AssignmentConfigPanel } from "@/components/chat/AssignmentConfigPanel";
+import { CategoryFieldRules } from "@/components/chat/CategoryFieldRules";
 
 interface Category {
   id: string;
@@ -42,6 +43,8 @@ const CategoriesTab = () => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [categoryTeams, setCategoryTeams] = useState<{ id: string; category_id: string; team_id: string }[]>([]);
+  const [fieldRules, setFieldRules] = useState<{ id: string; category_id: string; field_key: string; field_value: string }[]>([]);
+  const [fieldDefs, setFieldDefs] = useState<{ key: string; label: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCat, setEditingCat] = useState<Category | null>(null);
@@ -56,11 +59,13 @@ const CategoriesTab = () => {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [{ data: cats }, { data: tms }, { data: comps }, { data: catTeams }] = await Promise.all([
+    const [{ data: cats }, { data: tms }, { data: comps }, { data: catTeams }, { data: rules }, { data: defs }] = await Promise.all([
       supabase.from("chat_service_categories").select("id, name, description, color, is_default").order("name"),
       supabase.from("chat_teams").select("id, name").order("name"),
       supabase.from("contacts").select("id, name, trade_name, service_category_id").eq("is_company", true).order("name"),
       supabase.from("chat_category_teams").select("id, category_id, team_id"),
+      supabase.from("chat_category_field_rules" as any).select("id, category_id, field_key, field_value"),
+      supabase.from("chat_custom_field_definitions").select("key, label").eq("target", "company").eq("is_active", true),
     ]);
 
     let allCats = (cats as Category[]) ?? [];
@@ -120,6 +125,8 @@ const CategoriesTab = () => {
     setTeams(tms ?? []);
     setCompanies((comps as Company[]) ?? []);
     setCategoryTeams((catTeams as any[]) ?? []);
+    setFieldRules(((rules as unknown) as { id: string; category_id: string; field_key: string; field_value: string }[]) ?? []);
+    setFieldDefs(((defs as unknown) as { key: string; label: string }[]) ?? []);
     setLoading(false);
   };
 
@@ -322,6 +329,14 @@ const CategoriesTab = () => {
                       })}
                     </div>
                   )}
+
+                  {/* Auto Rules */}
+                  <CategoryFieldRules
+                    categoryId={cat.id}
+                    rules={fieldRules}
+                    fieldDefs={fieldDefs}
+                    onChanged={fetchAll}
+                  />
 
                   {/* Companies */}
                   <div>
