@@ -708,22 +708,50 @@ async function applyCategoryFieldRules(
 
   const { data: rules } = await supabase
     .from("chat_category_field_rules")
-    .select("category_id, field_key, field_value")
+    .select("category_id, field_key, field_value, field_source, operator")
     .eq("tenant_id", contact.tenant_id);
 
   if (!rules || rules.length === 0) return;
 
+  // Fetch full contact for native field access
+  const { data: fullContact } = await supabase
+    .from("contacts")
+    .select("name, email, company_document, company_sector, city, state, external_id, service_priority, cs_status, mrr, contract_value, health_score")
+    .eq("id", contactId)
+    .single();
+
   const cf = { ...(contact.custom_fields || {}), ...customData };
 
   for (const rule of rules) {
-    const fieldVal = cf[rule.field_key];
-    if (fieldVal !== undefined && String(fieldVal) === rule.field_value) {
-      console.log(`[applyCategoryFieldRules] Match: ${rule.field_key}=${rule.field_value} → category ${rule.category_id}`);
+    const rawVal = rule.field_source === "native"
+      ? fullContact?.[rule.field_key]
+      : cf[rule.field_key];
+
+    if (rawVal === undefined || rawVal === null) continue;
+
+    if (matchRuleValue(rawVal, rule.field_value, rule.operator)) {
+      console.log(`[applyCategoryFieldRules] Match: ${rule.field_source}.${rule.field_key} ${rule.operator} ${rule.field_value} → category ${rule.category_id}`);
       await supabase
         .from("contacts")
         .update({ service_category_id: rule.category_id, updated_at: new Date().toISOString() })
         .eq("id", contactId);
       return; // First match wins
     }
+  }
+}
+
+function matchRuleValue(rawVal: any, ruleValue: string, operator: string): boolean {
+  if (!operator || operator === "equals") {
+    return String(rawVal) === ruleValue;
+  }
+  const numA = Number(rawVal);
+  const numB = Number(ruleValue);
+  if (isNaN(numA) || isNaN(numB)) return false;
+  switch (operator) {
+    case "greater_than": return numA > numB;
+    case "less_than": return numA < numB;
+    case "greater_or_equal": return numA >= numB;
+    case "less_or_equal": return numA <= numB;
+    default: return String(rawVal) === ruleValue;
   }
 }
