@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -15,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Users, Link as LinkIcon, Loader2, Copy, Filter, X } from "lucide-react";
+import { Search, Users, Loader2, Copy, Filter, X, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -45,6 +44,8 @@ interface PersonWithCompany {
   company_trade_name: string | null;
 }
 
+const PAGE_SIZE = 50;
+
 const People = () => {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -52,35 +53,105 @@ const People = () => {
   const [companyFilter, setCompanyFilter] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [people, setPeople] = useState<PersonWithCompany[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  // Filter options
+  const [filterOptions, setFilterOptions] = useState<{
+    companies: string[]; roles: string[]; departments: string[];
+  }>({ companies: [], roles: [], departments: [] });
   const { t } = useLanguage();
   const { toast } = useToast();
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(0);
+    }, 300);
     return () => clearTimeout(timer);
   }, [search]);
 
-  const { data: people = [], isLoading } = useQuery({
-    queryKey: ["people-list", debouncedSearch],
-    queryFn: async () => {
+  // Reset page on filter change
+  useEffect(() => {
+    setPage(0);
+  }, [companyFilter, roleFilter, departmentFilter]);
+
+  // Fetch filter options once
+  useEffect(() => {
+    fetchFilterOptions();
+  }, []);
+
+  // Fetch people when page/search/filters change
+  useEffect(() => {
+    fetchPeople();
+  }, [page, debouncedSearch, companyFilter, roleFilter, departmentFilter]);
+
+  const fetchFilterOptions = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from("company_contacts")
+      .select("role, department");
+
+    if (!data) return;
+
+    const roles = [...new Set(data.map(c => c.role).filter(Boolean))] as string[];
+    const departments = [...new Set(data.map(c => c.department).filter(Boolean))] as string[];
+
+    // Fetch company names for filter
+    const { data: companiesData } = await supabase
+      .from("contacts")
+      .select("name, trade_name")
+      .eq("is_company", true);
+
+    const companies = [...new Set((companiesData || []).map(c => c.trade_name || c.name).filter(Boolean))] as string[];
+
+    setFilterOptions({
+      companies: companies.sort(),
+      roles: roles.sort(),
+      departments: departments.sort(),
+    });
+  };
+
+  const fetchPeople = async () => {
+    try {
+      setIsLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
+      if (!user) return;
 
       let query = supabase
         .from("company_contacts")
-        .select("*")
+        .select("*", { count: "exact" })
         .order("name");
 
+      // Server-side search
       if (debouncedSearch.trim()) {
         const sanitized = sanitizeFilterValue(debouncedSearch.trim());
         query = query.or(`name.ilike.%${sanitized}%,email.ilike.%${sanitized}%`);
       }
 
-      const { data: contacts, error } = await query;
-      if (error) throw error;
-      if (!contacts || contacts.length === 0) return [];
+      // Server-side filters
+      if (roleFilter) query = query.eq("role", roleFilter);
+      if (departmentFilter) query = query.eq("department", departmentFilter);
 
-      // Fetch companies for all contacts
+      // Pagination
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      query = query.range(from, to);
+
+      const { data: contacts, error, count } = await query;
+      if (error) throw error;
+
+      setTotalCount(count || 0);
+
+      if (!contacts || contacts.length === 0) {
+        setPeople([]);
+        return;
+      }
+
+      // Fetch companies for current page's contacts only
       const companyIds = [...new Set(contacts.map((c) => c.company_id))];
       const BATCH_SIZE = 100;
       let companies: any[] = [];
@@ -95,10 +166,10 @@ const People = () => {
       }
 
       const companyMap = new Map(
-        (companies || []).map((c) => [c.id, { name: c.name, trade_name: c.trade_name }])
+        companies.map((c) => [c.id, { name: c.name, trade_name: c.trade_name }])
       );
 
-      return contacts.map((contact): PersonWithCompany => {
+      const mapped = contacts.map((contact): PersonWithCompany => {
         const company = companyMap.get(contact.company_id);
         return {
           id: contact.id,
@@ -119,8 +190,19 @@ const People = () => {
           company_trade_name: company?.trade_name || null,
         };
       });
-    },
-  });
+
+      // Client-side company name filter (since it's a join)
+      const filtered = companyFilter
+        ? mapped.filter(p => (p.company_trade_name || p.company_name) === companyFilter)
+        : mapped;
+
+      setPeople(filtered);
+    } catch (error: any) {
+      toast({ title: t("common.error"), description: error.message, variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const copyPortalLink = (token: string | null, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -130,6 +212,11 @@ const People = () => {
     toast({ title: t("people.linkCopied") });
   };
 
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const showingFrom = totalCount === 0 ? 0 : page * PAGE_SIZE + 1;
+  const showingTo = Math.min((page + 1) * PAGE_SIZE, totalCount);
+  const activeFilterCount = [companyFilter, roleFilter, departmentFilter].filter(Boolean).length;
+
   return (
     <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -138,7 +225,7 @@ const People = () => {
               {t("people.title")}
               {!isLoading && (
                 <Badge variant="secondary" className="ml-3 text-sm font-normal">
-                  {people.length}
+                  {totalCount}
                 </Badge>
               )}
             </h1>
@@ -147,72 +234,63 @@ const People = () => {
         </div>
 
         {/* Search & Filters */}
-        {(() => {
-          const companyNames = [...new Set(people.map(p => p.company_trade_name || p.company_name).filter(v => v && v !== "-"))].sort() as string[];
-          const roles = [...new Set(people.map(p => p.role).filter(Boolean))].sort() as string[];
-          const departments = [...new Set(people.map(p => p.department).filter(Boolean))].sort() as string[];
-          const activeFilterCount = [companyFilter, roleFilter, departmentFilter].filter(Boolean).length;
-
-          return (
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="relative max-w-md flex-1 min-w-[140px] sm:min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder={t("people.search")}
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              {companyNames.length > 1 && (
-                <Select value={companyFilter} onValueChange={(v) => setCompanyFilter(v === "all" ? "" : v)}>
-                  <SelectTrigger className="w-[200px]">
-                    <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <SelectValue placeholder={t("people.filterByCompany")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("people.allCompanies")}</SelectItem>
-                    {companyNames.map(c => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              {roles.length > 1 && (
-                <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v === "all" ? "" : v)}>
-                  <SelectTrigger className="w-[170px]">
-                    <SelectValue placeholder={t("people.filterByRole")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("people.allRoles")}</SelectItem>
-                    {roles.map(r => (
-                      <SelectItem key={r} value={r}>{r}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              {departments.length > 1 && (
-                <Select value={departmentFilter} onValueChange={(v) => setDepartmentFilter(v === "all" ? "" : v)}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder={t("people.filterByDepartment")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("people.allDepartments")}</SelectItem>
-                    {departments.map(d => (
-                      <SelectItem key={d} value={d}>{d}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              {activeFilterCount > 0 && (
-                <Button variant="ghost" size="sm" onClick={() => { setCompanyFilter(""); setRoleFilter(""); setDepartmentFilter(""); }}>
-                  <X className="h-4 w-4 mr-1" />
-                  {activeFilterCount} {t("people.activeFilters")}
-                </Button>
-              )}
-            </div>
-          );
-        })()}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="relative max-w-md flex-1 min-w-[140px] sm:min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder={t("people.search")}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          {filterOptions.companies.length > 1 && (
+            <Select value={companyFilter} onValueChange={(v) => setCompanyFilter(v === "all" ? "" : v)}>
+              <SelectTrigger className="w-[200px]">
+                <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
+                <SelectValue placeholder={t("people.filterByCompany")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("people.allCompanies")}</SelectItem>
+                {filterOptions.companies.map(c => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {filterOptions.roles.length > 1 && (
+            <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v === "all" ? "" : v)}>
+              <SelectTrigger className="w-[170px]">
+                <SelectValue placeholder={t("people.filterByRole")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("people.allRoles")}</SelectItem>
+                {filterOptions.roles.map(r => (
+                  <SelectItem key={r} value={r}>{r}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {filterOptions.departments.length > 1 && (
+            <Select value={departmentFilter} onValueChange={(v) => setDepartmentFilter(v === "all" ? "" : v)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder={t("people.filterByDepartment")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("people.allDepartments")}</SelectItem>
+                {filterOptions.departments.map(d => (
+                  <SelectItem key={d} value={d}>{d}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {activeFilterCount > 0 && (
+            <Button variant="ghost" size="sm" onClick={() => { setCompanyFilter(""); setRoleFilter(""); setDepartmentFilter(""); }}>
+              <X className="h-4 w-4 mr-1" />
+              {activeFilterCount} {t("people.activeFilters")}
+            </Button>
+          )}
+        </div>
 
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
@@ -224,71 +302,99 @@ const People = () => {
             <p>{t("people.noResults")}</p>
           </div>
         ) : (
-          <div className="rounded-lg border bg-card shadow-sm overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("contacts.name")}</TableHead>
-                  <TableHead>{t("contacts.email")}</TableHead>
-                  <TableHead>{t("people.company")}</TableHead>
-                   <TableHead className="hidden md:table-cell">{t("people.role")}</TableHead>
-                   <TableHead className="hidden md:table-cell">{t("people.phone")}</TableHead>
-                   <TableHead className="text-center hidden lg:table-cell">{t("people.chats")}</TableHead>
-                   <TableHead className="text-center hidden lg:table-cell">{t("people.csat")}</TableHead>
-                   <TableHead className="text-center hidden md:table-cell">{t("people.portal")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {people.filter((person) => {
-                  const displayCompany = person.company_trade_name || person.company_name;
-                  if (companyFilter && displayCompany !== companyFilter) return false;
-                  if (roleFilter && person.role !== roleFilter) return false;
-                  if (departmentFilter && person.department !== departmentFilter) return false;
-                  return true;
-                }).map((person) => (
-                  <TableRow
-                    key={person.id}
-                    className="cursor-pointer"
-                    onClick={() => setSelectedPerson(person)}
-                  >
-                    <TableCell className="font-medium">
-                      {person.name}
-                      {person.is_primary && (
-                        <Badge variant="secondary" className="ml-2 text-xs">
-                          ★
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{person.email}</TableCell>
-                    <TableCell>{person.company_trade_name || person.company_name}</TableCell>
-                    <TableCell className="text-muted-foreground hidden md:table-cell">{person.role || "-"}</TableCell>
-                    <TableCell className="text-muted-foreground hidden md:table-cell">{person.phone || "-"}</TableCell>
-                    <TableCell className="text-center hidden lg:table-cell">{person.chat_total || 0}</TableCell>
-                    <TableCell className="text-center hidden lg:table-cell">
-                      {person.chat_avg_csat
-                        ? `${Number(person.chat_avg_csat).toFixed(1)}/5`
-                        : "-"}
-                    </TableCell>
-                    <TableCell className="text-center hidden md:table-cell">
-                      {person.public_token ? (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={(e) => copyPortalLink(person.public_token, e)}
-                          title={t("people.copyLink")}
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
+          <>
+            <div className="rounded-lg border bg-card shadow-sm overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("contacts.name")}</TableHead>
+                    <TableHead>{t("contacts.email")}</TableHead>
+                    <TableHead>{t("people.company")}</TableHead>
+                     <TableHead className="hidden md:table-cell">{t("people.role")}</TableHead>
+                     <TableHead className="hidden md:table-cell">{t("people.phone")}</TableHead>
+                     <TableHead className="text-center hidden lg:table-cell">{t("people.chats")}</TableHead>
+                     <TableHead className="text-center hidden lg:table-cell">{t("people.csat")}</TableHead>
+                     <TableHead className="text-center hidden md:table-cell">{t("people.portal")}</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {people.map((person) => (
+                    <TableRow
+                      key={person.id}
+                      className="cursor-pointer"
+                      onClick={() => setSelectedPerson(person)}
+                    >
+                      <TableCell className="font-medium">
+                        {person.name}
+                        {person.is_primary && (
+                          <Badge variant="secondary" className="ml-2 text-xs">
+                            ★
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{person.email}</TableCell>
+                      <TableCell>{person.company_trade_name || person.company_name}</TableCell>
+                      <TableCell className="text-muted-foreground hidden md:table-cell">{person.role || "-"}</TableCell>
+                      <TableCell className="text-muted-foreground hidden md:table-cell">{person.phone || "-"}</TableCell>
+                      <TableCell className="text-center hidden lg:table-cell">{person.chat_total || 0}</TableCell>
+                      <TableCell className="text-center hidden lg:table-cell">
+                        {person.chat_avg_csat
+                          ? `${Number(person.chat_avg_csat).toFixed(1)}/5`
+                          : "-"}
+                      </TableCell>
+                      <TableCell className="text-center hidden md:table-cell">
+                        {person.public_token ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => copyPortalLink(person.public_token, e)}
+                            title={t("people.copyLink")}
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-2">
+                <p className="text-sm text-muted-foreground">
+                  {t("pagination.showing").replace("{from}", String(showingFrom)).replace("{to}", String(showingTo)).replace("{total}", String(totalCount))}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    {t("pagination.previous")}
+                  </Button>
+                  <span className="text-sm text-muted-foreground px-2">
+                    {t("pagination.pageOf").replace("{page}", String(page + 1)).replace("{total}", String(totalPages))}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                    disabled={page >= totalPages - 1}
+                  >
+                    {t("pagination.next")}
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         <PersonDetailsSheet

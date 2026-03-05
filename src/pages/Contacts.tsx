@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Loader2, Building2, Users, Upload, ChevronDown, Filter, X } from "lucide-react";
+import { Plus, Loader2, Building2, Users, Upload, ChevronDown, Filter, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Dialog,
@@ -43,6 +43,7 @@ import { QuickContactForm } from "@/components/QuickContactForm";
 import { BulkImportDialog } from "@/components/BulkImportDialog";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { sanitizeFilterValue } from "@/lib/utils";
 
 interface CompanyContact {
   id: string;
@@ -83,10 +84,15 @@ interface Company {
   custom_fields: any;
 }
 
+const PAGE_SIZE = 50;
+
 const Contacts = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchFilter, setSearchFilter] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [addCompanyDialogOpen, setAddCompanyDialogOpen] = useState(false);
   const [addContactDialogOpen, setAddContactDialogOpen] = useState(false);
   const [editCompanyData, setEditCompanyData] = useState<Company | null>(null);
@@ -100,6 +106,12 @@ const Contacts = () => {
   const [priorityFilter, setPriorityFilter] = useState("");
   const [healthFilter, setHealthFilter] = useState("");
   const [npsFilter, setNpsFilter] = useState("");
+  // Filter options from DB
+  const [filterOptions, setFilterOptions] = useState<{
+    sectors: string[]; states: string[]; cities: string[];
+    csStatuses: string[]; priorities: string[];
+    hasHealth: boolean; hasNps: boolean;
+  }>({ sectors: [], states: [], cities: [], csStatuses: [], priorities: [], hasHealth: false, hasNps: false });
   
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -107,22 +119,97 @@ const Contacts = () => {
   const canEdit = hasPermission('contacts', 'edit');
   const canDelete = hasPermission('contacts', 'delete');
 
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchFilter);
+      setPage(0);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchFilter]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(0);
+  }, [sectorFilter, stateFilter, cityFilter, csStatusFilter, priorityFilter, healthFilter, npsFilter]);
+
+  // Fetch filter options once
+  useEffect(() => {
+    fetchFilterOptions();
+  }, []);
+
+  // Fetch companies when page/search/filters change
   useEffect(() => {
     fetchCompanies();
-  }, []);
+  }, [page, debouncedSearch, sectorFilter, stateFilter, cityFilter, csStatusFilter, priorityFilter, healthFilter, npsFilter]);
+
+  const fetchFilterOptions = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from("contacts")
+      .select("company_sector, state, city, cs_status, service_priority, health_score, last_nps_score")
+      .eq("is_company", true);
+
+    if (!data) return;
+
+    const sectors = [...new Set(data.map(c => c.company_sector).filter(Boolean))] as string[];
+    const states = [...new Set(data.map(c => c.state).filter(Boolean))] as string[];
+    const cities = [...new Set(data.map(c => c.city).filter(Boolean))] as string[];
+    const csStatuses = [...new Set(data.map(c => c.cs_status).filter(Boolean))] as string[];
+    const priorities = [...new Set(data.map(c => c.service_priority).filter(Boolean))] as string[];
+    const hasHealth = data.some(c => c.health_score != null);
+    const hasNps = data.some(c => c.last_nps_score != null);
+
+    setFilterOptions({ sectors: sectors.sort(), states: states.sort(), cities: cities.sort(), csStatuses: csStatuses.sort(), priorities: priorities.sort(), hasHealth, hasNps });
+  };
 
   const fetchCompanies = async () => {
     try {
+      setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: companiesData, error: companiesError } = await supabase
+      let query = supabase
         .from("contacts")
-        .select("*")
+        .select("*", { count: "exact" })
         .eq("is_company", true)
         .order("name");
 
+      // Server-side search
+      if (debouncedSearch.trim()) {
+        const sanitized = sanitizeFilterValue(debouncedSearch.trim());
+        query = query.or(`name.ilike.%${sanitized}%,trade_name.ilike.%${sanitized}%,company_document.ilike.%${sanitized}%`);
+      }
+
+      // Server-side filters
+      if (sectorFilter) query = query.eq("company_sector", sectorFilter);
+      if (stateFilter) query = query.eq("state", stateFilter);
+      if (cityFilter) query = query.eq("city", cityFilter);
+      if (csStatusFilter) query = query.eq("cs_status", csStatusFilter);
+      if (priorityFilter) query = query.eq("service_priority", priorityFilter);
+      if (healthFilter) {
+        if (healthFilter === "healthy") query = query.gte("health_score", 70);
+        else if (healthFilter === "warning") query = query.gte("health_score", 40).lt("health_score", 70);
+        else if (healthFilter === "critical") query = query.lt("health_score", 40);
+      }
+      if (npsFilter) {
+        if (npsFilter === "promoter") query = query.gte("last_nps_score", 9);
+        else if (npsFilter === "neutral") query = query.gte("last_nps_score", 7).lte("last_nps_score", 8);
+        else if (npsFilter === "detractor") query = query.lte("last_nps_score", 6).not("last_nps_score", "is", null);
+        else if (npsFilter === "none") query = query.is("last_nps_score", null);
+      }
+
+      // Pagination
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      query = query.range(from, to);
+
+      const { data: companiesData, error: companiesError, count } = await query;
       if (companiesError) throw companiesError;
+
+      setTotalCount(count || 0);
 
       const companyIds = (companiesData || []).map(c => c.id);
       
@@ -302,6 +389,17 @@ const Contacts = () => {
     }
   };
 
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const showingFrom = totalCount === 0 ? 0 : page * PAGE_SIZE + 1;
+  const showingTo = Math.min((page + 1) * PAGE_SIZE, totalCount);
+
+  const activeFilterCount = [sectorFilter, stateFilter, cityFilter, csStatusFilter, priorityFilter, healthFilter, npsFilter].filter(Boolean).length;
+
+  // Filter cities by selected state
+  const filteredCities = stateFilter
+    ? filterOptions.cities // already filtered from DB, but we should re-fetch — for simplicity keep as-is
+    : filterOptions.cities;
+
   const addDropdownContent = (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -343,187 +441,177 @@ const Contacts = () => {
         </div>
 
         {/* Search & Filters */}
-        {!loading && companies.length > 0 && (() => {
-          const sectors = [...new Set(companies.map(c => c.company_sector).filter(Boolean))] as string[];
-          const states = [...new Set(companies.map(c => c.state).filter(Boolean))] as string[];
-          const cities = [...new Set(
-            companies
-              .filter(c => !stateFilter || c.state === stateFilter)
-              .map(c => c.city)
-              .filter(Boolean)
-          )] as string[];
-          const csStatuses = [...new Set(companies.map(c => c.cs_status).filter(Boolean))] as string[];
-          const priorities = [...new Set(companies.map(c => c.service_priority).filter(Boolean))] as string[];
-          const activeFilterCount = [sectorFilter, stateFilter, cityFilter, csStatusFilter, priorityFilter, healthFilter, npsFilter].filter(Boolean).length;
-
-          return (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="relative max-w-md flex-1 min-w-[140px] sm:min-w-[200px]">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder={t("companies.searchPlaceholder")}
-                    value={searchFilter}
-                    onChange={(e) => setSearchFilter(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                {activeFilterCount > 0 && (
-                  <Button variant="ghost" size="sm" onClick={() => { setSectorFilter(""); setStateFilter(""); setCityFilter(""); setCsStatusFilter(""); setPriorityFilter(""); setHealthFilter(""); setNpsFilter(""); }}>
-                    <X className="h-4 w-4 mr-1" />
-                    {activeFilterCount} {t("companies.activeFilters")}
-                  </Button>
-                )}
-              </div>
-              <div className="flex items-center gap-2 flex-wrap bg-muted/30 rounded-xl px-4 py-3">
-                <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
-                {sectors.length > 0 && (
-                  <Select value={sectorFilter} onValueChange={(v) => setSectorFilter(v === "all" ? "" : v)}>
-                    <SelectTrigger className="w-[160px] h-8 text-xs">
-                      <SelectValue placeholder={t("companies.filterBySector")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t("companies.allSectors")}</SelectItem>
-                      {sectors.sort().map(s => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                {states.length > 0 && (
-                  <Select value={stateFilter} onValueChange={(v) => { setStateFilter(v === "all" ? "" : v); setCityFilter(""); }}>
-                    <SelectTrigger className="w-[140px] h-8 text-xs">
-                      <SelectValue placeholder={t("companies.filterByState")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t("companies.allStates")}</SelectItem>
-                      {states.sort().map(s => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                {cities.length > 0 && (
-                  <Select value={cityFilter} onValueChange={(v) => setCityFilter(v === "all" ? "" : v)}>
-                    <SelectTrigger className="w-[160px] h-8 text-xs">
-                      <SelectValue placeholder={t("companies.filterByCity")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t("companies.allCities")}</SelectItem>
-                      {cities.sort().map(s => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                {csStatuses.length > 0 && (
-                  <Select value={csStatusFilter} onValueChange={(v) => setCsStatusFilter(v === "all" ? "" : v)}>
-                    <SelectTrigger className="w-[160px] h-8 text-xs">
-                      <SelectValue placeholder={t("companies.filterByKanban")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t("companies.allKanbanStages")}</SelectItem>
-                      {csStatuses.sort().map(s => (
-                        <SelectItem key={s} value={s}>{t(`cs.status.${s}`) !== `cs.status.${s}` ? t(`cs.status.${s}`) : s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                {priorities.length > 0 && (
-                  <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v === "all" ? "" : v)}>
-                    <SelectTrigger className="w-[140px] h-8 text-xs">
-                      <SelectValue placeholder={t("companies.filterByPriority")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t("companies.allPriorities")}</SelectItem>
-                      {priorities.sort().map(s => (
-                        <SelectItem key={s} value={s}>{t(`companies.priority.${s}`) !== `companies.priority.${s}` ? t(`companies.priority.${s}`) : s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                {companies.some(c => c.health_score != null) && (
-                  <Select value={healthFilter} onValueChange={(v) => setHealthFilter(v === "all" ? "" : v)}>
-                    <SelectTrigger className="w-[150px] h-8 text-xs">
-                      <SelectValue placeholder={t("companies.filterByHealth")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t("companies.allHealthScores")}</SelectItem>
-                      <SelectItem value="healthy">{t("companies.health.healthy")}</SelectItem>
-                      <SelectItem value="warning">{t("companies.health.warning")}</SelectItem>
-                      <SelectItem value="critical">{t("companies.health.critical")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-                {companies.some(c => c.last_nps_score != null) && (
-                  <Select value={npsFilter} onValueChange={(v) => setNpsFilter(v === "all" ? "" : v)}>
-                    <SelectTrigger className="w-[130px] h-8 text-xs">
-                      <SelectValue placeholder={t("companies.filterByNPS")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t("companies.allNPS")}</SelectItem>
-                      <SelectItem value="promoter">{t("companies.nps.promoter")}</SelectItem>
-                      <SelectItem value="neutral">{t("companies.nps.neutral")}</SelectItem>
-                      <SelectItem value="detractor">{t("companies.nps.detractor")}</SelectItem>
-                      <SelectItem value="none">{t("companies.nps.noResponse")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="relative max-w-md flex-1 min-w-[140px] sm:min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={t("companies.searchPlaceholder")}
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                className="pl-10"
+              />
             </div>
-          );
-        })()}
+            {activeFilterCount > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => { setSectorFilter(""); setStateFilter(""); setCityFilter(""); setCsStatusFilter(""); setPriorityFilter(""); setHealthFilter(""); setNpsFilter(""); }}>
+                <X className="h-4 w-4 mr-1" />
+                {activeFilterCount} {t("companies.activeFilters")}
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-wrap bg-muted/30 rounded-xl px-4 py-3">
+            <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+            {filterOptions.sectors.length > 0 && (
+              <Select value={sectorFilter} onValueChange={(v) => setSectorFilter(v === "all" ? "" : v)}>
+                <SelectTrigger className="w-[160px] h-8 text-xs">
+                  <SelectValue placeholder={t("companies.filterBySector")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("companies.allSectors")}</SelectItem>
+                  {filterOptions.sectors.map(s => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {filterOptions.states.length > 0 && (
+              <Select value={stateFilter} onValueChange={(v) => { setStateFilter(v === "all" ? "" : v); setCityFilter(""); }}>
+                <SelectTrigger className="w-[140px] h-8 text-xs">
+                  <SelectValue placeholder={t("companies.filterByState")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("companies.allStates")}</SelectItem>
+                  {filterOptions.states.map(s => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {filteredCities.length > 0 && (
+              <Select value={cityFilter} onValueChange={(v) => setCityFilter(v === "all" ? "" : v)}>
+                <SelectTrigger className="w-[160px] h-8 text-xs">
+                  <SelectValue placeholder={t("companies.filterByCity")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("companies.allCities")}</SelectItem>
+                  {filteredCities.map(s => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {filterOptions.csStatuses.length > 0 && (
+              <Select value={csStatusFilter} onValueChange={(v) => setCsStatusFilter(v === "all" ? "" : v)}>
+                <SelectTrigger className="w-[160px] h-8 text-xs">
+                  <SelectValue placeholder={t("companies.filterByKanban")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("companies.allKanbanStages")}</SelectItem>
+                  {filterOptions.csStatuses.map(s => (
+                    <SelectItem key={s} value={s}>{t(`cs.status.${s}`) !== `cs.status.${s}` ? t(`cs.status.${s}`) : s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {filterOptions.priorities.length > 0 && (
+              <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v === "all" ? "" : v)}>
+                <SelectTrigger className="w-[140px] h-8 text-xs">
+                  <SelectValue placeholder={t("companies.filterByPriority")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("companies.allPriorities")}</SelectItem>
+                  {filterOptions.priorities.map(s => (
+                    <SelectItem key={s} value={s}>{t(`companies.priority.${s}`) !== `companies.priority.${s}` ? t(`companies.priority.${s}`) : s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {filterOptions.hasHealth && (
+              <Select value={healthFilter} onValueChange={(v) => setHealthFilter(v === "all" ? "" : v)}>
+                <SelectTrigger className="w-[150px] h-8 text-xs">
+                  <SelectValue placeholder={t("companies.filterByHealth")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("companies.allHealthScores")}</SelectItem>
+                  <SelectItem value="healthy">{t("companies.health.healthy")}</SelectItem>
+                  <SelectItem value="warning">{t("companies.health.warning")}</SelectItem>
+                  <SelectItem value="critical">{t("companies.health.critical")}</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+            {filterOptions.hasNps && (
+              <Select value={npsFilter} onValueChange={(v) => setNpsFilter(v === "all" ? "" : v)}>
+                <SelectTrigger className="w-[130px] h-8 text-xs">
+                  <SelectValue placeholder={t("companies.filterByNPS")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("companies.allNPS")}</SelectItem>
+                  <SelectItem value="promoter">{t("companies.nps.promoter")}</SelectItem>
+                  <SelectItem value="neutral">{t("companies.nps.neutral")}</SelectItem>
+                  <SelectItem value="detractor">{t("companies.nps.detractor")}</SelectItem>
+                  <SelectItem value="none">{t("companies.nps.noResponse")}</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        </div>
 
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
           </div>
-        ) : companies.length === 0 ? (
+        ) : companies.length === 0 && page === 0 ? (
           <Card className="p-12 text-center">
             <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">{t("companies.noCompanies")}</p>
             {canEdit && <div className="mt-4">{addDropdownContent}</div>}
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {companies.filter((c) => {
-              if (searchFilter.trim()) {
-                const term = searchFilter.toLowerCase();
-                if (!(
-                  c.name.toLowerCase().includes(term) ||
-                  (c.trade_name && c.trade_name.toLowerCase().includes(term)) ||
-                  (c.company_document && c.company_document.includes(term))
-                )) return false;
-              }
-              if (sectorFilter && c.company_sector !== sectorFilter) return false;
-              if (stateFilter && c.state !== stateFilter) return false;
-              if (cityFilter && c.city !== cityFilter) return false;
-              if (csStatusFilter && c.cs_status !== csStatusFilter) return false;
-              if (priorityFilter && c.service_priority !== priorityFilter) return false;
-              if (healthFilter) {
-                const h = c.health_score;
-                if (healthFilter === "healthy" && (h == null || h < 70)) return false;
-                if (healthFilter === "warning" && (h == null || h < 40 || h > 69)) return false;
-                if (healthFilter === "critical" && (h == null || h > 39)) return false;
-              }
-              if (npsFilter) {
-                const n = c.last_nps_score;
-                if (npsFilter === "promoter" && (n == null || n < 9)) return false;
-                if (npsFilter === "neutral" && (n == null || n < 7 || n > 8)) return false;
-                if (npsFilter === "detractor" && (n == null || n > 6)) return false;
-                if (npsFilter === "none" && n != null) return false;
-              }
-              return true;
-            }).map((company) => (
-              <CompanyCard
-                key={company.id}
-                company={company}
-                onClick={() => handleCompanyClick(company)}
-                onDelete={() => setDeleteCompanyId(company.id)}
-                canDelete={canDelete}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {companies.map((company) => (
+                <CompanyCard
+                  key={company.id}
+                  company={company}
+                  onClick={() => handleCompanyClick(company)}
+                  onDelete={() => setDeleteCompanyId(company.id)}
+                  canDelete={canDelete}
+                />
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-4">
+                <p className="text-sm text-muted-foreground">
+                  {t("pagination.showing").replace("{from}", String(showingFrom)).replace("{to}", String(showingTo)).replace("{total}", String(totalCount))}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    {t("pagination.previous")}
+                  </Button>
+                  <span className="text-sm text-muted-foreground px-2">
+                    {t("pagination.pageOf").replace("{page}", String(page + 1)).replace("{total}", String(totalPages))}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                    disabled={page >= totalPages - 1}
+                  >
+                    {t("pagination.next")}
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* Add Company Dialog */}

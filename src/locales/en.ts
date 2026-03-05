@@ -1559,4 +1559,10 @@ export default {
   "chat.articles.empty": "No published articles found",
   "chat.articles.open": "Open article",
   "chat.articles.read": "Read article",
+
+  // Pagination
+  "pagination.previous": "Previous",
+  "pagination.next": "Next",
+  "pagination.pageOf": "Page {page} of {total}",
+  "pagination.showing": "Showing {from}-{to} of {total}",
 };
