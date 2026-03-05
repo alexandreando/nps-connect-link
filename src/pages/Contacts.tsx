@@ -126,15 +126,18 @@ const Contacts = () => {
 
       const companyIds = (companiesData || []).map(c => c.id);
       
+      const BATCH_SIZE = 100;
       let contactsData: any[] = [];
       if (companyIds.length > 0) {
-        const { data, error: contactsError } = await supabase
-          .from("company_contacts")
-          .select("*")
-          .in("company_id", companyIds);
-        
-        if (contactsError) throw contactsError;
-        contactsData = data || [];
+        for (let i = 0; i < companyIds.length; i += BATCH_SIZE) {
+          const batch = companyIds.slice(i, i + BATCH_SIZE);
+          const { data, error: contactsError } = await supabase
+            .from("company_contacts")
+            .select("*")
+            .in("company_id", batch);
+          if (contactsError) throw contactsError;
+          contactsData.push(...(data || []));
+        }
       }
 
       const companiesWithContacts: Company[] = (companiesData || []).map(company => {

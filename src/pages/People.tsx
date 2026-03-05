@@ -82,12 +82,17 @@ const People = () => {
 
       // Fetch companies for all contacts
       const companyIds = [...new Set(contacts.map((c) => c.company_id))];
-      const { data: companies, error: companiesError } = await supabase
-        .from("contacts")
-        .select("id, name, trade_name")
-        .in("id", companyIds);
-
-      if (companiesError) throw companiesError;
+      const BATCH_SIZE = 100;
+      let companies: any[] = [];
+      for (let i = 0; i < companyIds.length; i += BATCH_SIZE) {
+        const batch = companyIds.slice(i, i + BATCH_SIZE);
+        const { data, error: companiesError } = await supabase
+          .from("contacts")
+          .select("id, name, trade_name")
+          .in("id", batch);
+        if (companiesError) throw companiesError;
+        companies.push(...(data || []));
+      }
 
       const companyMap = new Map(
         (companies || []).map((c) => [c.id, { name: c.name, trade_name: c.trade_name }])
