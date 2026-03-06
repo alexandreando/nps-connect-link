@@ -466,20 +466,20 @@ const AdminChatHistory = () => {
                           </TableCell>
                           <TableCell className="text-[13px] tabular-nums hidden lg:table-cell">{formatDuration(duration)}</TableCell>
                           <TableCell className="hidden lg:table-cell">
-                            <div className="flex gap-1 items-center">
+                            <div className="flex gap-1 items-center flex-nowrap max-w-[180px] overflow-hidden">
                               {visibleTags.length > 0
-                                ? visibleTags.map((tag, i) => <Badge key={i} variant="outline" className="text-[10px]" style={{ borderColor: tag.color, color: tag.color }}>{tag.name}</Badge>)
+                                ? visibleTags.map((tag, i) => <Badge key={i} variant="outline" className="text-[10px] py-0 px-1.5 rounded whitespace-nowrap" style={{ borderColor: tag.color, color: tag.color }}>{tag.name}</Badge>)
                                 : "—"}
                               {overflowTags.length > 0 && (
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <Badge variant="secondary" className="text-[10px] cursor-default">+{overflowTags.length}</Badge>
+                                      <Badge variant="secondary" className="text-[10px] py-0 px-1.5 rounded cursor-default whitespace-nowrap">+{overflowTags.length}</Badge>
                                     </TooltipTrigger>
                                     <TooltipContent side="top" className="max-w-[200px]">
                                       <div className="flex flex-wrap gap-1">
                                         {overflowTags.map((tag, i) => (
-                                          <Badge key={i} variant="outline" className="text-[10px]" style={{ borderColor: tag.color, color: tag.color }}>{tag.name}</Badge>
+                                          <Badge key={i} variant="outline" className="text-[10px] py-0 px-1.5 rounded" style={{ borderColor: tag.color, color: tag.color }}>{tag.name}</Badge>
                                         ))}
                                       </div>
                                     </TooltipContent>
