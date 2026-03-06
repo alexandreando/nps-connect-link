@@ -1,40 +1,46 @@
 
 
-# Plan: Fix Internal Note Realtime + Clickable History Rows
+# Plan: Fix Search Dropdown + Help Center UI/UX Improvements
 
-## Issue 1: Internal notes don't appear without refresh
+## 1. Fix: Search dropdown clipped by hero overflow
 
-The `ReadOnlyChatDialog` uses `useChatMessages(open ? roomId : null)`. This hook subscribes to realtime INSERT events on `chat_messages` filtered by `room_id` — so new messages should appear. However, the realtime channel name is `chat-messages-${roomId}`, which may conflict with another subscription in the active workspace using the same channel name for the same room.
+**Root cause**: The hero section (`HelpPublicHome.tsx` line 135) has `overflow-hidden`, which clips the search results dropdown that extends below the hero boundary.
 
-The real problem: the `useChatMessages` hook only subscribes when `roomId` is truthy. When the dialog opens, `open` becomes true and `roomId` is set, triggering the subscription. The subscription IS set up correctly. Let me re-check...
+**Fix in `src/pages/HelpPublicHome.tsx`**:
+- Remove `overflow-hidden` from the hero div
+- Move the search bar + dropdown **outside** the hero section into its own `relative` container positioned between hero and collections, so the dropdown can expand freely without clipping
+- Alternatively, restructure so the search container is `relative` with a high `z-index` and the hero does not clip it — simplest: remove `overflow-hidden` from the hero wrapper and add it only to the background image layer
 
-Actually, looking more carefully: the `handleSendNote` inserts with `sender_type: "attendant"` and `is_internal: true`. The realtime subscription in `useChatMessages` listens for ALL inserts on `chat_messages` with `room_id=eq.${roomId}` — so it should pick it up.
+## 2. Icon Picker for Collections
 
-The issue is likely that the realtime publication for `chat_messages` may not be enabled, OR there's a channel name collision. But since other messages work in the workspace, the publication is enabled.
+**Current state**: The collection form in `HelpCollections.tsx` has a simple text `<Input>` for the icon (line 141). Users must manually type/paste an emoji.
 
-More likely root cause: the `ReadOnlyChatDialog` opens from `AdminChatHistory`, which is a different page from `AdminWorkspace`. The `useChatMessages` hook creates a channel `chat-messages-${roomId}`. If the room is closed, there may be RLS policies preventing the realtime subscription from receiving the INSERT event for the newly inserted message.
+**Improvement in `src/pages/HelpCollections.tsx`**:
+- Replace the text input with a visual icon grid picker
+- Provide a curated set of ~40 icons organized in categories (e.g., General, Tech, Business, Education, Support, People)
+- Icons will be emoji-based for maximum compatibility: 📚 📖 📝 💡 🔧 ⚙️ 🎯 📊 💬 🏠 🔒 🌐 📱 💻 🎨 📦 🚀 ✅ ❓ 📋 🔔 👥 🏢 📈 💰 🛒 📧 🎓 🔍 ⭐ 🏆 🤝 📅 🗂️ 📌 🧩 🛠️ 💎 🌟 🎉
+- Display as a grid of clickable buttons, selected icon highlighted with primary color border
+- Keep the text input as fallback for custom emoji entry
 
-Simplest fix: after the insert succeeds, optimistically append the message to the local state. Since `useChatMessages` manages state internally and doesn't expose a setter, we need to either refetch or add an optimistic update.
+## 3. Public Help Center UI/UX Refresh
 
-**Fix**: After successful insert in `handleSendNote`, call `refetch()` from `useChatMessages` — but the hook doesn't currently expose a way to append. It does expose `refetch: fetchMessages`. So we can call refetch after insert.
+### `src/pages/HelpPublicHome.tsx`
+- **Hero**: Softer gradient, slightly reduced vertical padding (py-20 instead of py-24), better subtitle color contrast
+- **Search**: Slightly smaller border-radius (xl instead of 2xl) for a cleaner look; dropdown with subtle dividers and smooth animation on appear
+- **Collections section**: Add a section title "Coleções" above the grid with a subtle separator; increase card padding slightly; use the collection icon more prominently (larger, with a subtle colored background circle)
+- **Recent Articles section**: Add a subtle card wrapper around the list for better visual separation
 
-Actually `useChatMessages` returns `{ messages, loading, hasMore, loadingMore, loadMore, refetch: fetchMessages }`. The `ReadOnlyChatDialog` only destructures `{ messages, loading }`. We just need to also destructure `refetch` and call it after the insert.
+### `src/components/help/HelpPublicLayout.tsx`
+- No structural changes needed, layout is clean
 
-## Issue 2: History table rows should be fully clickable + hover effect
+### `src/pages/HelpPublicCollection.tsx`
+- Minor: Increase contrast on article count text
 
-Currently only the Eye icon cell (line 429) opens the ReadOnlyChatDialog. The entire row should be clickable, and it should have a hover cursor.
-
-**Fix**: Move the `onClick` handler to the `TableRow` itself, add `cursor-pointer`, and keep `e.stopPropagation()` on the Checkbox and Actions cells.
+### `src/pages/HelpPublicArticle.tsx`
+- No changes needed, article page is well-structured
 
 ## Files to Change
 
-### `src/components/chat/ReadOnlyChatDialog.tsx`
-- Destructure `refetch` from `useChatMessages`
-- Call `refetch()` after successful insert in `handleSendNote`
-
-### `src/pages/AdminChatHistory.tsx`
-- Move `onClick={() => setReadOnlyRoom(...)}` from the Eye cell to the `TableRow`
-- Add `cursor-pointer` to row className
-- Keep `stopPropagation` on Checkbox and Actions cells
-- Remove the dedicated Eye icon cell (or keep it as visual indicator without its own click handler)
+1. **`src/pages/HelpPublicHome.tsx`** — Fix search overflow, UI polish (hero, collections section, search results)
+2. **`src/pages/HelpCollections.tsx`** — Add emoji icon picker grid in the collection create/edit dialog
 
