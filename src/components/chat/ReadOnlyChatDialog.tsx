@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Eye, MessageSquare, RotateCcw } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Send, Eye, MessageSquare, RotateCcw, Clock, Star, User, Building2, ExternalLink, Tag } from "lucide-react";
 import { useChatMessages } from "@/hooks/useChatRealtime";
 import { ChatMessageList } from "@/components/chat/ChatMessageList";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,12 +21,74 @@ interface ReadOnlyChatDialogProps {
   onReopen?: (roomId: string) => void;
 }
 
+interface RoomInfo {
+  attendant_name: string | null;
+  contact_name: string | null;
+  contact_id: string | null;
+  company_contact_id: string | null;
+  csat_score: number | null;
+  csat_comment: string | null;
+  resolution_status: string | null;
+  created_at: string | null;
+  closed_at: string | null;
+  tags: { name: string; color: string }[];
+}
+
 export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange, resolutionStatus, onReopen }: ReadOnlyChatDialogProps) {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { messages, loading, refetch } = useChatMessages(open ? roomId : null);
   const [note, setNote] = useState("");
   const [sending, setSending] = useState(false);
+  const [roomInfo, setRoomInfo] = useState<RoomInfo | null>(null);
+
+  useEffect(() => {
+    if (!roomId || !open) { setRoomInfo(null); return; }
+    const fetchRoomInfo = async () => {
+      const { data: room } = await supabase
+        .from("chat_rooms")
+        .select("attendant_id, contact_id, company_contact_id, csat_score, csat_comment, resolution_status, created_at, closed_at")
+        .eq("id", roomId)
+        .maybeSingle();
+      if (!room) return;
+
+      let attendant_name: string | null = null;
+      if (room.attendant_id) {
+        const { data: att } = await supabase.from("attendant_profiles").select("display_name").eq("id", room.attendant_id).maybeSingle();
+        attendant_name = att?.display_name ?? null;
+      }
+
+      let contact_name: string | null = null;
+      if (room.contact_id) {
+        const { data: contact } = await supabase.from("contacts").select("name").eq("id", room.contact_id).maybeSingle();
+        contact_name = contact?.name ?? null;
+      }
+
+      // Fetch tags
+      const { data: roomTags } = await supabase.from("chat_room_tags").select("tag_id").eq("room_id", roomId);
+      let tags: { name: string; color: string }[] = [];
+      if (roomTags && roomTags.length > 0) {
+        const tagIds = roomTags.map(rt => rt.tag_id);
+        const { data: tagData } = await supabase.from("chat_tags").select("name, color").in("id", tagIds);
+        tags = tagData?.map(t => ({ name: t.name, color: t.color ?? "#6366f1" })) ?? [];
+      }
+
+      setRoomInfo({
+        attendant_name,
+        contact_name,
+        contact_id: room.contact_id,
+        company_contact_id: room.company_contact_id,
+        csat_score: room.csat_score,
+        csat_comment: room.csat_comment,
+        resolution_status: room.resolution_status,
+        created_at: room.created_at,
+        closed_at: room.closed_at,
+        tags,
+      });
+    };
+    fetchRoomInfo();
+  }, [roomId, open]);
 
   const handleSendNote = async () => {
     if (!note.trim() || !roomId || !user) return;
@@ -40,6 +104,21 @@ export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange, re
     setNote("");
     setSending(false);
     if (!error) refetch();
+  };
+
+  const duration = roomInfo?.closed_at && roomInfo?.created_at
+    ? Math.floor((new Date(roomInfo.closed_at).getTime() - new Date(roomInfo.created_at).getTime()) / 60000)
+    : null;
+  const durationStr = duration != null ? (duration < 60 ? `${duration}min` : `${Math.floor(duration / 60)}h${duration % 60 > 0 ? `${duration % 60}min` : ""}`) : null;
+
+  const resolutionBadge = (status: string | null) => {
+    switch (status) {
+      case "resolved": return <Badge className="bg-green-100 text-green-800 text-[10px]">Resolvido</Badge>;
+      case "pending": return <Badge className="bg-orange-100 text-orange-800 text-[10px]">Pendente</Badge>;
+      case "archived": return <Badge className="bg-muted text-muted-foreground text-[10px]">Arquivado</Badge>;
+      case "escalated": return <Badge className="bg-red-100 text-red-800 text-[10px]">Escalado</Badge>;
+      default: return null;
+    }
   };
 
   return (
@@ -67,6 +146,48 @@ export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange, re
             )}
           </div>
         </SheetHeader>
+
+        {/* Room info header */}
+        {roomInfo && (
+          <div className="border rounded-lg p-3 space-y-2 bg-muted/30">
+            <div className="flex flex-wrap items-center gap-2 text-[12px]">
+              {roomInfo.resolution_status && resolutionBadge(roomInfo.resolution_status)}
+              {roomInfo.attendant_name && (
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <User className="h-3 w-3" />{roomInfo.attendant_name}
+                </span>
+              )}
+              {durationStr && (
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <Clock className="h-3 w-3" />{durationStr}
+                </span>
+              )}
+              {roomInfo.csat_score != null && (
+                <span className={`flex items-center gap-1 font-medium ${roomInfo.csat_score <= 2 ? "text-red-500" : roomInfo.csat_score === 3 ? "text-yellow-500" : "text-green-500"}`}>
+                  <Star className="h-3 w-3 fill-current" />{roomInfo.csat_score}/5
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {roomInfo.contact_name && roomInfo.contact_id && (
+                <button
+                  onClick={() => { navigate(`/contacts`); onOpenChange(false); }}
+                  className="flex items-center gap-1 text-[11px] text-primary hover:underline"
+                >
+                  <Building2 className="h-3 w-3" />{roomInfo.contact_name}<ExternalLink className="h-2.5 w-2.5" />
+                </button>
+              )}
+              {roomInfo.tags.length > 0 && (
+                <div className="flex items-center gap-1">
+                  <Tag className="h-3 w-3 text-muted-foreground" />
+                  {roomInfo.tags.map((tag, i) => (
+                    <Badge key={i} variant="outline" className="text-[9px] py-0" style={{ borderColor: tag.color, color: tag.color }}>{tag.name}</Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <ScrollArea className="flex-1 my-4">
           <ChatMessageList messages={messages} loading={loading} />

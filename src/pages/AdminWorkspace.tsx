@@ -396,6 +396,12 @@ const AdminWorkspace = () => {
     setReplyTarget({ id: msg.id, content: msg.content, sender_name: msg.sender_name });
   }, []);
 
+  const handleDeleteMessage = useCallback(async (msgId: string) => {
+    const { error } = await supabase.from("chat_messages").update({ deleted_at: new Date().toISOString() } as any).eq("id", msgId);
+    if (error) toast.error("Erro ao apagar mensagem");
+    else toast.success("Mensagem apagada");
+  }, []);
+
   const handleSendMessage = async (
     content: string,
     isInternal = false,
@@ -549,7 +555,7 @@ const AdminWorkspace = () => {
                 </div>
               </div>
               <div className="flex-1 overflow-auto">
-                <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} typingUser={typingUser} visitorLastReadAt={visitorLastReadAt} />
+                    <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} onDelete={handleDeleteMessage} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} typingUser={typingUser} visitorLastReadAt={visitorLastReadAt} />
               </div>
               {selectedRoom.status !== "closed" && (
                 <>{renderReplyBanner()}<ChatInput onSend={handleSendMessage} roomId={selectedRoomId} senderName={userDisplayName} /></>
@@ -721,7 +727,7 @@ const AdminWorkspace = () => {
                     </div>
                   </div>
                   <div className="flex-1 overflow-auto">
-                    <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} typingUser={typingUser} visitorLastReadAt={visitorLastReadAt} />
+                    <ChatMessageList messages={messages} loading={messagesLoading} onReply={handleReply} onDelete={handleDeleteMessage} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} typingUser={typingUser} visitorLastReadAt={visitorLastReadAt} />
                   </div>
                   {effectiveRoom.status !== "closed" && (
                     <>{renderReplyBanner()}<ChatInput onSend={handleSendMessage} roomId={selectedRoomId} senderName={userDisplayName} /></>

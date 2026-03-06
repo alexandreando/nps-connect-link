@@ -4,11 +4,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useChatHistory } from "@/hooks/useChatHistory";
@@ -16,7 +16,7 @@ import { useAttendants } from "@/hooks/useAttendants";
 import { useAuth } from "@/hooks/useAuth";
 import { ReadOnlyChatDialog } from "@/components/chat/ReadOnlyChatDialog";
 import { format } from "date-fns";
-import { Download, Search, ChevronLeft, ChevronRight, Eye, CalendarIcon, Star, Loader2, RotateCcw, MoreHorizontal, Archive, CheckCircle2 } from "lucide-react";
+import { Download, Search, ChevronLeft, ChevronRight, Eye, CalendarIcon, Star, Loader2, RotateCcw, MoreHorizontal, Archive, CheckCircle2, Filter, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -35,19 +35,60 @@ function csatColor(score: number | null): string {
   return "text-green-500";
 }
 
+// Multi-select filter component
+function MultiSelectFilter({ label, options, selected, onChange }: {
+  label: string;
+  options: { value: string; label: string; color?: string }[];
+  selected: string[];
+  onChange: (values: string[]) => void;
+}) {
+  const toggle = (value: string) => {
+    onChange(selected.includes(value) ? selected.filter(v => v !== value) : [...selected, value]);
+  };
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-9 gap-1.5 min-w-[120px]">
+          <Filter className="h-3.5 w-3.5" />
+          <span className="truncate max-w-[100px]">{label}</span>
+          {selected.length > 0 && (
+            <Badge variant="secondary" className="h-5 px-1.5 text-[10px] rounded-full">{selected.length}</Badge>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-2" align="start">
+        <div className="space-y-1">
+          {options.map(opt => (
+            <label key={opt.value} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-sm">
+              <Checkbox checked={selected.includes(opt.value)} onCheckedChange={() => toggle(opt.value)} />
+              {opt.color && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: opt.color }} />}
+              <span className="truncate">{opt.label}</span>
+            </label>
+          ))}
+          {selected.length > 0 && (
+            <Button variant="ghost" size="sm" className="w-full text-[11px] mt-1" onClick={() => onChange([])}>
+              <X className="h-3 w-3 mr-1" />Limpar
+            </Button>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 const AdminChatHistory = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
   const { attendants } = useAttendants();
   const [page, setPage] = useState(0);
-  const [resolutionStatus, setResolutionStatus] = useState<string | null>(null);
-  const [attendantId, setAttendantId] = useState<string | null>(null);
+  const [resolutionStatuses, setResolutionStatuses] = useState<string[]>([]);
+  const [attendantIds, setAttendantIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
-  const [csatFilter, setCsatFilter] = useState<string | null>(null);
+  const [csatFilters, setCsatFilters] = useState<string[]>([]);
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [exporting, setExporting] = useState(false);
-  const [tagId, setTagId] = useState<string | null>(null);
+  const [tagIds, setTagIds] = useState<string[]>([]);
   const [tags, setTags] = useState<{ id: string; name: string; color: string }[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -62,11 +103,11 @@ const AdminChatHistory = () => {
 
   const { rooms, loading, totalCount, totalPages, exportToCSV, refetch } = useChatHistory({
     page,
-    resolutionStatus,
-    attendantId,
+    resolutionStatuses,
+    attendantIds,
     search,
-    tagId,
-    csatFilter: csatFilter ?? undefined,
+    tagIds,
+    csatFilters,
     dateFrom: dateFrom?.toISOString(),
     dateTo: dateTo ? new Date(dateTo.getTime() + 86400000).toISOString() : undefined,
   });
@@ -95,7 +136,6 @@ const AdminChatHistory = () => {
   const handleReopenChat = async (roomId: string) => {
     if (!user) return;
 
-    // Get attendant name
     let attendantName = "Atendente";
     const { data: profile } = await supabase
       .from("user_profiles")
@@ -104,7 +144,6 @@ const AdminChatHistory = () => {
       .maybeSingle();
     if (profile?.display_name) attendantName = profile.display_name;
 
-    // Resolve attendant_profile for current user
     let { data: attProfile } = await supabase
       .from("attendant_profiles")
       .select("id")
@@ -112,7 +151,6 @@ const AdminChatHistory = () => {
       .maybeSingle();
 
     if (!attProfile) {
-      // Find or create csm first
       let { data: csm } = await supabase
         .from("csms")
         .select("id")
@@ -126,7 +164,6 @@ const AdminChatHistory = () => {
           .single();
         csm = newCsm;
       }
-      // Wait for trigger to create attendant_profile
       if (csm) {
         await new Promise((r) => setTimeout(r, 500));
         const { data: ap } = await supabase
@@ -138,7 +175,6 @@ const AdminChatHistory = () => {
       }
     }
 
-    // Reactivate room with assignment
     await supabase.from("chat_rooms").update({
       status: "active",
       closed_at: null,
@@ -147,14 +183,12 @@ const AdminChatHistory = () => {
       assigned_at: new Date().toISOString(),
     }).eq("id", roomId);
 
-    // Increment active_conversations
     if (attProfile) {
       await supabase.from("attendant_profiles")
         .update({ active_conversations: 1 } as any)
         .eq("id", attProfile.id);
     }
 
-    // Insert system message
     await supabase.from("chat_messages").insert({
       room_id: roomId,
       sender_type: "system",
@@ -163,35 +197,23 @@ const AdminChatHistory = () => {
       is_internal: false,
       metadata: { auto_rule: "chain_reset" },
     });
-    // Trigger welcome message via assign-chat-room
     supabase.functions.invoke("assign-chat-room", { body: { room_id: roomId } }).catch(() => {});
 
     toast.success("Chat reaberto e atribuído a você!");
     refetch();
   };
 
-  // Bulk actions
   const handleBulkAction = async (action: "resolved" | "archived") => {
     if (selectedIds.size === 0) return;
-
     const ids = Array.from(selectedIds);
-    await supabase
-      .from("chat_rooms")
-      .update({ resolution_status: action })
-      .in("id", ids);
-
+    await supabase.from("chat_rooms").update({ resolution_status: action }).in("id", ids);
     toast.success(`${ids.length} chat(s) ${action === "resolved" ? "marcado(s) como resolvido(s)" : "arquivado(s)"}`);
     setSelectedIds(new Set());
     refetch();
   };
 
-  // Individual action
   const handleIndividualAction = async (roomId: string, action: "resolved" | "archived") => {
-    await supabase
-      .from("chat_rooms")
-      .update({ resolution_status: action })
-      .eq("id", roomId);
-
+    await supabase.from("chat_rooms").update({ resolution_status: action }).eq("id", roomId);
     toast.success(action === "resolved" ? "Marcado como resolvido" : "Arquivado");
     refetch();
   };
@@ -206,14 +228,10 @@ const AdminChatHistory = () => {
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === rooms.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(rooms.map((r) => r.id)));
-    }
+    if (selectedIds.size === rooms.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(rooms.map((r) => r.id)));
   };
 
-  // Full export
   const handleFullExport = async () => {
     setExporting(true);
     try {
@@ -230,18 +248,14 @@ const AdminChatHistory = () => {
           .order("closed_at", { ascending: false })
           .range(from, from + PAGE_SIZE - 1);
 
-        if (resolutionStatus) query = query.eq("resolution_status", resolutionStatus);
-        if (attendantId) query = query.eq("attendant_id", attendantId);
+        if (resolutionStatuses.length > 0) query = query.in("resolution_status", resolutionStatuses);
+        if (attendantIds.length > 0) query = query.in("attendant_id", attendantIds);
         if (dateFrom) query = query.gte("closed_at", dateFrom.toISOString());
         if (dateTo) query = query.lte("closed_at", new Date(dateTo.getTime() + 86400000).toISOString());
-        if (csatFilter === "low") query = query.lte("csat_score", 2).not("csat_score", "is", null);
-        else if (csatFilter === "neutral") query = query.eq("csat_score", 3);
-        else if (csatFilter === "good") query = query.gte("csat_score", 4);
 
         const { data } = await query;
-        if (!data || data.length === 0) {
-          hasMore = false;
-        } else {
+        if (!data || data.length === 0) hasMore = false;
+        else {
           allRooms = [...allRooms, ...data];
           from += PAGE_SIZE;
           if (data.length < PAGE_SIZE) hasMore = false;
@@ -293,6 +307,8 @@ const AdminChatHistory = () => {
     setExporting(false);
   };
 
+  const activeFilterCount = resolutionStatuses.length + attendantIds.length + csatFilters.length + tagIds.length + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
+
   return (
     <>
       <div className="space-y-6">
@@ -301,6 +317,7 @@ const AdminChatHistory = () => {
             <h1 className="text-2xl font-semibold">{t("chat.history.title")}</h1>
             <p className="text-sm text-muted-foreground">
               {totalCount} {t("chat.history.total_closed")}
+              {activeFilterCount > 0 && <span className="ml-1 text-primary">({activeFilterCount} filtros ativos)</span>}
             </p>
           </div>
           <div className="flex gap-2">
@@ -329,40 +346,40 @@ const AdminChatHistory = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder={t("chat.history.search_client")} value={search} onChange={(e) => { setSearch(e.target.value); handleFilterChange(); }} className="pl-9 h-9" />
           </div>
-          <Select value={resolutionStatus ?? "all"} onValueChange={(v) => { setResolutionStatus(v === "all" ? null : v); handleFilterChange(); }}>
-            <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder={t("chat.history.filter.status")} /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("filter.all_status")}</SelectItem>
-              <SelectItem value="resolved">{t("chat.history.resolved")}</SelectItem>
-              <SelectItem value="pending">{t("chat.history.pending_status")}</SelectItem>
-              <SelectItem value="escalated">{t("chat.history.escalated")}</SelectItem>
-              <SelectItem value="archived">Arquivado</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={attendantId ?? "all"} onValueChange={(v) => { setAttendantId(v === "all" ? null : v); handleFilterChange(); }}>
-            <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder={t("chat.history.filter.attendant")} /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("filter.all_attendants")}</SelectItem>
-              {attendants.map((a) => <SelectItem key={a.id} value={a.id}>{a.display_name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={csatFilter ?? "all"} onValueChange={(v) => { setCsatFilter(v === "all" ? null : v); handleFilterChange(); }}>
-            <SelectTrigger className="w-[140px] h-9"><SelectValue placeholder="CSAT" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("filter.all_csat")}</SelectItem>
-              <SelectItem value="low">1-2 (Ruim)</SelectItem>
-              <SelectItem value="neutral">3 (Neutro)</SelectItem>
-              <SelectItem value="good">4-5 (Bom)</SelectItem>
-            </SelectContent>
-          </Select>
+          <MultiSelectFilter
+            label="Status"
+            options={[
+              { value: "resolved", label: t("chat.history.resolved") },
+              { value: "pending", label: t("chat.history.pending_status") },
+              { value: "escalated", label: t("chat.history.escalated") },
+              { value: "archived", label: "Arquivado" },
+            ]}
+            selected={resolutionStatuses}
+            onChange={(v) => { setResolutionStatuses(v); handleFilterChange(); }}
+          />
+          <MultiSelectFilter
+            label="Atendente"
+            options={attendants.map((a) => ({ value: a.id, label: a.display_name }))}
+            selected={attendantIds}
+            onChange={(v) => { setAttendantIds(v); handleFilterChange(); }}
+          />
+          <MultiSelectFilter
+            label="CSAT"
+            options={[
+              { value: "low", label: "1-2 (Ruim)" },
+              { value: "neutral", label: "3 (Neutro)" },
+              { value: "good", label: "4-5 (Bom)" },
+            ]}
+            selected={csatFilters}
+            onChange={(v) => { setCsatFilters(v); handleFilterChange(); }}
+          />
           {tags.length > 0 && (
-            <Select value={tagId ?? "all"} onValueChange={(v) => { setTagId(v === "all" ? null : v); handleFilterChange(); }}>
-              <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder="Tag" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas Tags</SelectItem>
-                {tags.map((tag) => <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <MultiSelectFilter
+              label="Tags"
+              options={tags.map((tag) => ({ value: tag.id, label: tag.name, color: tag.color }))}
+              selected={tagIds}
+              onChange={(v) => { setTagIds(v); handleFilterChange(); }}
+            />
           )}
           <Popover>
             <PopoverTrigger asChild>
@@ -389,6 +406,13 @@ const AdminChatHistory = () => {
               )}
             </PopoverContent>
           </Popover>
+          {activeFilterCount > 0 && (
+            <Button variant="ghost" size="sm" className="h-9 text-[11px] text-muted-foreground" onClick={() => {
+              setResolutionStatuses([]); setAttendantIds([]); setCsatFilters([]); setTagIds([]); setDateFrom(undefined); setDateTo(undefined); setSearch(""); handleFilterChange();
+            }}>
+              <X className="h-3 w-3 mr-1" />Limpar tudo
+            </Button>
+          )}
         </div>
 
         {/* Table */}
@@ -423,6 +447,8 @@ const AdminChatHistory = () => {
                       const duration = room.closed_at && room.created_at
                         ? Math.floor((new Date(room.closed_at).getTime() - new Date(room.created_at).getTime()) / 60000)
                         : null;
+                      const visibleTags = room.tags.slice(0, 2);
+                      const overflowTags = room.tags.slice(2);
                       return (
                         <TableRow key={room.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => setReadOnlyRoom({ id: room.id, name: room.visitor_name ?? "Visitante", resolution_status: room.resolution_status })}>
                           <TableCell onClick={(e) => e.stopPropagation()}><Checkbox checked={selectedIds.has(room.id)} onCheckedChange={() => toggleSelect(room.id)} /></TableCell>
@@ -440,10 +466,26 @@ const AdminChatHistory = () => {
                           </TableCell>
                           <TableCell className="text-[13px] tabular-nums hidden lg:table-cell">{formatDuration(duration)}</TableCell>
                           <TableCell className="hidden lg:table-cell">
-                            <div className="flex gap-1 flex-wrap">
-                              {room.tags.length > 0
-                                ? room.tags.map((tag, i) => <Badge key={i} variant="outline" className="text-[10px]" style={{ borderColor: tag.color, color: tag.color }}>{tag.name}</Badge>)
+                            <div className="flex gap-1 items-center">
+                              {visibleTags.length > 0
+                                ? visibleTags.map((tag, i) => <Badge key={i} variant="outline" className="text-[10px]" style={{ borderColor: tag.color, color: tag.color }}>{tag.name}</Badge>)
                                 : "—"}
+                              {overflowTags.length > 0 && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Badge variant="secondary" className="text-[10px] cursor-default">+{overflowTags.length}</Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="max-w-[200px]">
+                                      <div className="flex flex-wrap gap-1">
+                                        {overflowTags.map((tag, i) => (
+                                          <Badge key={i} variant="outline" className="text-[10px]" style={{ borderColor: tag.color, color: tag.color }}>{tag.name}</Badge>
+                                        ))}
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell className="text-[13px] tabular-nums hidden md:table-cell">{format(new Date(room.created_at), "dd/MM/yyyy HH:mm")}</TableCell>
