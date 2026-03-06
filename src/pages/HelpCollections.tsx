@@ -14,6 +14,14 @@ import { Plus, GripVertical, Pencil, Trash2, FolderOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { slugify } from "@/utils/helpSlug";
 
+const ICON_GROUPS = [
+  { label: "Geral", icons: ["📚", "📖", "📝", "📋", "📌", "📎", "📂", "🗂️", "🗃️", "📄"] },
+  { label: "Suporte", icons: ["💬", "❓", "✅", "⚠️", "🔔", "🛟", "🆘", "📞", "📧", "💡"] },
+  { label: "Tecnologia", icons: ["💻", "📱", "🌐", "🔒", "⚙️", "🔧", "🛠️", "🧩", "🔗", "📡"] },
+  { label: "Negócios", icons: ["📊", "📈", "💰", "🛒", "🏢", "🤝", "🏆", "🎯", "📦", "💎"] },
+  { label: "Pessoas", icons: ["👥", "🎓", "🧑‍💻", "👋", "🌟", "🚀", "🎉", "⭐", "🎨", "📅"] },
+];
+
 interface Collection {
   id: string;
   name: string;
@@ -42,12 +50,9 @@ export default function HelpCollections() {
 
   const loadCollections = async () => {
     const { data: cols } = await supabase.from("help_collections").select("*").eq("tenant_id", tenantId!).order("order_index");
-
-    // Get article counts
     const { data: articles } = await supabase.from("help_articles").select("collection_id").eq("tenant_id", tenantId!).eq("status", "published").not("collection_id", "is", null);
     const countMap: Record<string, number> = {};
     (articles ?? []).forEach(a => { if (a.collection_id) countMap[a.collection_id] = (countMap[a.collection_id] || 0) + 1; });
-
     setCollections((cols ?? []).map(c => ({ ...c, article_count: countMap[c.id] || 0 })));
   };
 
@@ -58,13 +63,11 @@ export default function HelpCollections() {
     if (!name.trim() || !tenantId) return;
     setSaving(true);
     const finalSlug = slug || slugify(name);
-
     if (editing) {
       await supabase.from("help_collections").update({ name, slug: finalSlug, description: description || null, icon }).eq("id", editing.id);
     } else {
       await supabase.from("help_collections").insert({ tenant_id: tenantId, name, slug: finalSlug, description: description || null, icon, order_index: collections.length });
     }
-
     toast({ title: t("help.collectionSaveSuccess") });
     setSaving(false);
     setDialogOpen(false);
@@ -83,7 +86,6 @@ export default function HelpCollections() {
     const updated = [...collections];
     [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
     setCollections(updated);
-    // Persist order
     await Promise.all(updated.map((c, i) => supabase.from("help_collections").update({ order_index: i }).eq("id", c.id)));
   };
 
@@ -123,7 +125,7 @@ export default function HelpCollections() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{editing ? t("help.editArticle") : t("help.newCollection")}</DialogTitle>
           </DialogHeader>
@@ -138,7 +140,31 @@ export default function HelpCollections() {
             </div>
             <div className="space-y-1.5">
               <Label>{t("help.collectionIcon")}</Label>
-              <Input value={icon} onChange={e => setIcon(e.target.value)} placeholder="📚" className="w-20" />
+              <div className="flex items-center gap-3 mb-2">
+                <div className="h-12 w-12 rounded-lg border bg-muted/50 flex items-center justify-center text-2xl">
+                  {icon}
+                </div>
+                <Input value={icon} onChange={e => setIcon(e.target.value)} placeholder="📚" className="w-24 text-center" />
+              </div>
+              <div className="space-y-2 max-h-48 overflow-auto rounded-lg border bg-muted/30 p-3">
+                {ICON_GROUPS.map(group => (
+                  <div key={group.label}>
+                    <p className="text-[11px] font-medium text-muted-foreground mb-1">{group.label}</p>
+                    <div className="flex flex-wrap gap-1">
+                      {group.icons.map(emoji => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => setIcon(emoji)}
+                          className={`h-9 w-9 rounded-md flex items-center justify-center text-lg transition-all duration-150 hover:bg-accent ${icon === emoji ? "ring-2 ring-primary bg-primary/10" : "hover:scale-110"}`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label>{t("help.collectionDescription")}</Label>

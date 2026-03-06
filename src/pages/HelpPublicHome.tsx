@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, FileText, ChevronRight, BookOpen } from "lucide-react";
+import { Search, FileText, ChevronRight, BookOpen, Layers } from "lucide-react";
 import HelpPublicLayout from "@/components/help/HelpPublicLayout";
 
 interface SiteSettings {
@@ -80,19 +80,16 @@ export default function HelpPublicHome() {
   useEffect(() => { if (tenantId) loadData(); }, [tenantId]);
 
   const loadData = async () => {
-    // Fetch settings, collections, recent articles, and ALL published article counts in parallel
     const [{ data: site }, { data: cols }, { data: arts }, { data: allArticles }] = await Promise.all([
       supabase.from("help_site_settings").select("*").eq("tenant_id", tenantId!).maybeSingle(),
       supabase.from("help_collections").select("id, name, slug, description, icon").eq("tenant_id", tenantId!).eq("status", "active").order("order_index"),
       supabase.from("help_articles").select("id, title, subtitle, slug, collection_id").eq("tenant_id", tenantId!).eq("status", "published").order("published_at", { ascending: false }).limit(10),
-      // Separate count query — no limit, only collection_id
       supabase.from("help_articles").select("collection_id").eq("tenant_id", tenantId!).eq("status", "published").not("collection_id", "is", null),
     ]);
 
     if (site) setSettings(site as any);
     else setSettings({ home_title: "Central de Ajuda", home_subtitle: "Como podemos ajudar?", theme: "light", brand_logo_url: null, brand_primary_color: "#3B82F6" });
 
-    // Build count map from ALL published articles (not limited to 10)
     const countMap: Record<string, number> = {};
     (allArticles ?? []).forEach(a => { if (a.collection_id) countMap[a.collection_id] = (countMap[a.collection_id] || 0) + 1; });
     setCollections((cols ?? []).map(c => ({ ...c, article_count: countMap[c.id] || 0 })));
@@ -130,23 +127,23 @@ export default function HelpPublicHome() {
 
   return (
     <HelpPublicLayout settings={settings} helpBase={helpBase}>
-      {/* Hero */}
+      {/* Hero — background only, no overflow-hidden on wrapper */}
       <div
-        className="relative py-24 px-4 text-center overflow-hidden"
+        className="relative py-20 px-4 text-center"
         style={{
           background: heroImage
             ? undefined
-            : `linear-gradient(180deg, ${primaryColor}0a 0%, ${primaryColor}03 50%, #f8fafc 100%)`,
+            : `linear-gradient(180deg, ${primaryColor}08 0%, ${primaryColor}04 60%, #f8fafc 100%)`,
         }}
       >
         {heroImage && (
           <>
             <div
-              className="absolute inset-0 bg-cover bg-center"
+              className="absolute inset-0 bg-cover bg-center overflow-hidden"
               style={{ backgroundImage: `url(${heroImage})` }}
             />
             <div
-              className="absolute inset-0"
+              className="absolute inset-0 overflow-hidden"
               style={{ backgroundColor: primaryColor, opacity: overlayOpacity / 100 }}
             />
           </>
@@ -154,128 +151,133 @@ export default function HelpPublicHome() {
 
         <div className="relative z-10 max-w-2xl mx-auto">
           <h1
-            className="text-4xl sm:text-5xl font-bold mb-4 tracking-tight leading-tight"
-            style={{ color: heroImage ? "#ffffff" : "#0f172a" }}
+            className="text-4xl sm:text-5xl font-bold mb-3 tracking-tight leading-tight"
+            style={{ color: heroImage ? "#ffffff" : "#1e293b" }}
           >
             {settings?.home_title || "Central de Ajuda"}
           </h1>
           <p
             className="text-lg sm:text-xl mb-10 font-light"
-            style={{ color: heroImage ? "rgba(255,255,255,0.85)" : "#64748b" }}
+            style={{ color: heroImage ? "rgba(255,255,255,0.9)" : "#475569" }}
           >
             {settings?.home_subtitle || "Como podemos ajudar?"}
           </p>
+        </div>
+      </div>
 
-          {/* Search */}
-          <div className="relative max-w-xl mx-auto">
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5" style={{ color: "#94a3b8" }} />
-            <input
-              placeholder="Buscar na base de conhecimento..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-14 pr-5 h-14 text-base rounded-2xl border-0 shadow-lg focus:outline-none focus:ring-2 transition-all duration-300"
-              style={{
-                backgroundColor: "#ffffff",
-                color: "#0f172a",
-                boxShadow: "0 4px 24px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
-              }}
-              onFocus={e => { e.target.style.boxShadow = `0 4px 24px ${primaryColor}20, 0 0 0 2px ${primaryColor}40`; }}
-              onBlur={e => { e.target.style.boxShadow = "0 4px 24px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)"; }}
-            />
-            {searchResults.length > 0 && (
-              <div
-                className="absolute top-full left-0 right-0 mt-3 rounded-2xl shadow-2xl z-10 max-h-80 overflow-auto border"
-                style={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0" }}
-              >
-                {searchResults.map((r, idx) => (
-                  <Link
-                    key={r.id}
-                    to={`${helpBase}/a/${r.slug}`}
-                    className="flex items-center gap-3 px-5 py-3.5 transition-all duration-150"
-                    style={{ borderBottom: idx < searchResults.length - 1 ? "1px solid #f1f5f9" : "none" }}
-                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f8fafc")}
-                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = "#ffffff")}
-                  >
-                    <FileText className="h-4 w-4 flex-shrink-0" style={{ color: "#94a3b8" }} />
-                    <div className="text-left">
-                      <p className="font-medium text-sm" style={{ color: "#0f172a" }}>{r.title}</p>
-                      {r.subtitle && <p className="text-xs mt-0.5" style={{ color: "#64748b" }}>{r.subtitle}</p>}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
+      {/* Search — outside hero, own stacking context */}
+      <div className="relative z-20 max-w-xl mx-auto px-4 -mt-7">
+        <div className="relative">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5" style={{ color: "#94a3b8" }} />
+          <input
+            placeholder="Buscar na base de conhecimento..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-14 pr-5 h-14 text-base rounded-xl border shadow-lg focus:outline-none focus:ring-2 transition-all duration-200"
+            style={{
+              backgroundColor: "#ffffff",
+              color: "#1e293b",
+              borderColor: "#e2e8f0",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)",
+            }}
+            onFocus={e => { e.target.style.boxShadow = `0 4px 20px ${primaryColor}18, 0 0 0 2px ${primaryColor}40`; e.target.style.borderColor = `${primaryColor}60`; }}
+            onBlur={e => { e.target.style.boxShadow = "0 4px 20px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)"; e.target.style.borderColor = "#e2e8f0"; }}
+          />
+          {searchResults.length > 0 && (
+            <div
+              className="absolute top-full left-0 right-0 mt-2 rounded-xl shadow-2xl z-50 max-h-80 overflow-auto border"
+              style={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0" }}
+            >
+              {searchResults.map((r, idx) => (
+                <Link
+                  key={r.id}
+                  to={`${helpBase}/a/${r.slug}`}
+                  className="flex items-center gap-3 px-5 py-3.5 transition-colors duration-150"
+                  style={{ borderBottom: idx < searchResults.length - 1 ? "1px solid #f1f5f9" : "none" }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f8fafc")}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = "#ffffff")}
+                >
+                  <FileText className="h-4 w-4 flex-shrink-0" style={{ color: "#94a3b8" }} />
+                  <div className="text-left">
+                    <p className="font-medium text-sm" style={{ color: "#1e293b" }}>{r.title}</p>
+                    {r.subtitle && <p className="text-xs mt-0.5" style={{ color: "#64748b" }}>{r.subtitle}</p>}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-14">
-        {/* Collections grid */}
+        {/* Collections section */}
         {collections.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-16">
-            {collections.map(col => (
-              <Link
-                key={col.id}
-                to={`${helpBase}/c/${col.slug}`}
-                className="group block p-6 rounded-2xl border transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative overflow-hidden"
-                style={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0" }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = `${primaryColor}40`; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; }}
-              >
-                {/* Accent bar */}
-                <div
-                  className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                  style={{ backgroundColor: primaryColor }}
-                />
-                <div className="flex items-start gap-4">
-                  <span className="text-3xl flex-shrink-0">{col.icon || "📚"}</span>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-base mb-1" style={{ color: "#0f172a" }}>{col.name}</h3>
-                    {col.description && (
-                      <p className="text-sm leading-relaxed mb-3 line-clamp-2" style={{ color: "#64748b" }}>{col.description}</p>
-                    )}
-                    <span
-                      className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full"
-                      style={{ backgroundColor: `${primaryColor}0d`, color: primaryColor }}
+          <div className="mb-16">
+            <div className="flex items-center gap-2 mb-6">
+              <Layers className="h-5 w-5" style={{ color: primaryColor }} />
+              <h2 className="text-xl font-semibold" style={{ color: "#1e293b" }}>Coleções</h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {collections.map(col => (
+                <Link
+                  key={col.id}
+                  to={`${helpBase}/c/${col.slug}`}
+                  className="group block p-6 rounded-xl border transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 relative"
+                  style={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = `${primaryColor}50`; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; }}
+                >
+                  <div className="flex items-start gap-4">
+                    <div
+                      className="flex-shrink-0 h-12 w-12 rounded-lg flex items-center justify-center text-2xl"
+                      style={{ backgroundColor: `${primaryColor}0c` }}
                     >
-                      <BookOpen className="h-3 w-3" />
-                      {col.article_count} {col.article_count === 1 ? "artigo" : "artigos"}
-                    </span>
+                      {col.icon || "📚"}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-semibold text-[15px] mb-1" style={{ color: "#1e293b" }}>{col.name}</h3>
+                      {col.description && (
+                        <p className="text-sm leading-relaxed mb-3 line-clamp-2" style={{ color: "#64748b" }}>{col.description}</p>
+                      )}
+                      <span
+                        className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full"
+                        style={{ backgroundColor: `${primaryColor}0c`, color: primaryColor }}
+                      >
+                        <BookOpen className="h-3 w-3" />
+                        {col.article_count} {col.article_count === 1 ? "artigo" : "artigos"}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              ))}
+            </div>
           </div>
         )}
 
         {/* Recent articles */}
         {recentArticles.length > 0 && (
           <div>
-            <h2 className="text-xl font-semibold mb-6" style={{ color: "#0f172a" }}>Artigos Recentes</h2>
-            <div className="space-y-1">
+            <h2 className="text-xl font-semibold mb-6" style={{ color: "#1e293b" }}>Artigos Recentes</h2>
+            <div
+              className="rounded-xl border divide-y"
+              style={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0" }}
+            >
               {recentArticles.map(art => (
                 <Link
                   key={art.id}
                   to={`${helpBase}/a/${art.slug}`}
-                  className="flex items-center justify-between p-4 rounded-xl transition-all duration-200 group"
-                  style={{ borderLeft: "3px solid transparent" }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.backgroundColor = "#f8fafc";
-                    e.currentTarget.style.borderLeftColor = primaryColor;
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.backgroundColor = "transparent";
-                    e.currentTarget.style.borderLeftColor = "transparent";
-                  }}
+                  className="flex items-center justify-between px-5 py-4 transition-colors duration-150 group first:rounded-t-xl last:rounded-b-xl"
+                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#f8fafc"; }}
+                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#ffffff"; }}
                 >
                   <div className="flex items-center gap-3">
                     <FileText className="h-4 w-4 flex-shrink-0" style={{ color: "#cbd5e1" }} />
                     <div>
-                      <p className="font-medium text-sm" style={{ color: "#0f172a" }}>{art.title}</p>
+                      <p className="font-medium text-sm" style={{ color: "#1e293b" }}>{art.title}</p>
                       {art.subtitle && <p className="text-xs mt-0.5" style={{ color: "#64748b" }}>{art.subtitle}</p>}
                     </div>
                   </div>
-                  <ChevronRight className="h-4 w-4 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-0 group-hover:translate-x-0.5" style={{ color: primaryColor }} />
+                  <ChevronRight className="h-4 w-4 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200" style={{ color: primaryColor }} />
                 </Link>
               ))}
             </div>
