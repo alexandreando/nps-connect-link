@@ -1,61 +1,39 @@
 
 
-# Plan: 4 Improvements — Delete Messages, Multi-Filter, Tags Overflow, ReadOnly Dialog Info
+# Plan: 3 Fixes — Realtime Delete, Tags Layout, Company Sheet In-Place
 
-## 1. Message Deletion by Attendant (Soft Delete)
+## 1. Deleted messages update in realtime (no F5)
 
-Add a `deleted_at` column to `chat_messages`. When an attendant deletes a message, set `deleted_at = now()`. The widget filters out messages where `deleted_at IS NOT NULL`, while the workspace shows them with a "Mensagem apagada" placeholder.
+**Root cause**: `useChatMessages` in `src/hooks/useChatRealtime.ts` (line 122-136) only subscribes to `INSERT` events on `chat_messages`. When a message is soft-deleted (UPDATE with `deleted_at`), the workspace doesn't see the change.
 
-### Database Migration
-- Add `deleted_at timestamptz` column to `chat_messages` (nullable, default null)
+**Fix in `src/hooks/useChatRealtime.ts`**:
+- Add a second `.on("postgres_changes", { event: "UPDATE" ... })` handler on the same channel
+- On UPDATE, replace the matching message in state with the new payload (which includes `deleted_at`)
+- The `ChatMessageList` already renders the "Mensagem apagada" placeholder when `deleted_at` is set, so no further UI changes needed
 
-### `src/components/chat/ChatMessageList.tsx`
-- Add an `onDelete` callback prop
-- On attendant messages (`sender_type !== "visitor"`), show a small trash icon on hover (similar to reply button) that calls `onDelete(msg.id)`
-- If `msg.deleted_at` is set (new field in interface), render a muted "Mensagem apagada" placeholder instead of the content
+## 2. Fix tags layout in chat history table
 
-### `src/pages/AdminWorkspace.tsx`
-- Implement `handleDeleteMessage(msgId)` that calls `supabase.from("chat_messages").update({ deleted_at: new Date().toISOString() }).eq("id", msgId)`
-- Pass it to `ChatMessageList` as `onDelete`
+**Root cause**: The tags in `AdminChatHistory.tsx` (lines 468-490) use `Badge variant="outline"` which looks correct, but based on the screenshot the circles suggest the badges may be rendering with excessive padding/border-radius. 
 
-### `src/pages/ChatWidget.tsx`
-- Filter out messages where `deleted_at` is not null in the messages fetch query (add `.is("deleted_at", null)` to the query)
-- Also filter in the realtime handler
+**Fix in `src/pages/AdminChatHistory.tsx`**:
+- Ensure tags use compact inline badges: add `py-0 px-1.5 rounded` classes to tag badges (remove any circular styling)
+- Constrain the tags container with `flex-nowrap max-w-[180px] overflow-hidden` to prevent layout breakage
+- Match the workspace style: small, tight, horizontal badges
 
-## 2. Multi-Value Filters in Chat History
+## 3. Company links open CompanyDetailsSheet in-place
 
-Replace single-value `Select` dropdowns for Resolution Status, Attendant, CSAT, and Tag with multi-select using checkboxes in a `Popover`.
+**Current behavior**: In `ReadOnlyChatDialog` (line 174), clicking company name navigates to `/contacts` and closes the dialog.
 
-### `src/pages/AdminChatHistory.tsx`
-- Change state from `resolutionStatus: string | null` to `resolutionStatuses: string[]` (array)
-- Same for `attendantIds: string[]`, `csatFilters: string[]`, `tagIds: string[]`
-- Replace each `<Select>` with a `<Popover>` containing checkboxes for each option + a count badge showing how many are selected
-- Display selected values as small badges or a "+N" indicator
-
-### `src/hooks/useChatHistory.ts`
-- Update `HistoryFilter` interface to accept arrays: `resolutionStatuses?: string[]`, `attendantIds?: string[]`, `tagIds?: string[]`, `csatFilters?: string[]`
-- Update query builder to use `.in()` for arrays instead of `.eq()`
-
-## 3. Tags Overflow with "+N" in History Table
-
-### `src/pages/AdminChatHistory.tsx` (line 442-448)
-- Show max 2 tags, then render a `+N` badge with a tooltip listing the remaining tags
-- Use `Tooltip` or `HoverCard` for the overflow list
-
-## 4. Enriched ReadOnlyChatDialog with Room Info
-
-### `src/components/chat/ReadOnlyChatDialog.tsx`
-- Accept additional props: `roomId`, plus fetch room metadata on open (attendant name, company name, contact info, resolution status, CSAT, duration, tags)
-- Add an info header section below the title showing: attendant name, company name (as clickable link to `/contacts/{contactId}`), duration, CSAT score, resolution badge, tags
-- Use compact layout with small badges and icons
+**Fix in `src/components/chat/ReadOnlyChatDialog.tsx`**:
+- Import `CompanyDetailsSheet` from `@/components/CompanyDetailsSheet`
+- Add state `selectedCompanyId: string | null`
+- Instead of `navigate("/contacts")`, set `selectedCompanyId` to `roomInfo.contact_id`
+- Render `<CompanyDetailsSheet companyId={selectedCompanyId} onClose={() => setSelectedCompanyId(null)} canEdit={false} canDelete={false} />` inside the component
+- This opens the company details as a Sheet overlay without leaving the current page
 
 ## Files to Change
 
-1. **Database migration** — Add `deleted_at` to `chat_messages`
-2. **`src/components/chat/ChatMessageList.tsx`** — Add delete button, deleted placeholder, `onDelete` prop
-3. **`src/pages/AdminWorkspace.tsx`** — Implement `handleDeleteMessage`, pass to ChatMessageList
-4. **`src/pages/ChatWidget.tsx`** — Filter deleted messages
-5. **`src/pages/AdminChatHistory.tsx`** — Multi-select filters, tags "+N" overflow
-6. **`src/hooks/useChatHistory.ts`** — Support array filters
-7. **`src/components/chat/ReadOnlyChatDialog.tsx`** — Add room info header with links
+1. **`src/hooks/useChatRealtime.ts`** — Add UPDATE listener to `useChatMessages`
+2. **`src/pages/AdminChatHistory.tsx`** — Fix tag badge styling
+3. **`src/components/chat/ReadOnlyChatDialog.tsx`** — Open CompanyDetailsSheet in-place instead of navigating
 
