@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,7 @@ import { ChatMessageList } from "@/components/chat/ChatMessageList";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { CompanyDetailsSheet } from "@/components/CompanyDetailsSheet";
 
 interface ReadOnlyChatDialogProps {
   roomId: string | null;
@@ -37,11 +37,11 @@ interface RoomInfo {
 export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange, resolutionStatus, onReopen }: ReadOnlyChatDialogProps) {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const navigate = useNavigate();
   const { messages, loading, refetch } = useChatMessages(open ? roomId : null);
   const [note, setNote] = useState("");
   const [sending, setSending] = useState(false);
   const [roomInfo, setRoomInfo] = useState<RoomInfo | null>(null);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!roomId || !open) { setRoomInfo(null); return; }
@@ -122,6 +122,7 @@ export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange, re
   };
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-lg flex flex-col">
         <SheetHeader>
@@ -171,7 +172,7 @@ export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange, re
             <div className="flex flex-wrap items-center gap-2">
               {roomInfo.contact_name && roomInfo.contact_id && (
                 <button
-                  onClick={() => { navigate(`/contacts`); onOpenChange(false); }}
+                  onClick={() => setSelectedCompanyId(roomInfo.contact_id)}
                   className="flex items-center gap-1 text-[11px] text-primary hover:underline"
                 >
                   <Building2 className="h-3 w-3" />{roomInfo.contact_name}<ExternalLink className="h-2.5 w-2.5" />
@@ -214,5 +215,14 @@ export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange, re
         </div>
       </SheetContent>
     </Sheet>
+    {selectedCompanyId && (
+      <CompanyDetailsSheet
+        companyId={selectedCompanyId}
+        onClose={() => setSelectedCompanyId(null)}
+        canEdit={false}
+        canDelete={false}
+      />
+    )}
+  </>
   );
 }
