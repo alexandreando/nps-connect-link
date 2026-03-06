@@ -1137,6 +1137,7 @@ export type Database = {
         Row: {
           content: string
           created_at: string | null
+          deleted_at: string | null
           id: string
           is_internal: boolean | null
           message_type: string | null
@@ -1149,6 +1150,7 @@ export type Database = {
         Insert: {
           content: string
           created_at?: string | null
+          deleted_at?: string | null
           id?: string
           is_internal?: boolean | null
           message_type?: string | null
@@ -1161,6 +1163,7 @@ export type Database = {
         Update: {
           content?: string
           created_at?: string | null
+          deleted_at?: string | null
           id?: string
           is_internal?: boolean | null
           message_type?: string | null

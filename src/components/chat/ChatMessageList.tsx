@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Loader2, BookOpen, ExternalLink } from "lucide-react";
+import { Loader2, BookOpen, ExternalLink, Trash2 } from "lucide-react";
 import { FileMessage } from "@/components/chat/FileMessage";
 import { renderTextWithLinks } from "@/utils/chatUtils";
 import { format, isToday, isYesterday } from "date-fns";
@@ -14,12 +14,14 @@ interface ChatMessage {
   created_at: string;
   message_type?: string | null;
   metadata?: Record<string, any> | null;
+  deleted_at?: string | null;
 }
 
 interface ChatMessageListProps {
   messages: ChatMessage[];
   loading: boolean;
   onReply?: (msg: ChatMessage) => void;
+  onDelete?: (msgId: string) => void;
   hasMore?: boolean;
   loadingMore?: boolean;
   onLoadMore?: () => void;
@@ -35,7 +37,7 @@ function getDayLabel(dateStr: string): string {
 }
 
 
-export function ChatMessageList({ messages, loading, onReply, hasMore, loadingMore, onLoadMore, typingUser, visitorLastReadAt }: ChatMessageListProps) {
+export function ChatMessageList({ messages, loading, onReply, onDelete, hasMore, loadingMore, onLoadMore, typingUser, visitorLastReadAt }: ChatMessageListProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -119,6 +121,15 @@ export function ChatMessageList({ messages, loading, onReply, hasMore, loadingMo
                 <p className="text-[11px] bg-amber-50 text-amber-800 border border-amber-200/60 rounded-full px-3 py-1.5 text-center max-w-[85%] my-1">
                   {mainContent || msg.content}
                 </p>
+              ) : msg.deleted_at ? (
+                <div className="max-w-[75%] rounded-lg px-3 py-2 text-sm bg-muted/50 border border-dashed border-muted-foreground/20">
+                  <p className="text-[11px] text-muted-foreground italic flex items-center gap-1">
+                    <Trash2 className="h-3 w-3" /> Mensagem apagada
+                  </p>
+                  <p className="text-[10px] opacity-50 mt-1 text-right">
+                    {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                </div>
               ) : (
               <div
                 className={`max-w-[75%] rounded-lg px-3 py-2 text-sm ${
@@ -209,13 +220,23 @@ export function ChatMessageList({ messages, loading, onReply, hasMore, loadingMo
 
               )}
               {/* Reply button for visitor messages */}
-              {msg.sender_type === "visitor" && onReply && !msg.is_internal && (
+              {msg.sender_type === "visitor" && onReply && !msg.is_internal && !msg.deleted_at && (
                 <button
                   onClick={() => onReply(msg)}
                   className="opacity-0 group-hover:opacity-100 transition-opacity self-center ml-1 text-[10px] text-muted-foreground hover:text-foreground px-1"
                   title="Responder"
                 >
                   ↩
+                </button>
+              )}
+              {/* Delete button for attendant messages */}
+              {isOwn && onDelete && !msg.is_internal && !msg.deleted_at && msg.sender_type !== "system" && (
+                <button
+                  onClick={() => onDelete(msg.id)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity self-center ml-1 text-[10px] text-muted-foreground hover:text-destructive px-1"
+                  title="Apagar mensagem"
+                >
+                  <Trash2 className="h-3 w-3" />
                 </button>
               )}
             </div>

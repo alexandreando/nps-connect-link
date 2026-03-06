@@ -350,9 +350,10 @@ const ChatWidget = () => {
   const fetchMessages = useCallback(async (roomIdToFetch: string, before?: string) => {
     let query = supabase
       .from("chat_messages")
-      .select("id, content, sender_type, sender_name, created_at, message_type, metadata")
+      .select("id, content, sender_type, sender_name, created_at, message_type, metadata, deleted_at")
       .eq("room_id", roomIdToFetch)
       .eq("is_internal", false)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(PAGE_SIZE + 1);
 
@@ -390,7 +391,7 @@ const ChatWidget = () => {
       .channel(`widget-messages-${roomId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages", filter: `room_id=eq.${roomId}` }, (payload) => {
         const msg = payload.new as any;
-        if (!msg.is_internal) {
+        if (!msg.is_internal && !msg.deleted_at) {
           // Play notification sound for attendant messages
           if (msg.sender_type === "attendant") {
             try {

@@ -2,12 +2,12 @@ import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface HistoryFilter {
-  resolutionStatus?: string | null;
-  attendantId?: string | null;
-  tagId?: string | null;
+  resolutionStatuses?: string[];
+  attendantIds?: string[];
+  tagIds?: string[];
   search?: string;
   page: number;
-  csatFilter?: string;
+  csatFilters?: string[];
   dateFrom?: string;
   dateTo?: string;
 }
@@ -47,11 +47,11 @@ export function useChatHistory(filters: HistoryFilter) {
       .order("closed_at", { ascending: false })
       .range(from, to);
 
-    if (filters.resolutionStatus) {
-      query = query.eq("resolution_status", filters.resolutionStatus);
+    if (filters.resolutionStatuses && filters.resolutionStatuses.length > 0) {
+      query = query.in("resolution_status", filters.resolutionStatuses);
     }
-    if (filters.attendantId) {
-      query = query.eq("attendant_id", filters.attendantId);
+    if (filters.attendantIds && filters.attendantIds.length > 0) {
+      query = query.in("attendant_id", filters.attendantIds);
     }
     if (filters.dateFrom) {
       query = query.gte("closed_at", filters.dateFrom);
@@ -59,12 +59,19 @@ export function useChatHistory(filters: HistoryFilter) {
     if (filters.dateTo) {
       query = query.lte("closed_at", filters.dateTo);
     }
-    if (filters.csatFilter === "low") {
-      query = query.lte("csat_score", 2).not("csat_score", "is", null);
-    } else if (filters.csatFilter === "neutral") {
-      query = query.eq("csat_score", 3);
-    } else if (filters.csatFilter === "good") {
-      query = query.gte("csat_score", 4);
+    if (filters.csatFilters && filters.csatFilters.length > 0) {
+      // Build OR conditions for CSAT
+      const csatConditions: string[] = [];
+      if (filters.csatFilters.includes("low")) csatConditions.push("csat_score.lte.2");
+      if (filters.csatFilters.includes("neutral")) csatConditions.push("csat_score.eq.3");
+      if (filters.csatFilters.includes("good")) csatConditions.push("csat_score.gte.4");
+      if (csatConditions.length === 1) {
+        if (filters.csatFilters.includes("low")) query = query.lte("csat_score", 2).not("csat_score", "is", null);
+        else if (filters.csatFilters.includes("neutral")) query = query.eq("csat_score", 3);
+        else if (filters.csatFilters.includes("good")) query = query.gte("csat_score", 4);
+      } else {
+        query = query.not("csat_score", "is", null);
+      }
     }
 
     const { data: roomsData, count } = await query;
@@ -123,11 +130,11 @@ export function useChatHistory(filters: HistoryFilter) {
       });
     }
 
-    // Filter by tag if needed
+    // Filter by tags if needed
     let filteredRooms = roomsData;
-    if (filters.tagId) {
+    if (filters.tagIds && filters.tagIds.length > 0) {
       const roomIdsWithTag = new Set(
-        roomTags?.filter((rt) => rt.tag_id === filters.tagId).map((rt) => rt.room_id) ?? []
+        roomTags?.filter((rt) => filters.tagIds!.includes(rt.tag_id)).map((rt) => rt.room_id) ?? []
       );
       filteredRooms = roomsData.filter((r) => roomIdsWithTag.has(r.id));
     }
@@ -157,7 +164,7 @@ export function useChatHistory(filters: HistoryFilter) {
 
     setRooms(enriched);
     setLoading(false);
-  }, [filters.page, filters.resolutionStatus, filters.attendantId, filters.tagId, filters.search, filters.csatFilter, filters.dateFrom, filters.dateTo]);
+  }, [filters.page, filters.resolutionStatuses, filters.attendantIds, filters.tagIds, filters.search, filters.csatFilters, filters.dateFrom, filters.dateTo]);
 
   useEffect(() => {
     fetchRooms();
