@@ -1,39 +1,41 @@
 
 
-# Plan: 3 Fixes — Realtime Delete, Tags Layout, Company Sheet In-Place
+# Plan: Assignment Works Outside Business Hours (Workspace Only)
 
-## 1. Deleted messages update in realtime (no F5)
+## Current Behavior
+The DB trigger `assign_chat_room()` skips assignment entirely when outside business hours. The edge function returns `outside_hours: true` to the widget. No attendant is assigned.
 
-**Root cause**: `useChatMessages` in `src/hooks/useChatRealtime.ts` (line 122-136) only subscribes to `INSERT` events on `chat_messages`. When a message is soft-deleted (UPDATE with `deleted_at`), the workspace doesn't see the change.
+## Desired Behavior
+Chats should be assigned to attendants via the routing queue even outside business hours, but:
+- The **widget** should continue seeing the room as "waiting" with the outside-hours banner
+- The **workspace** should show the assigned room in the attendant's queue
 
-**Fix in `src/hooks/useChatRealtime.ts`**:
-- Add a second `.on("postgres_changes", { event: "UPDATE" ... })` handler on the same channel
-- On UPDATE, replace the matching message in state with the new payload (which includes `deleted_at`)
-- The `ChatMessageList` already renders the "Mensagem apagada" placeholder when `deleted_at` is set, so no further UI changes needed
+## Approach: Assign but Keep Status "waiting"
 
-## 2. Fix tags layout in chat history table
+Modify the DB trigger `assign_chat_room()` to still run the routing logic outside business hours, but instead of setting `status = 'active'`, keep `status = 'waiting'` and only set `attendant_id` + `assigned_at`. This way:
 
-**Root cause**: The tags in `AdminChatHistory.tsx` (lines 468-490) use `Badge variant="outline"` which looks correct, but based on the screenshot the circles suggest the badges may be rendering with excessive padding/border-radius. 
+1. **Widget** stays in "waiting" phase (it only transitions on `status === 'active'`)
+2. **Edge function** still returns `outside_hours: true` + `assigned: false` to the widget
+3. **Workspace** sees the room with an attendant assigned, appearing in their queue
 
-**Fix in `src/pages/AdminChatHistory.tsx`**:
-- Ensure tags use compact inline badges: add `py-0 px-1.5 rounded` classes to tag badges (remove any circular styling)
-- Constrain the tags container with `flex-nowrap max-w-[180px] overflow-hidden` to prevent layout breakage
-- Match the workspace style: small, tight, horizontal badges
+### Database Migration
+Modify the `assign_chat_room()` trigger function:
+- Remove the early `RETURN NEW` statements in the business hours checks
+- Instead, set a local variable `v_outside_hours := true`
+- In the assignment block, when `v_outside_hours` is true: set `NEW.attendant_id` and `NEW.assigned_at` but do **not** change `NEW.status` to `'active'` — leave it as `'waiting'`
+- When inside hours: keep current behavior (set status to `'active'`)
 
-## 3. Company links open CompanyDetailsSheet in-place
+### Edge Function `assign-chat-room/index.ts`
+- When room has `attendant_id` but `status = 'waiting'` and it's outside hours: return `{ assigned: false, outside_hours: true }` (current widget behavior preserved)
+- The existing code already handles this correctly since it checks `room.status === "active" && room.attendant_id` before returning `assigned: true`
 
-**Current behavior**: In `ReadOnlyChatDialog` (line 174), clicking company name navigates to `/contacts` and closes the dialog.
+### Widget (`ChatWidget.tsx`)
+- No changes needed. Widget already only transitions to chat when `status === 'active'`
 
-**Fix in `src/components/chat/ReadOnlyChatDialog.tsx`**:
-- Import `CompanyDetailsSheet` from `@/components/CompanyDetailsSheet`
-- Add state `selectedCompanyId: string | null`
-- Instead of `navigate("/contacts")`, set `selectedCompanyId` to `roomInfo.contact_id`
-- Render `<CompanyDetailsSheet companyId={selectedCompanyId} onClose={() => setSelectedCompanyId(null)} canEdit={false} canDelete={false} />` inside the component
-- This opens the company details as a Sheet overlay without leaving the current page
+### Workspace (`AdminWorkspace.tsx`)
+- The workspace already shows rooms with `attendant_id` in the attendant's queue regardless of status (it queries rooms with status `active` or `waiting`). Rooms assigned outside hours will appear normally.
 
 ## Files to Change
-
-1. **`src/hooks/useChatRealtime.ts`** — Add UPDATE listener to `useChatMessages`
-2. **`src/pages/AdminChatHistory.tsx`** — Fix tag badge styling
-3. **`src/components/chat/ReadOnlyChatDialog.tsx`** — Open CompanyDetailsSheet in-place instead of navigating
+1. **Database migration** — Update `assign_chat_room()` trigger function
+2. **`supabase/functions/assign-chat-room/index.ts`** — Minor adjustment to handle assigned-but-waiting rooms correctly (ensure it doesn't return `assigned: true` for outside-hours rooms)
 
