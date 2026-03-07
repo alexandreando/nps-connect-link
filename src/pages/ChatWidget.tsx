@@ -1110,7 +1110,7 @@ const ChatWidget = () => {
 
   const statusLabel = (status: string, resolutionStatus?: string) => {
     if (status === "closed" && resolutionStatus === "pending") return "Pendente";
-    if (status === "closed" && resolutionStatus === "archived") return "Arquivado";
+    if (status === "closed" && resolutionStatus === "archived") return "Encerrado";
     switch (status) {
       case "waiting": return "Aguardando";
       case "active": return "Em andamento";
