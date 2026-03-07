@@ -9,7 +9,7 @@ import { useDashboardStats, type DashboardFilters } from "@/hooks/useDashboardSt
 import { useAttendants } from "@/hooks/useAttendants";
 import { supabase } from "@/integrations/supabase/client";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { MessageSquare, CalendarDays, Star, CheckCircle, Clock, AlertTriangle, Zap, Tag } from "lucide-react";
+import { MessageSquare, CalendarDays, Star, CheckCircle, Clock, AlertTriangle, Zap, Tag, RefreshCw, Radio } from "lucide-react";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { MetricCard } from "@/components/ui/metric-card";
