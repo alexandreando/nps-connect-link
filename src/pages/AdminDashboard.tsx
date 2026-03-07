@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageSquare, Clock, Star, Users, TrendingUp, Timer, Eye, ChevronDown, ChevronRight as ChevronRightIcon, ArrowUp, ArrowDown, AlertTriangle, Zap, TrendingDown } from "lucide-react";
+import { MessageSquare, Clock, Star, Users, TrendingUp, Timer, Eye, ChevronDown, ChevronRight as ChevronRightIcon, ArrowUp, ArrowDown, AlertTriangle, Zap, TrendingDown, RefreshCw, Radio } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
