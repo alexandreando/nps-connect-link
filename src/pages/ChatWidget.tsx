@@ -69,6 +69,9 @@ const ChatWidget = () => {
   const [outsideHours, setOutsideHours] = useState(false);
   const [historyRooms, setHistoryRooms] = useState<HistoryRoom[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyPage, setHistoryPage] = useState(0);
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
+  const [historyFetched, setHistoryFetched] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
@@ -205,16 +208,24 @@ const ChatWidget = () => {
     }
   }, [formData.name, phase, visitorId]);
 
-  const fetchHistory = useCallback(async (vId: string) => {
+  const HISTORY_PAGE_SIZE = 10;
+
+  const fetchHistory = useCallback(async (vId: string, page = 0, append = false) => {
     setHistoryLoading(true);
+    const from = page * HISTORY_PAGE_SIZE;
+    const to = from + HISTORY_PAGE_SIZE; // fetch one extra to check hasMore
+
     const { data } = await supabase
       .from("chat_rooms")
       .select("id, status, created_at, closed_at, csat_score, resolution_status, attendant_id")
       .eq("visitor_id", vId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(from, to);
     
-    // Fetch last message + attendant name for each room
     const rooms = data ?? [];
+    const hasMore = rooms.length > HISTORY_PAGE_SIZE;
+    if (hasMore) rooms.pop();
+
     // Collect unique attendant_ids
     const attIds = [...new Set(rooms.map(r => r.attendant_id).filter(Boolean))] as string[];
     const attMap = new Map<string, string>();
@@ -245,7 +256,14 @@ const ChatWidget = () => {
       })
     );
     
-    setHistoryRooms(roomsWithPreview);
+    if (append) {
+      setHistoryRooms(prev => [...prev, ...roomsWithPreview]);
+    } else {
+      setHistoryRooms(roomsWithPreview);
+    }
+    setHasMoreHistory(hasMore);
+    setHistoryPage(page);
+    setHistoryFetched(true);
     setHistoryLoading(false);
     return roomsWithPreview;
   }, []);
@@ -277,8 +295,14 @@ const ChatWidget = () => {
         setVisitorId(visitor.id);
 
         if (isResolvedVisitor) {
-          const rooms = await fetchHistory(visitor.id);
-          const activeRoom = rooms.find((r) => r.status === "waiting" || r.status === "active");
+          // Check for active/waiting room without fetching full history
+          const { data: activeRoom } = await supabase
+            .from("chat_rooms")
+            .select("id, status")
+            .eq("visitor_id", visitor.id)
+            .in("status", ["waiting", "active"])
+            .maybeSingle();
+
           if (activeRoom) {
             setRoomId(activeRoom.id);
             setPhase(activeRoom.status === "active" ? "chat" : "waiting");
@@ -344,6 +368,13 @@ const ChatWidget = () => {
     };
     init();
   }, []);
+
+  // Lazy load history when widget opens and phase is history
+  useEffect(() => {
+    if (isOpen && phase === "history" && visitorId && !historyFetched && !historyLoading) {
+      fetchHistory(visitorId, 0);
+    }
+  }, [isOpen, phase, visitorId, historyFetched, historyLoading, fetchHistory]);
 
   const PAGE_SIZE = 10;
 
@@ -799,7 +830,7 @@ const ChatWidget = () => {
   };
 
   const handleBackToHistory = async () => {
-    if (visitorId) await fetchHistory(visitorId);
+    setHistoryFetched(false); // trigger lazy re-fetch via effect
     setRoomId(null);
     setMessages([]);
     setCsatScore(0);
@@ -1086,7 +1117,7 @@ const ChatWidget = () => {
 
   const statusLabel = (status: string, resolutionStatus?: string) => {
     if (status === "closed" && resolutionStatus === "pending") return "Pendente";
-    if (status === "closed" && resolutionStatus === "archived") return "Arquivado";
+    if (status === "closed" && resolutionStatus === "archived") return "Encerrado";
     switch (status) {
       case "waiting": return "Aguardando";
       case "active": return "Em andamento";
@@ -1223,7 +1254,7 @@ const ChatWidget = () => {
             onClick={() => {
               if (phase === "chat" || phase === "waiting") {
                 setPhase("history");
-                if (visitorId) fetchHistory(visitorId);
+                setHistoryFetched(false); // trigger lazy re-fetch
               } else {
                 handleBackToHistory();
               }
@@ -1420,6 +1451,16 @@ const ChatWidget = () => {
                     </div>
                   );
                 })
+              )}
+              {hasMoreHistory && !historyLoading && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-xs rounded-lg"
+                  onClick={() => visitorId && fetchHistory(visitorId, historyPage + 1, true)}
+                >
+                  Carregar mais
+                </Button>
               )}
             </div>
           </div>

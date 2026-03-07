@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, X, Loader2, Settings2, Database, FileText, Eye, Check, Building2 } from "lucide-react";
+import { Plus, X, Loader2, Settings2, Database, FileText, Eye, Check, Building2, Save, Trash2 } from "lucide-react";
 
 interface FieldRule {
   id: string;
@@ -29,6 +29,15 @@ interface MatchedCompany {
   id: string;
   name: string;
   trade_name: string | null;
+}
+
+interface StagedRule {
+  tempId: string;
+  source: string;
+  key: string;
+  operator: string;
+  value: string;
+  matches: MatchedCompany[];
 }
 
 const NATIVE_FIELDS: { key: string; labelKey: string; numeric?: boolean }[] = [
@@ -74,23 +83,23 @@ export function CategoryFieldRules({ categoryId, rules, fieldDefs, onChanged }: 
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [changed, setChanged] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Staging state
+  const [stagedAdds, setStagedAdds] = useState<StagedRule[]>([]);
+  const [stagedRemoveIds, setStagedRemoveIds] = useState<string[]>([]);
 
   // Add rule form state
   const [source, setSource] = useState<"custom" | "native">("custom");
   const [selectedKey, setSelectedKey] = useState("");
   const [operator, setOperator] = useState("equals");
   const [value, setValue] = useState("");
-
-  // Preview state
-  const [previewMatches, setPreviewMatches] = useState<MatchedCompany[] | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [pendingRule, setPendingRule] = useState<{ source: string; key: string; operator: string; value: string } | null>(null);
-  const [deletePreview, setDeletePreview] = useState<{ ruleId: string; unaffected: MatchedCompany[] } | null>(null);
+  const [addLoading, setAddLoading] = useState(false);
 
   const catRules = rules.filter(r => r.category_id === categoryId);
+  const hasChanges = stagedAdds.length > 0 || stagedRemoveIds.length > 0;
 
-  const getFieldLabel = (rule: FieldRule) => {
+  const getFieldLabel = (rule: FieldRule | { field_source: string; field_key: string }) => {
     if (rule.field_source === "native") {
       const nf = NATIVE_FIELDS.find(f => f.key === rule.field_key);
       return nf ? t(nf.labelKey) : rule.field_key;
@@ -98,132 +107,105 @@ export function CategoryFieldRules({ categoryId, rules, fieldDefs, onChanged }: 
     return fieldDefs.find(d => d.key === rule.field_key)?.label || rule.field_key;
   };
 
-  const previewRule = async () => {
+  const fetchCompaniesAndMatch = useCallback(async (src: string, key: string, op: string, val: string): Promise<MatchedCompany[]> => {
+    const { data: companies } = await supabase
+      .from("contacts")
+      .select("id, name, trade_name, custom_fields, company_sector, city, state, external_id, service_priority, cs_status, mrr, contract_value, health_score, email, company_document")
+      .eq("is_company", true);
+
+    if (!companies) return [];
+
+    const matches: MatchedCompany[] = [];
+    for (const comp of companies) {
+      const cf = (comp.custom_fields as Record<string, any>) || {};
+      const rawVal = src === "native" ? (comp as any)[key] : cf[key];
+      if (rawVal !== undefined && rawVal !== null && matchValue(rawVal, val, op)) {
+        matches.push({ id: comp.id, name: comp.name, trade_name: comp.trade_name });
+      }
+    }
+    return matches;
+  }, []);
+
+  const handleAddToStaging = async () => {
     if (!selectedKey || !value.trim()) return;
-    setPreviewLoading(true);
-
+    setAddLoading(true);
     try {
-      const { data: companies } = await supabase
-        .from("contacts")
-        .select("id, name, trade_name, custom_fields, company_sector, city, state, external_id, service_priority, cs_status, mrr, contract_value, health_score, email, company_document")
-        .eq("is_company", true);
-
-      if (!companies) {
-        setPreviewMatches([]);
-        return;
-      }
-
-      const matches: MatchedCompany[] = [];
-      for (const comp of companies) {
-        const cf = (comp.custom_fields as Record<string, any>) || {};
-        const rawVal = source === "native" ? (comp as any)[selectedKey] : cf[selectedKey];
-        if (rawVal !== undefined && rawVal !== null && matchValue(rawVal, value.trim(), operator)) {
-          matches.push({ id: comp.id, name: comp.name, trade_name: comp.trade_name });
-        }
-      }
-
-      setPreviewMatches(matches);
-      setPendingRule({ source, key: selectedKey, operator, value: value.trim() });
+      const matches = await fetchCompaniesAndMatch(source, selectedKey, operator, value.trim());
+      const staged: StagedRule = {
+        tempId: crypto.randomUUID(),
+        source,
+        key: selectedKey,
+        operator,
+        value: value.trim(),
+        matches,
+      };
+      setStagedAdds(prev => [...prev, staged]);
+      setValue("");
+      setSelectedKey("");
+      setOperator("equals");
     } finally {
-      setPreviewLoading(false);
+      setAddLoading(false);
     }
   };
 
-  const confirmAddRule = async () => {
-    if (!pendingRule) return;
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-
-    const { data: catData } = await supabase
-      .from("chat_service_categories")
-      .select("tenant_id")
-      .eq("id", categoryId)
-      .single();
-
-    await supabase.from("chat_category_field_rules" as any).insert({
-      category_id: categoryId,
-      tenant_id: (catData as any)?.tenant_id,
-      field_key: pendingRule.key,
-      field_value: pendingRule.value,
-      field_source: pendingRule.source,
-      operator: pendingRule.operator,
-    });
-
-    setValue("");
-    setSelectedKey("");
-    setOperator("equals");
-    setPendingRule(null);
-    setPreviewMatches(null);
-    setChanged(true);
-    toast({ title: t("chat.settings.saved") });
-    onChanged();
+  const removeStagedAdd = (tempId: string) => {
+    setStagedAdds(prev => prev.filter(s => s.tempId !== tempId));
   };
 
-  const cancelPreview = () => {
-    setPendingRule(null);
-    setPreviewMatches(null);
+  const toggleRemoveExisting = (ruleId: string) => {
+    setStagedRemoveIds(prev =>
+      prev.includes(ruleId) ? prev.filter(id => id !== ruleId) : [...prev, ruleId]
+    );
   };
 
-  const previewRemoveRule = async (ruleId: string) => {
-    setPreviewLoading(true);
+  const handleSaveAll = async () => {
+    setSaving(true);
     try {
-      const rule = catRules.find(r => r.id === ruleId);
-      if (!rule) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
 
-      const { data: companies } = await supabase
-        .from("contacts")
-        .select("id, name, trade_name, custom_fields, company_sector, city, state, external_id, service_priority, cs_status, mrr, contract_value, health_score, email, company_document, service_category_id")
-        .eq("is_company", true)
-        .eq("service_category_id", categoryId);
+      const { data: catData } = await supabase
+        .from("chat_service_categories")
+        .select("tenant_id")
+        .eq("id", categoryId)
+        .single();
 
-      if (!companies) {
-        setDeletePreview({ ruleId, unaffected: [] });
-        return;
+      const tenantId = (catData as any)?.tenant_id;
+
+      // Delete removed rules
+      for (const ruleId of stagedRemoveIds) {
+        await supabase.from("chat_category_field_rules" as any).delete().eq("id", ruleId);
       }
 
-      // Companies that would lose their category (only matched by this rule)
-      const otherRules = catRules.filter(r => r.id !== ruleId);
-      const unaffected: MatchedCompany[] = [];
-
-      for (const comp of companies) {
-        const cf = (comp.custom_fields as Record<string, any>) || {};
-        const rawVal = rule.field_source === "native" ? (comp as any)[rule.field_key] : cf[rule.field_key];
-        const matchesThisRule = rawVal !== undefined && rawVal !== null && matchValue(rawVal, rule.field_value, rule.operator);
-
-        if (matchesThisRule) {
-          const matchesOther = otherRules.some(r => {
-            const rv = r.field_source === "native" ? (comp as any)[r.field_key] : cf[r.field_key];
-            return rv !== undefined && rv !== null && matchValue(rv, r.field_value, r.operator);
-          });
-          if (!matchesOther) {
-            unaffected.push({ id: comp.id, name: comp.name, trade_name: comp.trade_name });
-          }
-        }
+      // Insert new rules
+      for (const staged of stagedAdds) {
+        await supabase.from("chat_category_field_rules" as any).insert({
+          category_id: categoryId,
+          tenant_id: tenantId,
+          field_key: staged.key,
+          field_value: staged.value,
+          field_source: staged.source,
+          operator: staged.operator,
+        });
       }
 
-      setDeletePreview({ ruleId, unaffected });
-    } finally {
-      setPreviewLoading(false);
-    }
-  };
-
-  const confirmRemoveRule = async () => {
-    if (!deletePreview) return;
-    await supabase.from("chat_category_field_rules" as any).delete().eq("id", deletePreview.ruleId);
-    setDeletePreview(null);
-    setChanged(true);
-    toast({ title: t("chat.settings.saved") });
-    onChanged();
-  };
-
-  const handleCloseDialog = async (open: boolean) => {
-    if (!open && changed) {
+      // Sync companies
       await syncCompanies();
-      setChanged(false);
+
+      setStagedAdds([]);
+      setStagedRemoveIds([]);
+      toast({ title: t("chat.settings.saved") });
+      onChanged();
+    } finally {
+      setSaving(false);
     }
-    setPendingRule(null);
-    setPreviewMatches(null);
-    setDeletePreview(null);
+  };
+
+  const handleCloseDialog = (open: boolean) => {
+    if (!open) {
+      setStagedAdds([]);
+      setStagedRemoveIds([]);
+    }
     setDialogOpen(open);
   };
 
@@ -302,184 +284,182 @@ export function CategoryFieldRules({ categoryId, rules, fieldDefs, onChanged }: 
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Existing rules */}
-            {catRules.length === 0 ? (
+            {/* Existing (persisted) rules */}
+            {catRules.length === 0 && stagedAdds.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">{t("chat.categories.noRulesYet")}</p>
             ) : (
               <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                {catRules.map(rule => (
-                  <div key={rule.id} className="flex items-center gap-2 text-sm bg-secondary/50 rounded-md px-3 py-1.5">
-                    {rule.field_source === "native" ? (
-                      <Database className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    ) : (
-                      <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    )}
-                    <span className="font-medium">{getFieldLabel(rule)}</span>
-                    <Badge variant="outline" className="text-xs px-1.5 py-0">
-                      {OPERATOR_LABELS[rule.operator] || "="}
-                    </Badge>
-                    <span className="text-muted-foreground">"{rule.field_value}"</span>
-                    <button
-                      onClick={() => previewRemoveRule(rule.id)}
-                      className="ml-auto hover:text-destructive"
-                      disabled={previewLoading}
+                {catRules.map(rule => {
+                  const isMarkedForRemoval = stagedRemoveIds.includes(rule.id);
+                  return (
+                    <div
+                      key={rule.id}
+                      className={`flex items-center gap-2 text-sm rounded-md px-3 py-1.5 transition-all ${
+                        isMarkedForRemoval
+                          ? "bg-destructive/10 line-through opacity-60"
+                          : "bg-secondary/50"
+                      }`}
                     >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
+                      {rule.field_source === "native" ? (
+                        <Database className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      ) : (
+                        <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      )}
+                      <span className="font-medium">{getFieldLabel(rule)}</span>
+                      <Badge variant="outline" className="text-xs px-1.5 py-0">
+                        {OPERATOR_LABELS[rule.operator] || "="}
+                      </Badge>
+                      <span className="text-muted-foreground">"{rule.field_value}"</span>
+                      <button
+                        onClick={() => toggleRemoveExisting(rule.id)}
+                        className={`ml-auto ${isMarkedForRemoval ? "text-primary hover:text-primary/80" : "hover:text-destructive"}`}
+                        title={isMarkedForRemoval ? "Desfazer remoção" : "Marcar para remoção"}
+                      >
+                        {isMarkedForRemoval ? <Plus className="h-3.5 w-3.5" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Staged additions */}
+            {stagedAdds.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-primary flex items-center gap-1">
+                  <Plus className="h-3 w-3" /> Novas regras (não salvas)
+                </p>
+                {stagedAdds.map(staged => (
+                  <div key={staged.tempId} className="rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-2 space-y-1.5">
+                    <div className="flex items-center gap-2 text-sm">
+                      {staged.source === "native" ? (
+                        <Database className="h-3.5 w-3.5 text-primary shrink-0" />
+                      ) : (
+                        <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
+                      )}
+                      <span className="font-medium">
+                        {getFieldLabel({ field_source: staged.source, field_key: staged.key })}
+                      </span>
+                      <Badge variant="outline" className="text-xs px-1.5 py-0">
+                        {OPERATOR_LABELS[staged.operator] || "="}
+                      </Badge>
+                      <span className="text-muted-foreground">"{staged.value}"</span>
+                      <button onClick={() => removeStagedAdd(staged.tempId)} className="ml-auto hover:text-destructive">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Building2 className="h-3 w-3" />
+                      <span>
+                        {staged.matches.length > 0
+                          ? `${staged.matches.length} empresa(s) correspondem`
+                          : "Nenhuma empresa corresponde"}
+                      </span>
+                    </div>
+                    {staged.matches.length > 0 && staged.matches.length <= 10 && (
+                      <ScrollArea className="max-h-24">
+                        <div className="space-y-0.5">
+                          {staged.matches.map(c => (
+                            <div key={c.id} className="text-xs text-muted-foreground pl-4">
+                              {c.trade_name || c.name}
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Delete preview */}
-            {deletePreview && (
-              <div className="border rounded-md p-3 bg-destructive/5 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Eye className="h-4 w-4 text-destructive" />
-                  <p className="text-sm font-medium text-destructive">
-                    {deletePreview.unaffected.length > 0
-                      ? `${deletePreview.unaffected.length} empresa(s) perderão a categoria ao remover esta regra`
-                      : "Nenhuma empresa será afetada pela remoção desta regra"}
-                  </p>
-                </div>
-                {deletePreview.unaffected.length > 0 && (
-                  <ScrollArea className="max-h-32">
-                    <div className="space-y-1">
-                      {deletePreview.unaffected.map(c => (
-                        <div key={c.id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Building2 className="h-3 w-3 shrink-0" />
-                          {c.trade_name || c.name}
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                )}
-                <div className="flex gap-2 justify-end">
-                  <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => setDeletePreview(null)}>
-                    Cancelar
-                  </Button>
-                  <Button variant="destructive" size="sm" className="text-xs h-7" onClick={confirmRemoveRule}>
-                    Confirmar remoção
-                  </Button>
-                </div>
+            {/* Add rule form */}
+            <div className="border-t pt-4 space-y-3">
+              <p className="text-xs font-medium">{t("chat.categories.addNewRule")}</p>
+
+              {/* Source selector */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t("chat.categories.fieldSource")}</Label>
+                <RadioGroup
+                  value={source}
+                  onValueChange={(v) => { setSource(v as "custom" | "native"); setSelectedKey(""); }}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <RadioGroupItem value="custom" id="src-custom" />
+                    <Label htmlFor="src-custom" className="text-xs cursor-pointer">{t("chat.categories.sourceCustom")}</Label>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <RadioGroupItem value="native" id="src-native" />
+                    <Label htmlFor="src-native" className="text-xs cursor-pointer">{t("chat.categories.sourceNative")}</Label>
+                  </div>
+                </RadioGroup>
               </div>
-            )}
 
-            {/* Add rule form - hidden when preview is active */}
-            {!pendingRule && !deletePreview && (
-              <div className="border-t pt-4 space-y-3">
-                <p className="text-xs font-medium">{t("chat.categories.addNewRule")}</p>
-
-                {/* Source selector */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs">{t("chat.categories.fieldSource")}</Label>
-                  <RadioGroup
-                    value={source}
-                    onValueChange={(v) => { setSource(v as "custom" | "native"); setSelectedKey(""); }}
-                    className="flex gap-4"
+              {/* Field + Operator + Value + Add button */}
+              <div className="flex items-end gap-2">
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs">{t("chat.categories.selectField")}</Label>
+                  <select
+                    className="w-full text-xs border rounded-md px-2 py-1.5 bg-background"
+                    value={selectedKey}
+                    onChange={(e) => setSelectedKey(e.target.value)}
                   >
-                    <div className="flex items-center gap-1.5">
-                      <RadioGroupItem value="custom" id="src-custom" />
-                      <Label htmlFor="src-custom" className="text-xs cursor-pointer">{t("chat.categories.sourceCustom")}</Label>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <RadioGroupItem value="native" id="src-native" />
-                      <Label htmlFor="src-native" className="text-xs cursor-pointer">{t("chat.categories.sourceNative")}</Label>
-                    </div>
-                  </RadioGroup>
+                    <option value="">{t("chat.categories.selectField")}</option>
+                    {fieldOptions.map(d => (
+                      <option key={d.key} value={d.key}>{d.label}</option>
+                    ))}
+                  </select>
                 </div>
 
-                {/* Field + Operator + Value */}
-                <div className="flex items-end gap-2">
-                  <div className="flex-1 space-y-1">
-                    <Label className="text-xs">{t("chat.categories.selectField")}</Label>
-                    <select
-                      className="w-full text-xs border rounded-md px-2 py-1.5 bg-background"
-                      value={selectedKey}
-                      onChange={(e) => setSelectedKey(e.target.value)}
-                    >
-                      <option value="">{t("chat.categories.selectField")}</option>
-                      {fieldOptions.map(d => (
-                        <option key={d.key} value={d.key}>{d.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="w-16 space-y-1">
-                    <Label className="text-xs">{t("chat.categories.operator")}</Label>
-                    <select
-                      className="w-full text-xs border rounded-md px-2 py-1.5 bg-background"
-                      value={operator}
-                      onChange={(e) => setOperator(e.target.value)}
-                    >
-                      {OPERATORS.map(op => (
-                        <option key={op.value} value={op.value}>{op.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="flex-1 space-y-1">
-                    <Label className="text-xs">{t("chat.categories.fieldValue")}</Label>
-                    <Input
-                      className="h-8 text-xs"
-                      placeholder={t("chat.categories.fieldValue")}
-                      value={value}
-                      onChange={(e) => setValue(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") previewRule(); }}
-                    />
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs px-2.5 gap-1"
-                    onClick={previewRule}
-                    disabled={!selectedKey || !value.trim() || syncing || previewLoading}
+                <div className="w-16 space-y-1">
+                  <Label className="text-xs">{t("chat.categories.operator")}</Label>
+                  <select
+                    className="w-full text-xs border rounded-md px-2 py-1.5 bg-background"
+                    value={operator}
+                    onChange={(e) => setOperator(e.target.value)}
                   >
-                    {previewLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
-                  </Button>
+                    {OPERATORS.map(op => (
+                      <option key={op.value} value={op.value}>{op.label}</option>
+                    ))}
+                  </select>
                 </div>
-              </div>
-            )}
 
-            {/* Preview panel */}
-            {pendingRule && previewMatches !== null && (
-              <div className="border rounded-md p-3 bg-primary/5 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Eye className="h-4 w-4 text-primary" />
-                  <p className="text-sm font-medium">
-                    {previewMatches.length > 0
-                      ? `${previewMatches.length} empresa(s) serão atribuídas a esta regra`
-                      : "Nenhuma empresa corresponde a esta regra"}
-                  </p>
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs">{t("chat.categories.fieldValue")}</Label>
+                  <Input
+                    className="h-8 text-xs"
+                    placeholder={t("chat.categories.fieldValue")}
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleAddToStaging(); }}
+                  />
                 </div>
-                {previewMatches.length > 0 && (
-                  <ScrollArea className="max-h-40">
-                    <div className="space-y-1">
-                      {previewMatches.map(c => (
-                        <div key={c.id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Building2 className="h-3 w-3 shrink-0" />
-                          {c.trade_name || c.name}
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                )}
-                <div className="flex gap-2 justify-end">
-                  <Button variant="outline" size="sm" className="text-xs h-7" onClick={cancelPreview}>
-                    Cancelar
-                  </Button>
-                  <Button size="sm" className="text-xs h-7 gap-1" onClick={confirmAddRule}>
-                    <Check className="h-3 w-3" /> Confirmar
-                  </Button>
-                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs px-2.5 gap-1"
+                  onClick={handleAddToStaging}
+                  disabled={!selectedKey || !value.trim() || addLoading}
+                >
+                  {addLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                  Adicionar
+                </Button>
               </div>
-            )}
+            </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => handleCloseDialog(false)}>
               {t("common.close")}
+            </Button>
+            <Button
+              onClick={handleSaveAll}
+              disabled={!hasChanges || saving || syncing}
+              className="gap-1.5"
+            >
+              {(saving || syncing) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Salvar alterações
             </Button>
           </DialogFooter>
         </DialogContent>
