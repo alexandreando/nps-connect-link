@@ -106,6 +106,11 @@ const AdminCSATReport = () => {
                 <SelectItem value="all">{t("chat.gerencial.all_time")}</SelectItem>
               </SelectContent>
             </Select>
+            {filters.period === "all" && (
+              <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                ⚠ Períodos longos podem demorar com alto volume de dados
+              </span>
+            )}
             <Select value={filters.attendantId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, attendantId: v === "all" ? null : v, page: 0 }))}>
               <SelectTrigger className="w-[170px] h-9"><SelectValue placeholder={t("chat.gerencial.filter_by_attendant")} /></SelectTrigger>
               <SelectContent>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageSquare, Clock, Star, Users, TrendingUp, Timer, Eye, ChevronDown, ChevronRight as ChevronRightIcon, ArrowUp, ArrowDown, AlertTriangle, Zap, TrendingDown } from "lucide-react";
+import { MessageSquare, Clock, Star, Users, TrendingUp, Timer, Eye, ChevronDown, ChevronRight as ChevronRightIcon, ArrowUp, ArrowDown, AlertTriangle, Zap, TrendingDown, RefreshCw, Radio } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,7 @@ const AdminDashboard = () => {
   const [tags, setTags] = useState<{ id: string; name: string }[]>([]);
   const [companyOptions, setCompanyOptions] = useState<{ id: string; name: string }[]>([]);
   const [contactOptions, setContactOptions] = useState<{ id: string; name: string; companyId: string }[]>([]);
-  const { stats, loading } = useDashboardStats(filters);
+  const { stats, loading, refetch, realtimeEnabled, toggleRealtime } = useDashboardStats(filters);
   const { attendants, unassignedRooms, loading: queuesLoading } = useAttendantQueues();
 
   const [teams, setTeams] = useState<{ id: string; name: string; memberIds: string[] }[]>([]);
@@ -273,7 +273,21 @@ const AdminDashboard = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <PageHeader title={t("chat.dashboard.title")} subtitle={t("chat.dashboard.subtitle")} />
-          <span className="text-[10px] text-muted-foreground/60">Atualizado {lastRefreshLabel()}</span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-[11px]" onClick={() => refetch()}>
+              <RefreshCw className="h-3.5 w-3.5" />Atualizar
+            </Button>
+            <Button
+              variant={realtimeEnabled ? "default" : "outline"}
+              size="sm"
+              className="h-8 gap-1.5 text-[11px]"
+              onClick={toggleRealtime}
+            >
+              <Radio className={`h-3.5 w-3.5 ${realtimeEnabled ? "animate-pulse" : ""}`} />
+              Tempo real: {realtimeEnabled ? "Ligado" : "Desligado"}
+            </Button>
+            <span className="text-[10px] text-muted-foreground/60">Atualizado {lastRefreshLabel()}</span>
+          </div>
         </div>
 
         {/* Filters */}

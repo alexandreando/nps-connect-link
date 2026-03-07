@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface DashboardStats {
@@ -57,6 +57,9 @@ export function useDashboardStats(filters: DashboardFilters) {
     topTags: [],
   });
   const [loading, setLoading] = useState(true);
+  const [realtimeEnabled, setRealtimeEnabled] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
@@ -316,13 +319,8 @@ export function useDashboardStats(filters: DashboardFilters) {
       }
     }
 
-    // Avg wait time (created_at -> assigned_at)
-    const roomsWithAssignment = rooms.filter(r => r.created_at && (r as any).assigned_at);
-    let avgWaitMinutes: number | null = null;
-    // We don't have assigned_at in our select, so approximate using closed rooms with attendant
-    const waitingRooms = rooms.filter(r => r.created_at && r.attendant_id);
-    // Use first response time as proxy for wait time
-    avgWaitMinutes = avgFirstResponseMinutes;
+    // Avg wait time - use first response time as proxy
+    const avgWaitMinutes = avgFirstResponseMinutes;
 
     // Abandonment rate: closed rooms without attendant_id
     const closedWithoutAttendant = closedRooms.filter(r => !r.attendant_id).length;
@@ -377,11 +375,50 @@ export function useDashboardStats(filters: DashboardFilters) {
     setLoading(false);
   }, [filters.period, filters.attendantId, filters.status, filters.priority, filters.categoryId, filters.tagId, filters.contactId, filters.companyContactId]);
 
+  // Fetch on mount and filter change only — NO auto-polling
   useEffect(() => {
     fetchStats();
-    const interval = setInterval(fetchStats, 30000);
-    return () => clearInterval(interval);
   }, [fetchStats]);
 
-  return { stats, loading, refetch: fetchStats };
+  // Optional realtime: subscribe to chat_rooms changes with 5s debounce
+  const toggleRealtime = useCallback(() => {
+    setRealtimeEnabled(prev => !prev);
+  }, []);
+
+  useEffect(() => {
+    if (!realtimeEnabled) {
+      // Cleanup existing channel
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+      return;
+    }
+
+    const debouncedFetch = () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        fetchStats();
+      }, 5000);
+    };
+
+    const channel = supabase
+      .channel("dashboard-realtime-rooms")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "chat_rooms" },
+        debouncedFetch
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      supabase.removeChannel(channel);
+      channelRef.current = null;
+    };
+  }, [realtimeEnabled, fetchStats]);
+
+  return { stats, loading, refetch: fetchStats, realtimeEnabled, toggleRealtime };
 }
