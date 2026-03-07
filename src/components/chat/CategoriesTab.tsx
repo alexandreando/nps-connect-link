@@ -216,10 +216,15 @@ const CategoriesTab = () => {
   };
 
   const saveBulkCompanies = async () => {
-    if (!bulkCategoryId || bulkSelected.size === 0) return;
-    const ids = Array.from(bulkSelected);
-    for (const id of ids) {
-      await supabase.from("contacts").update({ service_category_id: bulkCategoryId } as any).eq("id", id);
+    if (!bulkCategoryId) return;
+    const selectedIds = Array.from(bulkSelected);
+    // Assign selected companies to this category
+    for (const comp of manageable) {
+      if (selectedIds.includes(comp.id) && comp.service_category_id !== bulkCategoryId) {
+        await supabase.from("contacts").update({ service_category_id: bulkCategoryId } as any).eq("id", comp.id);
+      } else if (!selectedIds.includes(comp.id) && comp.service_category_id === bulkCategoryId) {
+        await supabase.from("contacts").update({ service_category_id: null } as any).eq("id", comp.id);
+      }
     }
     setBulkDialogOpen(false);
     toast({ title: t("chat.settings.saved") });
