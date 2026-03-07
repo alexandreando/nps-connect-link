@@ -830,7 +830,7 @@ const ChatWidget = () => {
   };
 
   const handleBackToHistory = async () => {
-    if (visitorId) await fetchHistory(visitorId);
+    setHistoryFetched(false); // trigger lazy re-fetch via effect
     setRoomId(null);
     setMessages([]);
     setCsatScore(0);
