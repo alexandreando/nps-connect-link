@@ -208,16 +208,24 @@ const ChatWidget = () => {
     }
   }, [formData.name, phase, visitorId]);
 
-  const fetchHistory = useCallback(async (vId: string) => {
+  const HISTORY_PAGE_SIZE = 10;
+
+  const fetchHistory = useCallback(async (vId: string, page = 0, append = false) => {
     setHistoryLoading(true);
+    const from = page * HISTORY_PAGE_SIZE;
+    const to = from + HISTORY_PAGE_SIZE; // fetch one extra to check hasMore
+
     const { data } = await supabase
       .from("chat_rooms")
       .select("id, status, created_at, closed_at, csat_score, resolution_status, attendant_id")
       .eq("visitor_id", vId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(from, to);
     
-    // Fetch last message + attendant name for each room
     const rooms = data ?? [];
+    const hasMore = rooms.length > HISTORY_PAGE_SIZE;
+    if (hasMore) rooms.pop();
+
     // Collect unique attendant_ids
     const attIds = [...new Set(rooms.map(r => r.attendant_id).filter(Boolean))] as string[];
     const attMap = new Map<string, string>();
@@ -248,7 +256,14 @@ const ChatWidget = () => {
       })
     );
     
-    setHistoryRooms(roomsWithPreview);
+    if (append) {
+      setHistoryRooms(prev => [...prev, ...roomsWithPreview]);
+    } else {
+      setHistoryRooms(roomsWithPreview);
+    }
+    setHasMoreHistory(hasMore);
+    setHistoryPage(page);
+    setHistoryFetched(true);
     setHistoryLoading(false);
     return roomsWithPreview;
   }, []);
