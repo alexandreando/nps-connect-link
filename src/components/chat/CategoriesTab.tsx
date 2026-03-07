@@ -184,13 +184,16 @@ const CategoriesTab = () => {
   const openBulkDialog = (categoryId: string) => {
     setBulkCategoryId(categoryId);
     setBulkSearch("");
-    setBulkSelected(new Set());
+    // Pre-select already assigned companies
+    const assigned = companies.filter(c => c.service_category_id === categoryId);
+    setBulkSelected(new Set(assigned.map(c => c.id)));
     setBulkDialogOpen(true);
   };
 
-  const unassigned = companies.filter(c => !c.service_category_id);
+  // All companies available for this category (assigned to it or unassigned)
+  const manageable = companies.filter(c => !c.service_category_id || c.service_category_id === bulkCategoryId);
 
-  const filteredUnassigned = unassigned.filter(c => {
+  const filteredManageable = manageable.filter(c => {
     const search = bulkSearch.toLowerCase();
     return (c.trade_name || c.name).toLowerCase().includes(search);
   });
