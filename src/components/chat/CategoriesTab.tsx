@@ -411,7 +411,7 @@ const CategoriesTab = () => {
             </div>
             <div className="flex items-center justify-between">
               <Button variant="ghost" size="sm" className="text-xs" onClick={toggleSelectAll}>
-                {bulkSelected.size === filteredUnassigned.length && filteredUnassigned.length > 0
+                {bulkSelected.size === filteredManageable.length && filteredManageable.length > 0
                   ? t("chat.categories.deselectAll")
                   : t("chat.categories.selectAll")}
               </Button>
@@ -420,16 +420,19 @@ const CategoriesTab = () => {
               </span>
             </div>
             <div className="max-h-60 overflow-y-auto border rounded-md divide-y">
-              {filteredUnassigned.length === 0 ? (
+              {filteredManageable.length === 0 ? (
                 <p className="text-sm text-muted-foreground p-3 text-center">{t("companies.noCompaniesFound")}</p>
               ) : (
-                filteredUnassigned.map(comp => (
+                filteredManageable.map(comp => (
                   <label key={comp.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted/50 cursor-pointer">
                     <Checkbox
                       checked={bulkSelected.has(comp.id)}
                       onCheckedChange={() => toggleBulkSelect(comp.id)}
                     />
                     <span className="text-sm">{comp.trade_name || comp.name}</span>
+                    {comp.service_category_id === bulkCategoryId && (
+                      <Badge variant="outline" className="text-xs ml-auto">Vinculada</Badge>
+                    )}
                   </label>
                 ))
               )}
@@ -437,8 +440,8 @@ const CategoriesTab = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBulkDialogOpen(false)}>{t("common.cancel")}</Button>
-            <Button onClick={saveBulkCompanies} disabled={bulkSelected.size === 0}>
-              {t("chat.categories.addSelected")} ({bulkSelected.size})
+            <Button onClick={saveBulkCompanies}>
+              {t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
