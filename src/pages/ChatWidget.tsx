@@ -1254,7 +1254,7 @@ const ChatWidget = () => {
             onClick={() => {
               if (phase === "chat" || phase === "waiting") {
                 setPhase("history");
-                if (visitorId) fetchHistory(visitorId);
+                setHistoryFetched(false); // trigger lazy re-fetch
               } else {
                 handleBackToHistory();
               }
