@@ -441,7 +441,7 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
 
       {/* Articles popup */}
       {articlesOpen && (
-        <div className="rounded-md border bg-popover shadow-md max-h-56 overflow-hidden flex flex-col" ref={articleListRef}>
+        <div className="rounded-md border bg-popover shadow-md max-h-56 overflow-hidden flex flex-col" ref={(el) => { (articleListRef as any).current = el; (articlesPopupRef as any).current = el; }}>
           <Command shouldFilter={false}>
             <div className="flex items-center border-b px-3 py-1.5">
               <BookOpen className="mr-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
