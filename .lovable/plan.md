@@ -1,18 +1,22 @@
 
-# Plan: Fix Auto-Rules Chain + Improve Categories UI + Rule Preview Validation
+# Plan: Category Rules UX Rework + Widget Performance Optimization
 
 ## Status: ✅ Implemented
 
-## 1. Fix auto-rules chain — DONE
-- Expanded room query in `process-chat-auto-rules` to include `closed+pending` rooms
-- Chain now continues: `inactivity_warning` → `inactivity_warning_2` → `auto_close`
-- First step triggers only on `active` rooms where attendant sent last unanswered message
+## 1. CategoryFieldRules UX Rework — DONE
+- Replaced immediate-save flow with staging-based UX
+- "Adicionar" button adds rules to local staging list with match preview (not saved yet)
+- Existing rules can be marked for removal (struck-through, not deleted yet)
+- Global "Salvar alterações" button persists all changes at once and syncs companies
 
-## 2. Compact company list UI — DONE
-- Replaced inline badge list with count + "Gerenciar empresas" button
-- Manage dialog shows assigned (pre-checked) and unassigned companies with search
+## 2. Widget Lazy Loading — DONE
+- Init only resolves visitor + checks for active room (no history fetch)
+- History is fetched lazily when widget opens AND phase is "history"
+- Realtime subscriptions and proactive chat detection remain untouched
 
-## 3. Rule preview validation — DONE
-- Clicking "+" now shows a preview of matching companies before saving
-- Removing a rule shows which companies will lose their category
-- Both actions require explicit confirmation
+## 3. History Pagination — DONE
+- fetchHistory uses `.range()` with page size of 10
+- "Carregar mais" button appends next page
+
+## 4. Archived → Encerrado in Widget — DONE
+- Widget now shows "Encerrado" instead of "Arquivado" for archived chats
