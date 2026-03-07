@@ -102,6 +102,9 @@ export function ObjectList({ items }: { items: Record<string, any>[] }) {
 }
 
 export function JsonDisplay({ obj }: { obj: Record<string, any> }) {
+  if (typeof obj !== "object" || obj === null) {
+    return <span className="text-xs break-words">{autoLinkify(obj)}</span>;
+  }
   return (
     <div className="space-y-1 text-[11px]">
       {Object.entries(obj).map(([key, val]) => (
