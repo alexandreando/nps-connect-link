@@ -369,6 +369,13 @@ const ChatWidget = () => {
     init();
   }, []);
 
+  // Lazy load history when widget opens and phase is history
+  useEffect(() => {
+    if (isOpen && phase === "history" && visitorId && !historyFetched && !historyLoading) {
+      fetchHistory(visitorId, 0);
+    }
+  }, [isOpen, phase, visitorId, historyFetched, historyLoading, fetchHistory]);
+
   const PAGE_SIZE = 10;
 
   const fetchMessages = useCallback(async (roomIdToFetch: string, before?: string) => {
