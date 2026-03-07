@@ -69,6 +69,9 @@ const ChatWidget = () => {
   const [outsideHours, setOutsideHours] = useState(false);
   const [historyRooms, setHistoryRooms] = useState<HistoryRoom[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyPage, setHistoryPage] = useState(0);
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
+  const [historyFetched, setHistoryFetched] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
