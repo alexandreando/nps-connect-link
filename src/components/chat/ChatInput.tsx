@@ -412,7 +412,10 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
           ? macros.filter(m => m.title.toLowerCase().includes(filterText) || (m.shortcut && m.shortcut.toLowerCase().includes(filterText)))
           : macros;
         return (
-          <div className="rounded-md border bg-popover shadow-md max-h-48 overflow-auto" ref={commandListRef}>
+          <div className="rounded-md border bg-popover shadow-md max-h-48 overflow-auto" ref={(el) => { (commandListRef as any).current = el; (macrosPopupRef as any).current = el; }}>
+            <div className="flex justify-end p-1">
+              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => setMacrosOpen(false)}><X className="h-3 w-3" /></Button>
+            </div>
             <Command shouldFilter={false}>
               <CommandList>
                 <CommandEmpty className="text-xs p-2">Nenhuma macro encontrada</CommandEmpty>
