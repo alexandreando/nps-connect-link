@@ -80,18 +80,23 @@ export function UrlList({ items }: { items: any[] }) {
 export function ObjectList({ items }: { items: Record<string, any>[] }) {
   return (
     <div className="space-y-1.5">
-      {items.map((obj, i) => (
-        <div key={i} className="border border-border rounded-md p-2 space-y-1 bg-muted/30">
-          {Object.entries(obj).map(([key, val]) => (
-            <div key={key} className="flex items-start justify-between text-[11px] gap-2">
-              <span className="text-muted-foreground shrink-0">{key}</span>
-              <span className="font-medium text-right break-words max-w-[65%]">
-                {val != null && isUrl(String(val)) ? <ClickableLink href={makeHref(String(val))} /> : autoLinkify(val)}
-              </span>
-            </div>
-          ))}
-        </div>
-      ))}
+      {items.map((obj, i) => {
+        if (typeof obj !== "object" || obj === null) {
+          return <div key={i} className="text-xs break-words">{autoLinkify(obj)}</div>;
+        }
+        return (
+          <div key={i} className="border border-border rounded-md p-2 space-y-1 bg-muted/30">
+            {Object.entries(obj).map(([key, val]) => (
+              <div key={key} className="flex items-start justify-between text-[11px] gap-2">
+                <span className="text-muted-foreground shrink-0">{key}</span>
+                <span className="font-medium text-right break-words max-w-[65%]">
+                  {val != null && isUrl(String(val)) ? <ClickableLink href={makeHref(String(val))} /> : autoLinkify(val)}
+                </span>
+              </div>
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 }
