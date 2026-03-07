@@ -21,8 +21,8 @@ import { ChartCard } from "@/components/ui/chart-card";
 const AdminDashboardGerencial = () => {
   const { t } = useLanguage();
   const { attendants } = useAttendants();
-  const [filters, setFilters] = useState<DashboardFilters>({ period: "month" });
-  const { stats, loading } = useDashboardStats(filters);
+  const [filters, setFilters] = useState<DashboardFilters>({ period: "week" });
+  const { stats, loading, refetch, realtimeEnabled, toggleRealtime } = useDashboardStats(filters);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [tags, setTags] = useState<{ id: string; name: string }[]>([]);
   const [companyOptions, setCompanyOptions] = useState<{ id: string; name: string }[]>([]);
@@ -63,7 +63,18 @@ const AdminDashboardGerencial = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t("chat.gerencial.title")} subtitle={t("chat.gerencial.subtitle")} />
+      <div className="flex items-center justify-between">
+        <PageHeader title={t("chat.gerencial.title")} subtitle={t("chat.gerencial.subtitle")} />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-[11px]" onClick={() => refetch()}>
+            <RefreshCw className="h-3.5 w-3.5" />Atualizar
+          </Button>
+          <Button variant={realtimeEnabled ? "default" : "outline"} size="sm" className="h-8 gap-1.5 text-[11px]" onClick={toggleRealtime}>
+            <Radio className={`h-3.5 w-3.5 ${realtimeEnabled ? "animate-pulse" : ""}`} />
+            Tempo real: {realtimeEnabled ? "Ligado" : "Desligado"}
+          </Button>
+        </div>
+      </div>
 
       {/* Filters */}
       <FilterBar>
@@ -73,7 +84,6 @@ const AdminDashboardGerencial = () => {
             <SelectItem value="today">{t("chat.gerencial.today")}</SelectItem>
             <SelectItem value="week">{t("chat.gerencial.week")}</SelectItem>
             <SelectItem value="month">{t("chat.gerencial.month_period")}</SelectItem>
-            <SelectItem value="all">{t("chat.gerencial.all_time")}</SelectItem>
           </SelectContent>
         </Select>
         <Select value={filters.attendantId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, attendantId: v === "all" ? null : v }))}>
