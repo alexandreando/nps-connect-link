@@ -34,7 +34,7 @@ const AdminDashboard = () => {
   const [tags, setTags] = useState<{ id: string; name: string }[]>([]);
   const [companyOptions, setCompanyOptions] = useState<{ id: string; name: string }[]>([]);
   const [contactOptions, setContactOptions] = useState<{ id: string; name: string; companyId: string }[]>([]);
-  const { stats, loading } = useDashboardStats(filters);
+  const { stats, loading, refetch, realtimeEnabled, toggleRealtime } = useDashboardStats(filters);
   const { attendants, unassignedRooms, loading: queuesLoading } = useAttendantQueues();
 
   const [teams, setTeams] = useState<{ id: string; name: string; memberIds: string[] }[]>([]);
