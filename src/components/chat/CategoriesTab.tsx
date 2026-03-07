@@ -339,21 +339,14 @@ const CategoriesTab = () => {
                   />
 
                   {/* Companies */}
-                  <div>
-                    <p className="text-xs font-medium mb-1.5">{t("chat.categories.companies")} ({catCompanies.length})</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {catCompanies.map(comp => (
-                        <Badge key={comp.id} variant="secondary" className="text-xs gap-1">
-                          {comp.trade_name || comp.name}
-                          <button onClick={() => unassignCompany(comp.id)} className="ml-0.5 hover:text-destructive"><X className="h-3 w-3" /></button>
-                        </Badge>
-                      ))}
-                      {unassigned.length > 0 && (
-                        <Button variant="outline" size="sm" className="text-xs h-6" onClick={() => openBulkDialog(cat.id)}>
-                          <Plus className="h-3 w-3 mr-1" /> {t("chat.categories.addCompanies")}
-                        </Button>
-                      )}
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-medium">{t("chat.categories.companies")}</p>
+                    <Badge variant="secondary" className="text-xs">
+                      {catCompanies.length} {catCompanies.length === 1 ? "empresa" : "empresas"}
+                    </Badge>
+                    <Button variant="outline" size="sm" className="text-xs h-6 ml-auto" onClick={() => openBulkDialog(cat.id)}>
+                      <Settings2 className="h-3 w-3 mr-1" /> Gerenciar empresas
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
