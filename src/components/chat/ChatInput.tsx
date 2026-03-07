@@ -59,6 +59,10 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastTypingBroadcast = useRef<number>(0);
+  const draftsRef = useRef<Map<string, string>>(new Map());
+  const prevRoomIdRef = useRef<string | null | undefined>(undefined);
+  const macrosPopupRef = useRef<HTMLDivElement>(null);
+  const articlesPopupRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchMacros = async () => {
