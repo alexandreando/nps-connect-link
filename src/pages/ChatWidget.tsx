@@ -295,8 +295,14 @@ const ChatWidget = () => {
         setVisitorId(visitor.id);
 
         if (isResolvedVisitor) {
-          const rooms = await fetchHistory(visitor.id);
-          const activeRoom = rooms.find((r) => r.status === "waiting" || r.status === "active");
+          // Check for active/waiting room without fetching full history
+          const { data: activeRoom } = await supabase
+            .from("chat_rooms")
+            .select("id, status")
+            .eq("visitor_id", visitor.id)
+            .in("status", ["waiting", "active"])
+            .maybeSingle();
+
           if (activeRoom) {
             setRoomId(activeRoom.id);
             setPhase(activeRoom.status === "active" ? "chat" : "waiting");
