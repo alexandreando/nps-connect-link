@@ -46,14 +46,14 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
     if (masterImpersonating && currentTenantId) {
       const { data } = await supabase
         .from("attendant_profiles")
-        .select("id, display_name, user_id, status")
+        .select("id, display_name, user_id, status, active_conversations")
         .eq("tenant_id", currentTenantId);
       attendants = data ?? [];
     } else if (adminStatus) {
       // Fetch all tenant attendants
       const { data: allData } = await supabase
         .from("attendant_profiles")
-        .select("id, display_name, user_id, status");
+        .select("id, display_name, user_id, status, active_conversations");
       const allAttendants = allData ?? [];
 
       // Check if admin belongs to any team to split my team vs other teams
@@ -95,14 +95,14 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
         if (uniqueIds.length > 0) {
           const { data } = await supabase
             .from("attendant_profiles")
-            .select("id, display_name, user_id, status")
+            .select("id, display_name, user_id, status, active_conversations")
             .in("id", uniqueIds);
           attendants = data ?? [];
         }
       } else {
         const { data } = await supabase
           .from("attendant_profiles")
-          .select("id, display_name, user_id, status")
+          .select("id, display_name, user_id, status, active_conversations")
           .eq("user_id", userId);
         attendants = data ?? [];
         myTeamAttendantIds = (data ?? []).map((a: any) => a.id);
@@ -113,41 +113,33 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
     if (!adminStatus && !masterImpersonating && currentTenantId && myProfile) {
       const { data: allTenant } = await supabase
         .from("attendant_profiles")
-        .select("id, display_name, user_id, status")
+        .select("id, display_name, user_id, status, active_conversations")
         .eq("tenant_id", currentTenantId);
       const myIds = new Set(myTeamAttendantIds);
       otherAttendants = (allTenant ?? []).filter((a: any) => !myIds.has(a.id));
     }
 
-    // Fetch active room counts
-    let roomsQuery = supabase
+    // Use active_conversations from attendant_profiles instead of scanning all rooms
+    // Only fetch unassigned count with a lightweight head-only query
+    let unassignedQuery = supabase
       .from("chat_rooms")
-      .select("attendant_id")
-      .in("status", ["active", "waiting"]);
+      .select("id", { count: "exact", head: true })
+      .in("status", ["active", "waiting"])
+      .is("attendant_id", null);
 
     if (masterImpersonating && currentTenantId) {
-      roomsQuery = roomsQuery.eq("tenant_id", currentTenantId);
+      unassignedQuery = unassignedQuery.eq("tenant_id", currentTenantId);
     }
 
-    const { data: allActiveRooms } = await roomsQuery;
-
-    let counts: Record<string, number> = {};
-    let unassigned = 0;
-    (allActiveRooms ?? []).forEach((r: any) => {
-      if (r.attendant_id) {
-        counts[r.attendant_id] = (counts[r.attendant_id] || 0) + 1;
-      } else {
-        unassigned++;
-      }
-    });
-    setUnassignedCount(unassigned);
+    const { count: unassigned } = await unassignedQuery;
+    setUnassignedCount(unassigned ?? 0);
 
     const sorted = attendants
       .map((a: any) => ({
         id: a.id,
         display_name: a.display_name,
         user_id: a.user_id,
-        active_count: counts[a.id] || 0,
+        active_count: a.active_conversations ?? 0,
         status: a.status ?? null,
       }))
       .sort((a, b) => {
@@ -163,7 +155,7 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
         id: a.id,
         display_name: a.display_name,
         user_id: a.user_id,
-        active_count: counts[a.id] || 0,
+        active_count: a.active_conversations ?? 0,
         status: a.status ?? null,
       }))
       .sort((a, b) => a.display_name.localeCompare(b.display_name));
@@ -176,61 +168,33 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
   const handleRoomChange = useCallback((payload: any) => {
     const { eventType, new: newRoom, old: oldRoom } = payload;
 
-    const patchAttendants = (setter: React.Dispatch<React.SetStateAction<TeamAttendant[]>>, id: string, delta: number) => {
-      setter(prev => prev.map(a =>
-        a.id === id ? { ...a, active_count: Math.max(0, a.active_count + delta) } : a
-      ));
-    };
-
-    const patchBoth = (id: string, delta: number) => {
-      patchAttendants(setTeamAttendants, id, delta);
-      patchAttendants(setOtherTeamAttendants, id, delta);
-    };
-
+    // For unassigned count, only track rooms without attendant_id
     if (eventType === "INSERT") {
-      if (newRoom.status === "active" || newRoom.status === "waiting") {
-        if (newRoom.attendant_id) {
-          patchBoth(newRoom.attendant_id, 1);
-        } else {
-          setUnassignedCount(prev => prev + 1);
-        }
+      if ((newRoom.status === "active" || newRoom.status === "waiting") && !newRoom.attendant_id) {
+        setUnassignedCount(prev => prev + 1);
       }
     }
 
     if (eventType === "UPDATE") {
-      const oldStatus = oldRoom.status ?? undefined;
       const oldAttendant = oldRoom.attendant_id ?? undefined;
 
-      if (newRoom.status === "closed" && oldStatus !== "closed") {
-        const decrementId = oldAttendant || newRoom.attendant_id;
-        if (decrementId) {
-          patchBoth(decrementId, -1);
-        } else if (oldStatus === undefined || oldStatus === "waiting") {
+      if (newRoom.status === "closed" && oldRoom.status !== "closed") {
+        if (!oldAttendant && !newRoom.attendant_id) {
           setUnassignedCount(prev => Math.max(0, prev - 1));
         }
       } else if (newRoom.attendant_id !== oldAttendant && newRoom.status !== "closed") {
-        if (oldAttendant) {
-          patchBoth(oldAttendant, -1);
-        } else if (oldStatus !== "closed" && oldStatus !== undefined) {
+        if (!oldAttendant && oldRoom.status !== "closed") {
           setUnassignedCount(prev => Math.max(0, prev - 1));
         }
-        if (newRoom.attendant_id) {
-          patchBoth(newRoom.attendant_id, 1);
-        } else {
+        if (!newRoom.attendant_id) {
           setUnassignedCount(prev => prev + 1);
         }
       }
     }
 
     if (eventType === "DELETE") {
-      const oldStatus = oldRoom.status ?? "active";
-      const oldAttendant = oldRoom.attendant_id ?? undefined;
-      if (oldStatus !== "closed") {
-        if (oldAttendant) {
-          patchBoth(oldAttendant, -1);
-        } else {
-          setUnassignedCount(prev => Math.max(0, prev - 1));
-        }
+      if (oldRoom.status !== "closed" && !oldRoom.attendant_id) {
+        setUnassignedCount(prev => Math.max(0, prev - 1));
       }
     }
   }, []);
@@ -243,7 +207,7 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
       if (payload.eventType === "UPDATE") {
         setter(prev => prev.map(a =>
           a.id === updated.id
-            ? { ...a, status: updated.status, display_name: updated.display_name }
+            ? { ...a, status: updated.status, display_name: updated.display_name, active_count: updated.active_conversations ?? a.active_count }
             : a
         ));
       } else if (payload.eventType === "DELETE") {
@@ -252,14 +216,14 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
     };
 
     if (payload.eventType === "INSERT") {
-      // For inserts, we add to teamAttendants if not present (existing behavior)
+      // For inserts, we add to teamAttendants if not present
       setTeamAttendants(prev => {
         if (prev.find(a => a.id === updated.id)) return prev;
         return [...prev, {
           id: updated.id,
           display_name: updated.display_name,
           user_id: updated.user_id,
-          active_count: 0,
+          active_count: updated.active_conversations ?? 0,
           status: updated.status ?? null,
         }];
       });
@@ -270,30 +234,32 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resyncCounts = useCallback(async () => {
-    const { data: allActiveRooms } = await supabase
+    // Lightweight: only count unassigned rooms
+    const { count: unassigned } = await supabase
       .from("chat_rooms")
-      .select("attendant_id")
-      .in("status", ["active", "waiting"]);
+      .select("id", { count: "exact", head: true })
+      .in("status", ["active", "waiting"])
+      .is("attendant_id", null);
+    setUnassignedCount(unassigned ?? 0);
 
-    let counts: Record<string, number> = {};
-    let unassigned = 0;
-    (allActiveRooms ?? []).forEach((r: any) => {
-      if (r.attendant_id) {
-        counts[r.attendant_id] = (counts[r.attendant_id] || 0) + 1;
-      } else {
-        unassigned++;
+    // Re-read active_conversations from profiles
+    const allIds = [...new Set([
+      ...teamAttendants.map(a => a.id),
+      ...otherTeamAttendants.map(a => a.id),
+    ])];
+    if (allIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("attendant_profiles")
+        .select("id, active_conversations")
+        .in("id", allIds);
+      if (profiles) {
+        const countsMap: Record<string, number> = {};
+        profiles.forEach(p => { countsMap[p.id] = p.active_conversations ?? 0; });
+        setTeamAttendants(prev => prev.map(a => ({ ...a, active_count: countsMap[a.id] ?? a.active_count })));
+        setOtherTeamAttendants(prev => prev.map(a => ({ ...a, active_count: countsMap[a.id] ?? a.active_count })));
       }
-    });
-    setUnassignedCount(unassigned);
-    setTeamAttendants(prev => prev.map(a => ({
-      ...a,
-      active_count: counts[a.id] || 0,
-    })));
-    setOtherTeamAttendants(prev => prev.map(a => ({
-      ...a,
-      active_count: counts[a.id] || 0,
-    })));
-  }, []);
+    }
+  }, [teamAttendants, otherTeamAttendants]);
 
   // Refs for stable values used inside effects without triggering re-runs
   const isAdminRef = useRef(isAdmin);

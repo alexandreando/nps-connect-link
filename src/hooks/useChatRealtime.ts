@@ -469,48 +469,46 @@ export function useAttendantQueues() {
   const [attendants, setAttendants] = useState<AttendantQueue[]>([]);
   const [unassignedRooms, setUnassignedRooms] = useState<UnassignedRoom[]>([]);
   const [loading, setLoading] = useState(true);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchQueues = useCallback(async () => {
-    setLoading(true);
-
+    // Use active_conversations from attendant_profiles instead of counting rooms
     const { data: profiles } = await supabase
       .from("attendant_profiles")
-      .select("id, user_id, display_name, status, max_conversations");
+      .select("id, user_id, display_name, status, max_conversations, active_conversations");
 
-    const { data: rooms } = await supabase
+    // Only fetch unassigned + waiting rooms (lighter query — no need for ALL rooms)
+    const { data: unassignedData } = await supabase
       .from("chat_rooms")
       .select("id, attendant_id, status, visitor_id, created_at, chat_visitors!visitor_id(name)")
-      .in("status", ["active", "waiting"]);
+      .in("status", ["active", "waiting"])
+      .is("attendant_id", null);
 
-    const roomsList = (rooms ?? []) as Array<{
+    // Fetch waiting counts per attendant (only waiting rooms with an attendant)
+    const { data: waitingData } = await supabase
+      .from("chat_rooms")
+      .select("attendant_id")
+      .eq("status", "waiting")
+      .not("attendant_id", "is", null);
+
+    const waitingByAttendant: Record<string, number> = {};
+    for (const room of (waitingData ?? []) as { attendant_id: string }[]) {
+      waitingByAttendant[room.attendant_id] = (waitingByAttendant[room.attendant_id] ?? 0) + 1;
+    }
+
+    const unassigned: UnassignedRoom[] = ((unassignedData ?? []) as Array<{
       id: string;
       attendant_id: string | null;
       status: string;
       visitor_id: string;
       created_at: string;
       chat_visitors: { name: string } | null;
-    }>;
-
-    const activeByAttendant: Record<string, number> = {};
-    const waitingByAttendant: Record<string, number> = {};
-    const unassigned: UnassignedRoom[] = [];
-
-    for (const room of roomsList) {
-      if (!room.attendant_id) {
-        unassigned.push({
-          id: room.id,
-          visitor_name: room.chat_visitors?.name ?? "Visitante",
-          created_at: room.created_at,
-          status: room.status,
-        });
-      } else {
-        if (room.status === "active") {
-          activeByAttendant[room.attendant_id] = (activeByAttendant[room.attendant_id] ?? 0) + 1;
-        } else if (room.status === "waiting") {
-          waitingByAttendant[room.attendant_id] = (waitingByAttendant[room.attendant_id] ?? 0) + 1;
-        }
-      }
-    }
+    }>).map(room => ({
+      id: room.id,
+      visitor_name: room.chat_visitors?.name ?? "Visitante",
+      created_at: room.created_at,
+      status: room.status,
+    }));
 
     const enrichedAttendants: AttendantQueue[] = (profiles ?? []).map((p) => ({
       id: p.id,
@@ -518,7 +516,7 @@ export function useAttendantQueues() {
       display_name: p.display_name,
       status: p.status ?? "offline",
       max_conversations: p.max_conversations ?? 5,
-      active_count: activeByAttendant[p.id] ?? 0,
+      active_count: p.active_conversations ?? 0,
       waiting_count: waitingByAttendant[p.id] ?? 0,
     }));
 
@@ -530,21 +528,30 @@ export function useAttendantQueues() {
   useEffect(() => {
     fetchQueues();
 
+    // Debounced realtime: batch rapid changes with 3s debounce
+    const debouncedFetch = () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        fetchQueues();
+      }, 3000);
+    };
+
     const channel = supabase
       .channel("attendant-queues-realtime")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "chat_rooms" },
-        () => fetchQueues()
+        debouncedFetch
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "attendant_profiles" },
-        () => fetchQueues()
+        debouncedFetch
       )
       .subscribe();
 
     return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
       supabase.removeChannel(channel);
     };
   }, [fetchQueues]);
