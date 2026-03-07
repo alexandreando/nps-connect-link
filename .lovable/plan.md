@@ -1,41 +1,41 @@
 
 
-# Plan: Assignment Works Outside Business Hours (Workspace Only)
+# Plan: Fix Auto-Rules Chain + Improve Categories UI + Rule Preview Validation
 
-## Current Behavior
-The DB trigger `assign_chat_room()` skips assignment entirely when outside business hours. The edge function returns `outside_hours: true` to the widget. No attendant is assigned.
+## 1. Fix auto-rules chain not firing after first warning
 
-## Desired Behavior
-Chats should be assigned to attendants via the routing queue even outside business hours, but:
-- The **widget** should continue seeing the room as "waiting" with the outside-hours banner
-- The **workspace** should show the assigned room in the attendant's queue
+**Root cause**: When `inactivity_warning` fires (line 240-249), room status changes to `closed` with `resolution_status: "pending"`. The room query (line 89) only fetches `status IN ('active', 'waiting')`, so closed-pending rooms are never picked up for `inactivity_warning_2` or `auto_close`.
 
-## Approach: Assign but Keep Status "waiting"
+**Fix in `supabase/functions/process-chat-auto-rules/index.ts`** (line 86-89):
+- Change the query to also include closed-pending rooms using `.or('status.in.(active,waiting),and(status.eq.closed,resolution_status.eq.pending)')`
+- The chain logic already handles subsequent steps correctly — `inactivity_warning` only fires for `room.status === "active"` (line 200), while steps 2 and 3 fire based on the previous chain message regardless of status
 
-Modify the DB trigger `assign_chat_room()` to still run the routing logic outside business hours, but instead of setting `status = 'active'`, keep `status = 'waiting'` and only set `attendant_id` + `assigned_at`. This way:
+**First step trigger clarification**: The existing code at lines 200-208 already correctly requires `room.status === "active"` AND the last non-system message being from the attendant. This covers both new chats and reopened chats (any room that becomes active where the attendant sent the last message without visitor reply). No logic change needed here — only the query expansion.
 
-1. **Widget** stays in "waiting" phase (it only transitions on `status === 'active'`)
-2. **Edge function** still returns `outside_hours: true` + `assigned: false` to the widget
-3. **Workspace** sees the room with an attendant assigned, appearing in their queue
+## 2. Improve company list UI in CategoriesTab
 
-### Database Migration
-Modify the `assign_chat_room()` trigger function:
-- Remove the early `RETURN NEW` statements in the business hours checks
-- Instead, set a local variable `v_outside_hours := true`
-- In the assignment block, when `v_outside_hours` is true: set `NEW.attendant_id` and `NEW.assigned_at` but do **not** change `NEW.status` to `'active'` — leave it as `'waiting'`
-- When inside hours: keep current behavior (set status to `'active'`)
+**Problem**: All assigned companies render as inline badges inside category cards, creating massive cluttered lists.
 
-### Edge Function `assign-chat-room/index.ts`
-- When room has `attendant_id` but `status = 'waiting'` and it's outside hours: return `{ assigned: false, outside_hours: true }` (current widget behavior preserved)
-- The existing code already handles this correctly since it checks `room.status === "active" && room.attendant_id` before returning `assigned: true`
+**Fix in `src/components/chat/CategoriesTab.tsx`** (lines 341-357):
+- Replace the inline badge list with a compact summary: company count + "Gerenciar empresas" button
+- The button opens the existing bulk dialog, repurposed to show both assigned companies (with unassign option) and unassigned companies (with assign option) in a single searchable list
+- Remove per-company X buttons from the card view entirely
 
-### Widget (`ChatWidget.tsx`)
-- No changes needed. Widget already only transitions to chat when `status === 'active'`
+## 3. Rule preview validation on save
 
-### Workspace (`AdminWorkspace.tsx`)
-- The workspace already shows rooms with `attendant_id` in the attendant's queue regardless of status (it queries rooms with status `active` or `waiting`). Rooms assigned outside hours will appear normally.
+**Problem**: When saving a field rule, the user has no way to know which companies will be affected.
+
+**Fix in `src/components/chat/CategoryFieldRules.tsx`**:
+- When the user clicks the "+" button to add a rule, instead of saving immediately, run the `matchValue` logic client-side against the already-fetched contacts list to find matching companies
+- Show a preview panel below the form listing matched companies (name + trade_name) with a count header like "12 empresas serão atribuídas a esta regra"
+- Add a "Confirmar" button to actually persist the rule, and a "Cancelar" to discard
+- For editing existing rules: same flow — when removing a rule, show which companies will be unassigned before confirming
+- The preview fetches companies from `contacts` (is_company=true) and runs `matchValue` locally, so no new DB tables or edge functions needed
+- This applies to both new rules and modifications (add/remove) to existing rules
 
 ## Files to Change
-1. **Database migration** — Update `assign_chat_room()` trigger function
-2. **`supabase/functions/assign-chat-room/index.ts`** — Minor adjustment to handle assigned-but-waiting rooms correctly (ensure it doesn't return `assigned: true` for outside-hours rooms)
+
+1. `supabase/functions/process-chat-auto-rules/index.ts` — Expand room query to include closed-pending rooms
+2. `src/components/chat/CategoriesTab.tsx` — Replace inline company badges with compact count + manage button
+3. `src/components/chat/CategoryFieldRules.tsx` — Add preview validation step before saving rules
 
