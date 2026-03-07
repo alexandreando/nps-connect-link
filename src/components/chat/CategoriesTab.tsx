@@ -208,10 +208,10 @@ const CategoriesTab = () => {
   };
 
   const toggleSelectAll = () => {
-    if (bulkSelected.size === filteredUnassigned.length) {
+    if (bulkSelected.size === filteredManageable.length) {
       setBulkSelected(new Set());
     } else {
-      setBulkSelected(new Set(filteredUnassigned.map(c => c.id)));
+      setBulkSelected(new Set(filteredManageable.map(c => c.id)));
     }
   };
 
