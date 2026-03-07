@@ -12,7 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Edit, Trash2, Tag, X, Search, Shield } from "lucide-react";
+import { Plus, Edit, Trash2, Tag, X, Search, Shield, Settings2 } from "lucide-react";
 import { AssignmentConfigPanel } from "@/components/chat/AssignmentConfigPanel";
 import { CategoryFieldRules } from "@/components/chat/CategoryFieldRules";
 
@@ -184,13 +184,16 @@ const CategoriesTab = () => {
   const openBulkDialog = (categoryId: string) => {
     setBulkCategoryId(categoryId);
     setBulkSearch("");
-    setBulkSelected(new Set());
+    // Pre-select already assigned companies
+    const assigned = companies.filter(c => c.service_category_id === categoryId);
+    setBulkSelected(new Set(assigned.map(c => c.id)));
     setBulkDialogOpen(true);
   };
 
-  const unassigned = companies.filter(c => !c.service_category_id);
+  // All companies available for this category (assigned to it or unassigned)
+  const manageable = companies.filter(c => !c.service_category_id || c.service_category_id === bulkCategoryId);
 
-  const filteredUnassigned = unassigned.filter(c => {
+  const filteredManageable = manageable.filter(c => {
     const search = bulkSearch.toLowerCase();
     return (c.trade_name || c.name).toLowerCase().includes(search);
   });
@@ -205,18 +208,23 @@ const CategoriesTab = () => {
   };
 
   const toggleSelectAll = () => {
-    if (bulkSelected.size === filteredUnassigned.length) {
+    if (bulkSelected.size === filteredManageable.length) {
       setBulkSelected(new Set());
     } else {
-      setBulkSelected(new Set(filteredUnassigned.map(c => c.id)));
+      setBulkSelected(new Set(filteredManageable.map(c => c.id)));
     }
   };
 
   const saveBulkCompanies = async () => {
-    if (!bulkCategoryId || bulkSelected.size === 0) return;
-    const ids = Array.from(bulkSelected);
-    for (const id of ids) {
-      await supabase.from("contacts").update({ service_category_id: bulkCategoryId } as any).eq("id", id);
+    if (!bulkCategoryId) return;
+    const selectedIds = Array.from(bulkSelected);
+    // Assign selected companies to this category
+    for (const comp of manageable) {
+      if (selectedIds.includes(comp.id) && comp.service_category_id !== bulkCategoryId) {
+        await supabase.from("contacts").update({ service_category_id: bulkCategoryId } as any).eq("id", comp.id);
+      } else if (!selectedIds.includes(comp.id) && comp.service_category_id === bulkCategoryId) {
+        await supabase.from("contacts").update({ service_category_id: null } as any).eq("id", comp.id);
+      }
     }
     setBulkDialogOpen(false);
     toast({ title: t("chat.settings.saved") });
@@ -339,21 +347,14 @@ const CategoriesTab = () => {
                   />
 
                   {/* Companies */}
-                  <div>
-                    <p className="text-xs font-medium mb-1.5">{t("chat.categories.companies")} ({catCompanies.length})</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {catCompanies.map(comp => (
-                        <Badge key={comp.id} variant="secondary" className="text-xs gap-1">
-                          {comp.trade_name || comp.name}
-                          <button onClick={() => unassignCompany(comp.id)} className="ml-0.5 hover:text-destructive"><X className="h-3 w-3" /></button>
-                        </Badge>
-                      ))}
-                      {unassigned.length > 0 && (
-                        <Button variant="outline" size="sm" className="text-xs h-6" onClick={() => openBulkDialog(cat.id)}>
-                          <Plus className="h-3 w-3 mr-1" /> {t("chat.categories.addCompanies")}
-                        </Button>
-                      )}
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-medium">{t("chat.categories.companies")}</p>
+                    <Badge variant="secondary" className="text-xs">
+                      {catCompanies.length} {catCompanies.length === 1 ? "empresa" : "empresas"}
+                    </Badge>
+                    <Button variant="outline" size="sm" className="text-xs h-6 ml-auto" onClick={() => openBulkDialog(cat.id)}>
+                      <Settings2 className="h-3 w-3 mr-1" /> Gerenciar empresas
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -410,7 +411,7 @@ const CategoriesTab = () => {
             </div>
             <div className="flex items-center justify-between">
               <Button variant="ghost" size="sm" className="text-xs" onClick={toggleSelectAll}>
-                {bulkSelected.size === filteredUnassigned.length && filteredUnassigned.length > 0
+                {bulkSelected.size === filteredManageable.length && filteredManageable.length > 0
                   ? t("chat.categories.deselectAll")
                   : t("chat.categories.selectAll")}
               </Button>
@@ -419,16 +420,19 @@ const CategoriesTab = () => {
               </span>
             </div>
             <div className="max-h-60 overflow-y-auto border rounded-md divide-y">
-              {filteredUnassigned.length === 0 ? (
+              {filteredManageable.length === 0 ? (
                 <p className="text-sm text-muted-foreground p-3 text-center">{t("companies.noCompaniesFound")}</p>
               ) : (
-                filteredUnassigned.map(comp => (
+                filteredManageable.map(comp => (
                   <label key={comp.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted/50 cursor-pointer">
                     <Checkbox
                       checked={bulkSelected.has(comp.id)}
                       onCheckedChange={() => toggleBulkSelect(comp.id)}
                     />
                     <span className="text-sm">{comp.trade_name || comp.name}</span>
+                    {comp.service_category_id === bulkCategoryId && (
+                      <Badge variant="outline" className="text-xs ml-auto">Vinculada</Badge>
+                    )}
                   </label>
                 ))
               )}
@@ -436,8 +440,8 @@ const CategoriesTab = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBulkDialogOpen(false)}>{t("common.cancel")}</Button>
-            <Button onClick={saveBulkCompanies} disabled={bulkSelected.size === 0}>
-              {t("chat.categories.addSelected")} ({bulkSelected.size})
+            <Button onClick={saveBulkCompanies}>
+              {t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>

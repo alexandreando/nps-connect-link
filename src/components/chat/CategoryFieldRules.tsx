@@ -5,10 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, X, Loader2, Settings2, Database, FileText } from "lucide-react";
+import { Plus, X, Loader2, Settings2, Database, FileText, Eye, Check, Building2 } from "lucide-react";
 
 interface FieldRule {
   id: string;
@@ -22,6 +23,12 @@ interface FieldRule {
 interface FieldDef {
   key: string;
   label: string;
+}
+
+interface MatchedCompany {
+  id: string;
+  name: string;
+  trade_name: string | null;
 }
 
 const NATIVE_FIELDS: { key: string; labelKey: string; numeric?: boolean }[] = [
@@ -75,6 +82,12 @@ export function CategoryFieldRules({ categoryId, rules, fieldDefs, onChanged }: 
   const [operator, setOperator] = useState("equals");
   const [value, setValue] = useState("");
 
+  // Preview state
+  const [previewMatches, setPreviewMatches] = useState<MatchedCompany[] | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [pendingRule, setPendingRule] = useState<{ source: string; key: string; operator: string; value: string } | null>(null);
+  const [deletePreview, setDeletePreview] = useState<{ ruleId: string; unaffected: MatchedCompany[] } | null>(null);
+
   const catRules = rules.filter(r => r.category_id === categoryId);
 
   const getFieldLabel = (rule: FieldRule) => {
@@ -85,8 +98,39 @@ export function CategoryFieldRules({ categoryId, rules, fieldDefs, onChanged }: 
     return fieldDefs.find(d => d.key === rule.field_key)?.label || rule.field_key;
   };
 
-  const addRule = async () => {
+  const previewRule = async () => {
     if (!selectedKey || !value.trim()) return;
+    setPreviewLoading(true);
+
+    try {
+      const { data: companies } = await supabase
+        .from("contacts")
+        .select("id, name, trade_name, custom_fields, company_sector, city, state, external_id, service_priority, cs_status, mrr, contract_value, health_score, email, company_document")
+        .eq("is_company", true);
+
+      if (!companies) {
+        setPreviewMatches([]);
+        return;
+      }
+
+      const matches: MatchedCompany[] = [];
+      for (const comp of companies) {
+        const cf = (comp.custom_fields as Record<string, any>) || {};
+        const rawVal = source === "native" ? (comp as any)[selectedKey] : cf[selectedKey];
+        if (rawVal !== undefined && rawVal !== null && matchValue(rawVal, value.trim(), operator)) {
+          matches.push({ id: comp.id, name: comp.name, trade_name: comp.trade_name });
+        }
+      }
+
+      setPreviewMatches(matches);
+      setPendingRule({ source, key: selectedKey, operator, value: value.trim() });
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const confirmAddRule = async () => {
+    if (!pendingRule) return;
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
@@ -99,22 +143,74 @@ export function CategoryFieldRules({ categoryId, rules, fieldDefs, onChanged }: 
     await supabase.from("chat_category_field_rules" as any).insert({
       category_id: categoryId,
       tenant_id: (catData as any)?.tenant_id,
-      field_key: selectedKey,
-      field_value: value.trim(),
-      field_source: source,
-      operator,
+      field_key: pendingRule.key,
+      field_value: pendingRule.value,
+      field_source: pendingRule.source,
+      operator: pendingRule.operator,
     });
 
     setValue("");
     setSelectedKey("");
     setOperator("equals");
+    setPendingRule(null);
+    setPreviewMatches(null);
     setChanged(true);
     toast({ title: t("chat.settings.saved") });
     onChanged();
   };
 
-  const removeRule = async (ruleId: string) => {
-    await supabase.from("chat_category_field_rules" as any).delete().eq("id", ruleId);
+  const cancelPreview = () => {
+    setPendingRule(null);
+    setPreviewMatches(null);
+  };
+
+  const previewRemoveRule = async (ruleId: string) => {
+    setPreviewLoading(true);
+    try {
+      const rule = catRules.find(r => r.id === ruleId);
+      if (!rule) return;
+
+      const { data: companies } = await supabase
+        .from("contacts")
+        .select("id, name, trade_name, custom_fields, company_sector, city, state, external_id, service_priority, cs_status, mrr, contract_value, health_score, email, company_document, service_category_id")
+        .eq("is_company", true)
+        .eq("service_category_id", categoryId);
+
+      if (!companies) {
+        setDeletePreview({ ruleId, unaffected: [] });
+        return;
+      }
+
+      // Companies that would lose their category (only matched by this rule)
+      const otherRules = catRules.filter(r => r.id !== ruleId);
+      const unaffected: MatchedCompany[] = [];
+
+      for (const comp of companies) {
+        const cf = (comp.custom_fields as Record<string, any>) || {};
+        const rawVal = rule.field_source === "native" ? (comp as any)[rule.field_key] : cf[rule.field_key];
+        const matchesThisRule = rawVal !== undefined && rawVal !== null && matchValue(rawVal, rule.field_value, rule.operator);
+
+        if (matchesThisRule) {
+          const matchesOther = otherRules.some(r => {
+            const rv = r.field_source === "native" ? (comp as any)[r.field_key] : cf[r.field_key];
+            return rv !== undefined && rv !== null && matchValue(rv, r.field_value, r.operator);
+          });
+          if (!matchesOther) {
+            unaffected.push({ id: comp.id, name: comp.name, trade_name: comp.trade_name });
+          }
+        }
+      }
+
+      setDeletePreview({ ruleId, unaffected });
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const confirmRemoveRule = async () => {
+    if (!deletePreview) return;
+    await supabase.from("chat_category_field_rules" as any).delete().eq("id", deletePreview.ruleId);
+    setDeletePreview(null);
     setChanged(true);
     toast({ title: t("chat.settings.saved") });
     onChanged();
@@ -125,6 +221,9 @@ export function CategoryFieldRules({ categoryId, rules, fieldDefs, onChanged }: 
       await syncCompanies();
       setChanged(false);
     }
+    setPendingRule(null);
+    setPreviewMatches(null);
+    setDeletePreview(null);
     setDialogOpen(open);
   };
 
@@ -220,7 +319,11 @@ export function CategoryFieldRules({ categoryId, rules, fieldDefs, onChanged }: 
                       {OPERATOR_LABELS[rule.operator] || "="}
                     </Badge>
                     <span className="text-muted-foreground">"{rule.field_value}"</span>
-                    <button onClick={() => removeRule(rule.id)} className="ml-auto hover:text-destructive">
+                    <button
+                      onClick={() => previewRemoveRule(rule.id)}
+                      className="ml-auto hover:text-destructive"
+                      disabled={previewLoading}
+                    >
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -228,80 +331,150 @@ export function CategoryFieldRules({ categoryId, rules, fieldDefs, onChanged }: 
               </div>
             )}
 
-            {/* Add rule form */}
-            <div className="border-t pt-4 space-y-3">
-              <p className="text-xs font-medium">{t("chat.categories.addNewRule")}</p>
-
-              {/* Source selector */}
-              <div className="space-y-1.5">
-                <Label className="text-xs">{t("chat.categories.fieldSource")}</Label>
-                <RadioGroup
-                  value={source}
-                  onValueChange={(v) => { setSource(v as "custom" | "native"); setSelectedKey(""); }}
-                  className="flex gap-4"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <RadioGroupItem value="custom" id="src-custom" />
-                    <Label htmlFor="src-custom" className="text-xs cursor-pointer">{t("chat.categories.sourceCustom")}</Label>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <RadioGroupItem value="native" id="src-native" />
-                    <Label htmlFor="src-native" className="text-xs cursor-pointer">{t("chat.categories.sourceNative")}</Label>
-                  </div>
-                </RadioGroup>
+            {/* Delete preview */}
+            {deletePreview && (
+              <div className="border rounded-md p-3 bg-destructive/5 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Eye className="h-4 w-4 text-destructive" />
+                  <p className="text-sm font-medium text-destructive">
+                    {deletePreview.unaffected.length > 0
+                      ? `${deletePreview.unaffected.length} empresa(s) perderão a categoria ao remover esta regra`
+                      : "Nenhuma empresa será afetada pela remoção desta regra"}
+                  </p>
+                </div>
+                {deletePreview.unaffected.length > 0 && (
+                  <ScrollArea className="max-h-32">
+                    <div className="space-y-1">
+                      {deletePreview.unaffected.map(c => (
+                        <div key={c.id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Building2 className="h-3 w-3 shrink-0" />
+                          {c.trade_name || c.name}
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => setDeletePreview(null)}>
+                    Cancelar
+                  </Button>
+                  <Button variant="destructive" size="sm" className="text-xs h-7" onClick={confirmRemoveRule}>
+                    Confirmar remoção
+                  </Button>
+                </div>
               </div>
+            )}
 
-              {/* Field + Operator + Value */}
-              <div className="flex items-end gap-2">
-                <div className="flex-1 space-y-1">
-                  <Label className="text-xs">{t("chat.categories.selectField")}</Label>
-                  <select
-                    className="w-full text-xs border rounded-md px-2 py-1.5 bg-background"
-                    value={selectedKey}
-                    onChange={(e) => setSelectedKey(e.target.value)}
+            {/* Add rule form - hidden when preview is active */}
+            {!pendingRule && !deletePreview && (
+              <div className="border-t pt-4 space-y-3">
+                <p className="text-xs font-medium">{t("chat.categories.addNewRule")}</p>
+
+                {/* Source selector */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t("chat.categories.fieldSource")}</Label>
+                  <RadioGroup
+                    value={source}
+                    onValueChange={(v) => { setSource(v as "custom" | "native"); setSelectedKey(""); }}
+                    className="flex gap-4"
                   >
-                    <option value="">{t("chat.categories.selectField")}</option>
-                    {fieldOptions.map(d => (
-                      <option key={d.key} value={d.key}>{d.label}</option>
-                    ))}
-                  </select>
+                    <div className="flex items-center gap-1.5">
+                      <RadioGroupItem value="custom" id="src-custom" />
+                      <Label htmlFor="src-custom" className="text-xs cursor-pointer">{t("chat.categories.sourceCustom")}</Label>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <RadioGroupItem value="native" id="src-native" />
+                      <Label htmlFor="src-native" className="text-xs cursor-pointer">{t("chat.categories.sourceNative")}</Label>
+                    </div>
+                  </RadioGroup>
                 </div>
 
-                <div className="w-16 space-y-1">
-                  <Label className="text-xs">{t("chat.categories.operator")}</Label>
-                  <select
-                    className="w-full text-xs border rounded-md px-2 py-1.5 bg-background"
-                    value={operator}
-                    onChange={(e) => setOperator(e.target.value)}
+                {/* Field + Operator + Value */}
+                <div className="flex items-end gap-2">
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-xs">{t("chat.categories.selectField")}</Label>
+                    <select
+                      className="w-full text-xs border rounded-md px-2 py-1.5 bg-background"
+                      value={selectedKey}
+                      onChange={(e) => setSelectedKey(e.target.value)}
+                    >
+                      <option value="">{t("chat.categories.selectField")}</option>
+                      {fieldOptions.map(d => (
+                        <option key={d.key} value={d.key}>{d.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="w-16 space-y-1">
+                    <Label className="text-xs">{t("chat.categories.operator")}</Label>
+                    <select
+                      className="w-full text-xs border rounded-md px-2 py-1.5 bg-background"
+                      value={operator}
+                      onChange={(e) => setOperator(e.target.value)}
+                    >
+                      {OPERATORS.map(op => (
+                        <option key={op.value} value={op.value}>{op.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-xs">{t("chat.categories.fieldValue")}</Label>
+                    <Input
+                      className="h-8 text-xs"
+                      placeholder={t("chat.categories.fieldValue")}
+                      value={value}
+                      onChange={(e) => setValue(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") previewRule(); }}
+                    />
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs px-2.5 gap-1"
+                    onClick={previewRule}
+                    disabled={!selectedKey || !value.trim() || syncing || previewLoading}
                   >
-                    {OPERATORS.map(op => (
-                      <option key={op.value} value={op.value}>{op.label}</option>
-                    ))}
-                  </select>
+                    {previewLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
+                  </Button>
                 </div>
-
-                <div className="flex-1 space-y-1">
-                  <Label className="text-xs">{t("chat.categories.fieldValue")}</Label>
-                  <Input
-                    className="h-8 text-xs"
-                    placeholder={t("chat.categories.fieldValue")}
-                    value={value}
-                    onChange={(e) => setValue(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") addRule(); }}
-                  />
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs px-2.5"
-                  onClick={addRule}
-                  disabled={!selectedKey || !value.trim() || syncing}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
               </div>
-            </div>
+            )}
+
+            {/* Preview panel */}
+            {pendingRule && previewMatches !== null && (
+              <div className="border rounded-md p-3 bg-primary/5 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Eye className="h-4 w-4 text-primary" />
+                  <p className="text-sm font-medium">
+                    {previewMatches.length > 0
+                      ? `${previewMatches.length} empresa(s) serão atribuídas a esta regra`
+                      : "Nenhuma empresa corresponde a esta regra"}
+                  </p>
+                </div>
+                {previewMatches.length > 0 && (
+                  <ScrollArea className="max-h-40">
+                    <div className="space-y-1">
+                      {previewMatches.map(c => (
+                        <div key={c.id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Building2 className="h-3 w-3 shrink-0" />
+                          {c.trade_name || c.name}
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" size="sm" className="text-xs h-7" onClick={cancelPreview}>
+                    Cancelar
+                  </Button>
+                  <Button size="sm" className="text-xs h-7 gap-1" onClick={confirmAddRule}>
+                    <Check className="h-3 w-3" /> Confirmar
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
