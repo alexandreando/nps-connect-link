@@ -1,41 +1,64 @@
 
 
-# Plan: Assignment Works Outside Business Hours (Workspace Only)
+# Plan: 6 Fixes — Draft Persistence, Popover Dismiss, Searchable Proactive Chat, Tags on All Close Types, Widget Realtime Delete, Custom Fields Display
 
-## Current Behavior
-The DB trigger `assign_chat_room()` skips assignment entirely when outside business hours. The edge function returns `outside_hours: true` to the widget. No attendant is assigned.
+## 1. Per-Room Draft Messages in Workspace
 
-## Desired Behavior
-Chats should be assigned to attendants via the routing queue even outside business hours, but:
-- The **widget** should continue seeing the room as "waiting" with the outside-hours banner
-- The **workspace** should show the assigned room in the attendant's queue
+**Problem**: Switching between chats carries the typed text to the next chat.
 
-## Approach: Assign but Keep Status "waiting"
+**Fix in `src/components/chat/ChatInput.tsx`**:
+- Accept `roomId` (already does) and maintain a `useRef<Map<string, string>>` to store draft text per room
+- On `roomId` change: save current `value` to the map for the previous roomId, then restore the draft for the new roomId (or empty string)
+- This is in-memory only (lost on F5, preserved on navigation)
 
-Modify the DB trigger `assign_chat_room()` to still run the routing logic outside business hours, but instead of setting `status = 'active'`, keep `status = 'waiting'` and only set `attendant_id` + `assigned_at`. This way:
+## 2. Close Articles/Macros Popover When Clicking Outside
 
-1. **Widget** stays in "waiting" phase (it only transitions on `status === 'active'`)
-2. **Edge function** still returns `outside_hours: true` + `assigned: false` to the widget
-3. **Workspace** sees the room with an attendant assigned, appearing in their queue
+**Problem**: The articles and macros popups in `ChatInput.tsx` don't close when clicking outside.
 
-### Database Migration
-Modify the `assign_chat_room()` trigger function:
-- Remove the early `RETURN NEW` statements in the business hours checks
-- Instead, set a local variable `v_outside_hours := true`
-- In the assignment block, when `v_outside_hours` is true: set `NEW.attendant_id` and `NEW.assigned_at` but do **not** change `NEW.status` to `'active'` — leave it as `'waiting'`
-- When inside hours: keep current behavior (set status to `'active'`)
+**Fix in `src/components/chat/ChatInput.tsx`**:
+- Wrap the macros and articles popup divs with a click-outside detection (use a `useEffect` with `mousedown` listener on `document` that checks if click target is outside the popup ref)
+- Add an X close button in the top-right corner of both popups
 
-### Edge Function `assign-chat-room/index.ts`
-- When room has `attendant_id` but `status = 'waiting'` and it's outside hours: return `{ assigned: false, outside_hours: true }` (current widget behavior preserved)
-- The existing code already handles this correctly since it checks `room.status === "active" && room.attendant_id` before returning `assigned: true`
+## 3. Searchable Company/Contact in ProactiveChatDialog
 
-### Widget (`ChatWidget.tsx`)
-- No changes needed. Widget already only transitions to chat when `status === 'active'`
+**Problem**: Company and Contact selectors are plain `<Select>` lists with no search.
 
-### Workspace (`AdminWorkspace.tsx`)
-- The workspace already shows rooms with `attendant_id` in the attendant's queue regardless of status (it queries rooms with status `active` or `waiting`). Rooms assigned outside hours will appear normally.
+**Fix in `src/components/chat/ProactiveChatDialog.tsx`**:
+- Replace `<Select>` for company with a `<Popover>` + `<Command>` (combobox pattern) with a search input that filters companies by name
+- Same for contacts: replace with searchable combobox
+- Fetch all on open, filter client-side via the command input
+
+## 4. Tags on All Close Types (Not Just "Resolved")
+
+**Problem**: Only "Resolvido" shows the tag selector form. "Pendente" and "Arquivar" close immediately without tags.
+
+**Fix in `src/components/chat/CloseRoomDialog.tsx`**:
+- Remove the two-step flow. Instead, show a single form with: resolution status selection (radio or button group at top), optional note textarea, tag selector, and confirm button
+- All three statuses show the tag selector
+- The note field remains optional for all types
+
+## 5. Widget Realtime Message Deletion
+
+**Problem**: When an attendant deletes a message, the widget only removes it after a page refresh.
+
+**Fix in `src/pages/ChatWidget.tsx`** (around line 390):
+- Add a second `.on("postgres_changes", { event: "UPDATE", ... })` handler on the same channel
+- On UPDATE, check if `payload.new.deleted_at` is set; if so, remove the message from state
+
+## 6. Custom Fields Display Fix (from previous plan)
+
+**Problem**: "Tickets" custom field renders `[object Object]` character-by-character.
+
+**Fix in `src/components/CustomFieldsDisplay.tsx`**:
+- In `ObjectList`: guard `typeof obj === "object" && obj !== null` before `Object.entries(obj)`, fallback to `String(obj)`
+- In `JsonDisplay`: same guard
+- In `formatComplexValue` auto-detect (line 147): verify `typeof resolved[0] === "object" && resolved[0] !== null && typeof resolved[0] !== "string"` before routing to `ObjectList`
 
 ## Files to Change
-1. **Database migration** — Update `assign_chat_room()` trigger function
-2. **`supabase/functions/assign-chat-room/index.ts`** — Minor adjustment to handle assigned-but-waiting rooms correctly (ensure it doesn't return `assigned: true` for outside-hours rooms)
+
+1. `src/components/chat/ChatInput.tsx` — Draft per room + click-outside dismiss for popups
+2. `src/components/chat/ProactiveChatDialog.tsx` — Searchable combobox for company/contact
+3. `src/components/chat/CloseRoomDialog.tsx` — Tags available for all resolution types
+4. `src/pages/ChatWidget.tsx` — Realtime UPDATE listener for deleted messages
+5. `src/components/CustomFieldsDisplay.tsx` — Type guards for non-object values
 
