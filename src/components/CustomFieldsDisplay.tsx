@@ -152,7 +152,7 @@ export function formatComplexValue(value: any, fieldType: string): React.ReactNo
   // Auto-detect for text or unknown types
   if (Array.isArray(resolved)) {
     if (resolved.length === 0) return null;
-    if (typeof resolved[0] === "object" && resolved[0] !== null) return <ObjectList items={resolved as Record<string, any>[]} />;
+    if (typeof resolved[0] === "object" && resolved[0] !== null && typeof resolved[0] !== "string") return <ObjectList items={resolved as Record<string, any>[]} />;
     if (resolved.every(item => isUrl(String(item)))) return <UrlList items={resolved} />;
     return <SimpleList items={resolved} />;
   }

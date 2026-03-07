@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle2, AlertTriangle, Archive } from "lucide-react";
 import { ChatTagSelector } from "@/components/chat/ChatTagSelector";
+import { cn } from "@/lib/utils";
 
 interface CloseRoomDialogProps {
   open: boolean;
@@ -12,23 +13,29 @@ interface CloseRoomDialogProps {
   roomId?: string | null;
 }
 
+const statusOptions = [
+  { value: "resolved" as const, label: "Resolvido", icon: CheckCircle2, color: "bg-green-600 hover:bg-green-700 text-white", activeRing: "ring-green-500" },
+  { value: "pending" as const, label: "Com pendência", icon: AlertTriangle, color: "bg-yellow-500 hover:bg-yellow-600 text-white", activeRing: "ring-yellow-500" },
+  { value: "archived" as const, label: "Arquivar", icon: Archive, color: "bg-muted hover:bg-muted/80 text-foreground", activeRing: "ring-border" },
+];
+
 export function CloseRoomDialog({ open, onOpenChange, onConfirm, roomId }: CloseRoomDialogProps) {
   const [note, setNote] = useState("");
   const [closing, setClosing] = useState(false);
-  const [showResolvedForm, setShowResolvedForm] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<"resolved" | "pending" | "archived">("resolved");
 
-  const handleConfirm = async (status: "resolved" | "pending" | "archived") => {
+  const handleConfirm = async () => {
     setClosing(true);
-    await onConfirm(status, status === "resolved" ? (note.trim() || undefined) : undefined);
+    await onConfirm(selectedStatus, note.trim() || undefined);
     setNote("");
-    setShowResolvedForm(false);
+    setSelectedStatus("resolved");
     setClosing(false);
     onOpenChange(false);
   };
 
   const handleOpenChange = (val: boolean) => {
     if (!val) {
-      setShowResolvedForm(false);
+      setSelectedStatus("resolved");
       setNote("");
     }
     onOpenChange(val);
@@ -40,81 +47,64 @@ export function CloseRoomDialog({ open, onOpenChange, onConfirm, roomId }: Close
         <DialogHeader>
           <DialogTitle>Como encerrar esta conversa?</DialogTitle>
           <DialogDescription>
-            Selecione o status de resolução.
+            Selecione o status, adicione tags e uma nota opcional.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          {!showResolvedForm ? (
-            <div className="flex flex-col gap-3">
-              <Button
-                className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white justify-start h-12"
-                onClick={() => setShowResolvedForm(true)}
-                disabled={closing}
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                <div className="text-left">
-                  <span className="font-medium">Resolvido</span>
-                  <p className="text-[11px] opacity-80 font-normal">Adicionar nota e tags</p>
-                </div>
-              </Button>
-              <Button
-                className="w-full gap-2 bg-yellow-500 hover:bg-yellow-600 text-white justify-start h-12"
-                onClick={() => handleConfirm("pending")}
-                disabled={closing}
-              >
-                <AlertTriangle className="h-4 w-4" />
-                <div className="text-left">
-                  <span className="font-medium">Com pendência</span>
-                  <p className="text-[11px] opacity-80 font-normal">Encerra sem nota</p>
-                </div>
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full gap-2 justify-start h-12"
-                onClick={() => handleConfirm("archived")}
-                disabled={closing}
-              >
-                <Archive className="h-4 w-4" />
-                <div className="text-left">
-                  <span className="font-medium">Arquivar</span>
-                  <p className="text-[11px] text-muted-foreground font-normal">Encerra sem nota</p>
-                </div>
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-4 animate-fade-in">
-              <Textarea
-                placeholder="Observação de encerramento (opcional)"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                rows={3}
-                className="resize-none"
-                autoFocus
-              />
-
-              {roomId && <ChatTagSelector roomId={roomId} compact />}
-
-              <div className="flex gap-3">
+          {/* Status selection */}
+          <div className="flex gap-2">
+            {statusOptions.map((opt) => {
+              const Icon = opt.icon;
+              const isActive = selectedStatus === opt.value;
+              return (
                 <Button
+                  key={opt.value}
                   variant="outline"
-                  className="flex-1"
-                  onClick={() => setShowResolvedForm(false)}
+                  className={cn(
+                    "flex-1 gap-1.5 h-10 text-xs font-medium transition-all",
+                    isActive && `ring-2 ${opt.activeRing} ${opt.color}`
+                  )}
+                  onClick={() => setSelectedStatus(opt.value)}
                   disabled={closing}
                 >
-                  Voltar
+                  <Icon className="h-3.5 w-3.5" />
+                  {opt.label}
                 </Button>
-                <Button
-                  className="flex-1 gap-2 bg-green-600 hover:bg-green-700 text-white"
-                  onClick={() => handleConfirm("resolved")}
-                  disabled={closing}
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  Confirmar
-                </Button>
-              </div>
-            </div>
-          )}
+              );
+            })}
+          </div>
+
+          {/* Tags - available for all statuses */}
+          {roomId && <ChatTagSelector roomId={roomId} compact />}
+
+          {/* Note */}
+          <Textarea
+            placeholder="Observação de encerramento (opcional)"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={3}
+            className="resize-none"
+          />
+
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => onOpenChange(false)}
+              disabled={closing}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="flex-1 gap-2"
+              onClick={handleConfirm}
+              disabled={closing}
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Confirmar
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

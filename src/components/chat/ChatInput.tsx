@@ -452,6 +452,7 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
                 onChange={(e) => setArticleFilter(e.target.value)}
                 autoFocus
               />
+              <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => setArticlesOpen(false)}><X className="h-3 w-3" /></Button>
             </div>
             <CommandList className="max-h-44 overflow-auto">
               <CommandEmpty className="text-xs p-3 text-center text-muted-foreground">{t("chat.articles.empty")}</CommandEmpty>

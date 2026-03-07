@@ -3,10 +3,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, MessageSquare } from "lucide-react";
+import { Loader2, MessageSquare, ChevronsUpDown, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Company {
   id: string;
@@ -36,6 +38,11 @@ const ProactiveChatDialog = ({ open, onOpenChange, userId, attendantId, attendan
   const [selectedContactId, setSelectedContactId] = useState<string>("");
   const [message, setMessage] = useState("");
   const [creating, setCreating] = useState(false);
+  const [companyOpen, setCompanyOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
+
+  const selectedCompany = companies.find(c => c.id === selectedCompanyId);
+  const selectedContact = contacts.find(c => c.id === selectedContactId);
 
   useEffect(() => {
     if (!open) return;
@@ -65,7 +72,6 @@ const ProactiveChatDialog = ({ open, onOpenChange, userId, attendantId, attendan
     if (!contact) { setCreating(false); return; }
 
     try {
-      // Get or create visitor
       let visitorId: string | null = null;
 
       if (contact.chat_visitor_id) {
@@ -77,7 +83,6 @@ const ProactiveChatDialog = ({ open, onOpenChange, userId, attendantId, attendan
         if (existing) visitorId = existing.id;
       }
 
-      // Fallback: search by company_contact_id in chat_visitors
       if (!visitorId) {
         const { data: byContact } = await supabase
           .from("chat_visitors")
@@ -95,7 +100,6 @@ const ProactiveChatDialog = ({ open, onOpenChange, userId, attendantId, attendan
         }
       }
 
-      // Create new visitor if none found
       if (!visitorId) {
         const { data: visitor } = await supabase
           .from("chat_visitors")
@@ -118,7 +122,6 @@ const ProactiveChatDialog = ({ open, onOpenChange, userId, attendantId, attendan
           .eq("id", contact.id);
       }
 
-      // Create room
       const { data: room } = await supabase
         .from("chat_rooms")
         .insert({
@@ -135,7 +138,6 @@ const ProactiveChatDialog = ({ open, onOpenChange, userId, attendantId, attendan
 
       if (!room) throw new Error("Failed to create room");
 
-      // Increment attendant active_conversations
       const { data: attProfile } = await supabase
         .from("attendant_profiles")
         .select("active_conversations")
@@ -149,7 +151,6 @@ const ProactiveChatDialog = ({ open, onOpenChange, userId, attendantId, attendan
           .eq("id", attendantId);
       }
 
-      // Insert initial message
       await supabase.from("chat_messages").insert({
         room_id: room.id,
         sender_type: "attendant",
@@ -183,31 +184,74 @@ const ProactiveChatDialog = ({ open, onOpenChange, userId, attendantId, attendan
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>Empresa</Label>
-            <Select value={selectedCompanyId} onValueChange={(v) => { setSelectedCompanyId(v); setSelectedContactId(""); }}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione uma empresa" />
-              </SelectTrigger>
-              <SelectContent>
-                {companies.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={companyOpen} onOpenChange={setCompanyOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" aria-expanded={companyOpen} className="w-full justify-between font-normal">
+                  {selectedCompany ? selectedCompany.name : "Buscar empresa..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Buscar empresa..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhuma empresa encontrada.</CommandEmpty>
+                    <CommandGroup>
+                      {companies.map((c) => (
+                        <CommandItem
+                          key={c.id}
+                          value={c.name}
+                          onSelect={() => {
+                            setSelectedCompanyId(c.id);
+                            setSelectedContactId("");
+                            setCompanyOpen(false);
+                          }}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", selectedCompanyId === c.id ? "opacity-100" : "opacity-0")} />
+                          {c.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {selectedCompanyId && (
             <div className="space-y-2">
               <Label>Contato</Label>
-              <Select value={selectedContactId} onValueChange={setSelectedContactId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um contato" />
-                </SelectTrigger>
-                <SelectContent>
-                  {contacts.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name} ({c.email})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={contactOpen} onOpenChange={setContactOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" role="combobox" aria-expanded={contactOpen} className="w-full justify-between font-normal">
+                    {selectedContact ? `${selectedContact.name} (${selectedContact.email})` : "Buscar contato..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar contato..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum contato encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {contacts.map((c) => (
+                          <CommandItem
+                            key={c.id}
+                            value={`${c.name} ${c.email}`}
+                            onSelect={() => {
+                              setSelectedContactId(c.id);
+                              setContactOpen(false);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", selectedContactId === c.id ? "opacity-100" : "opacity-0")} />
+                            {c.name} ({c.email})
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           )}
 
