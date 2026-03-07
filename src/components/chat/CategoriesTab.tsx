@@ -12,7 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Edit, Trash2, Tag, X, Search, Shield } from "lucide-react";
+import { Plus, Edit, Trash2, Tag, X, Search, Shield, Settings2 } from "lucide-react";
 import { AssignmentConfigPanel } from "@/components/chat/AssignmentConfigPanel";
 import { CategoryFieldRules } from "@/components/chat/CategoryFieldRules";
 
