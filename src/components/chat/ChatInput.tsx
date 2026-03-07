@@ -143,6 +143,35 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
     textareaRef.current?.focus();
   }, []);
 
+  // Draft persistence per room
+  useEffect(() => {
+    const prevId = prevRoomIdRef.current;
+    if (prevId !== undefined && prevId !== roomId) {
+      // Save draft for previous room
+      if (prevId) draftsRef.current.set(prevId, value);
+      // Restore draft for new room
+      const draft = roomId ? (draftsRef.current.get(roomId) ?? "") : "";
+      setValue(draft);
+      setMacrosOpen(false);
+      setArticlesOpen(false);
+    }
+    prevRoomIdRef.current = roomId;
+  }, [roomId]);
+
+  // Click-outside to close macros/articles popups
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (macrosOpen && macrosPopupRef.current && !macrosPopupRef.current.contains(e.target as Node)) {
+        setMacrosOpen(false);
+      }
+      if (articlesOpen && articlesPopupRef.current && !articlesPopupRef.current.contains(e.target as Node)) {
+        setArticlesOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [macrosOpen, articlesOpen]);
+
   useEffect(() => {
     return () => {
       if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
