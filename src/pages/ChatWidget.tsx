@@ -1452,6 +1452,16 @@ const ChatWidget = () => {
                   );
                 })
               )}
+              {hasMoreHistory && !historyLoading && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-xs rounded-lg"
+                  onClick={() => visitorId && fetchHistory(visitorId, historyPage + 1, true)}
+                >
+                  Carregar mais
+                </Button>
+              )}
             </div>
           </div>
         )}
