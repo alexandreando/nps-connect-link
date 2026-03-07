@@ -80,23 +80,31 @@ export function UrlList({ items }: { items: any[] }) {
 export function ObjectList({ items }: { items: Record<string, any>[] }) {
   return (
     <div className="space-y-1.5">
-      {items.map((obj, i) => (
-        <div key={i} className="border border-border rounded-md p-2 space-y-1 bg-muted/30">
-          {Object.entries(obj).map(([key, val]) => (
-            <div key={key} className="flex items-start justify-between text-[11px] gap-2">
-              <span className="text-muted-foreground shrink-0">{key}</span>
-              <span className="font-medium text-right break-words max-w-[65%]">
-                {val != null && isUrl(String(val)) ? <ClickableLink href={makeHref(String(val))} /> : autoLinkify(val)}
-              </span>
-            </div>
-          ))}
-        </div>
-      ))}
+      {items.map((obj, i) => {
+        if (typeof obj !== "object" || obj === null) {
+          return <div key={i} className="text-xs break-words">{autoLinkify(obj)}</div>;
+        }
+        return (
+          <div key={i} className="border border-border rounded-md p-2 space-y-1 bg-muted/30">
+            {Object.entries(obj).map(([key, val]) => (
+              <div key={key} className="flex items-start justify-between text-[11px] gap-2">
+                <span className="text-muted-foreground shrink-0">{key}</span>
+                <span className="font-medium text-right break-words max-w-[65%]">
+                  {val != null && isUrl(String(val)) ? <ClickableLink href={makeHref(String(val))} /> : autoLinkify(val)}
+                </span>
+              </div>
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 export function JsonDisplay({ obj }: { obj: Record<string, any> }) {
+  if (typeof obj !== "object" || obj === null) {
+    return <span className="text-xs break-words">{autoLinkify(obj)}</span>;
+  }
   return (
     <div className="space-y-1 text-[11px]">
       {Object.entries(obj).map(([key, val]) => (
@@ -144,7 +152,7 @@ export function formatComplexValue(value: any, fieldType: string): React.ReactNo
   // Auto-detect for text or unknown types
   if (Array.isArray(resolved)) {
     if (resolved.length === 0) return null;
-    if (typeof resolved[0] === "object" && resolved[0] !== null) return <ObjectList items={resolved as Record<string, any>[]} />;
+    if (typeof resolved[0] === "object" && resolved[0] !== null && typeof resolved[0] !== "string") return <ObjectList items={resolved as Record<string, any>[]} />;
     if (resolved.every(item => isUrl(String(item)))) return <UrlList items={resolved} />;
     return <SimpleList items={resolved} />;
   }

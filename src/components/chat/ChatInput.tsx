@@ -59,6 +59,10 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastTypingBroadcast = useRef<number>(0);
+  const draftsRef = useRef<Map<string, string>>(new Map());
+  const prevRoomIdRef = useRef<string | null | undefined>(undefined);
+  const macrosPopupRef = useRef<HTMLDivElement>(null);
+  const articlesPopupRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchMacros = async () => {
@@ -138,6 +142,35 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
   useEffect(() => {
     textareaRef.current?.focus();
   }, []);
+
+  // Draft persistence per room
+  useEffect(() => {
+    const prevId = prevRoomIdRef.current;
+    if (prevId !== undefined && prevId !== roomId) {
+      // Save draft for previous room
+      if (prevId) draftsRef.current.set(prevId, value);
+      // Restore draft for new room
+      const draft = roomId ? (draftsRef.current.get(roomId) ?? "") : "";
+      setValue(draft);
+      setMacrosOpen(false);
+      setArticlesOpen(false);
+    }
+    prevRoomIdRef.current = roomId;
+  }, [roomId]);
+
+  // Click-outside to close macros/articles popups
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (macrosOpen && macrosPopupRef.current && !macrosPopupRef.current.contains(e.target as Node)) {
+        setMacrosOpen(false);
+      }
+      if (articlesOpen && articlesPopupRef.current && !articlesPopupRef.current.contains(e.target as Node)) {
+        setArticlesOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [macrosOpen, articlesOpen]);
 
   useEffect(() => {
     return () => {
@@ -379,7 +412,10 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
           ? macros.filter(m => m.title.toLowerCase().includes(filterText) || (m.shortcut && m.shortcut.toLowerCase().includes(filterText)))
           : macros;
         return (
-          <div className="rounded-md border bg-popover shadow-md max-h-48 overflow-auto" ref={commandListRef}>
+          <div className="rounded-md border bg-popover shadow-md max-h-48 overflow-auto" ref={(el) => { (commandListRef as any).current = el; (macrosPopupRef as any).current = el; }}>
+            <div className="flex justify-end p-1">
+              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => setMacrosOpen(false)}><X className="h-3 w-3" /></Button>
+            </div>
             <Command shouldFilter={false}>
               <CommandList>
                 <CommandEmpty className="text-xs p-2">Nenhuma macro encontrada</CommandEmpty>
@@ -405,7 +441,7 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
 
       {/* Articles popup */}
       {articlesOpen && (
-        <div className="rounded-md border bg-popover shadow-md max-h-56 overflow-hidden flex flex-col" ref={articleListRef}>
+        <div className="rounded-md border bg-popover shadow-md max-h-56 overflow-hidden flex flex-col" ref={(el) => { (articleListRef as any).current = el; (articlesPopupRef as any).current = el; }}>
           <Command shouldFilter={false}>
             <div className="flex items-center border-b px-3 py-1.5">
               <BookOpen className="mr-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -416,6 +452,7 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
                 onChange={(e) => setArticleFilter(e.target.value)}
                 autoFocus
               />
+              <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => setArticlesOpen(false)}><X className="h-3 w-3" /></Button>
             </div>
             <CommandList className="max-h-44 overflow-auto">
               <CommandEmpty className="text-xs p-3 text-center text-muted-foreground">{t("chat.articles.empty")}</CommandEmpty>

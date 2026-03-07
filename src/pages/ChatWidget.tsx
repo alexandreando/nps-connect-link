@@ -425,6 +425,12 @@ const ChatWidget = () => {
           }
         }
       })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_messages", filter: `room_id=eq.${roomId}` }, (payload) => {
+        const msg = payload.new as any;
+        if (msg.deleted_at) {
+          setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+        }
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
