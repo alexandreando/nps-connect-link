@@ -273,7 +273,21 @@ const AdminDashboard = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <PageHeader title={t("chat.dashboard.title")} subtitle={t("chat.dashboard.subtitle")} />
-          <span className="text-[10px] text-muted-foreground/60">Atualizado {lastRefreshLabel()}</span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-[11px]" onClick={() => refetch()}>
+              <RefreshCw className="h-3.5 w-3.5" />Atualizar
+            </Button>
+            <Button
+              variant={realtimeEnabled ? "default" : "outline"}
+              size="sm"
+              className="h-8 gap-1.5 text-[11px]"
+              onClick={toggleRealtime}
+            >
+              <Radio className={`h-3.5 w-3.5 ${realtimeEnabled ? "animate-pulse" : ""}`} />
+              Tempo real: {realtimeEnabled ? "Ligado" : "Desligado"}
+            </Button>
+            <span className="text-[10px] text-muted-foreground/60">Atualizado {lastRefreshLabel()}</span>
+          </div>
         </div>
 
         {/* Filters */}

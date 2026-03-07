@@ -237,25 +237,35 @@ const ChatWidget = () => {
       atts?.forEach(a => attMap.set(a.id, a.display_name));
     }
 
-    const roomsWithPreview = await Promise.all(
-      rooms.map(async (room) => {
-        const { data: msgs } = await supabase
-          .from("chat_messages")
-          .select("content, sender_type")
-          .eq("room_id", room.id)
-          .neq("sender_type", "system")
-          .eq("is_internal", false)
-          .order("created_at", { ascending: false })
-          .limit(1);
-        return {
-          ...room,
-          last_message: msgs?.[0]?.content ?? null,
-          last_message_sender: msgs?.[0]?.sender_type ?? null,
-          attendant_name: room.attendant_id ? (attMap.get(room.attendant_id) ?? null) : null,
-        };
-      })
-    );
-    
+    // Batch fetch last messages for all rooms in a single query (eliminates N+1)
+    const roomIds = rooms.map(r => r.id);
+    const lastMsgMap: Record<string, { content: string; sender_type: string }> = {};
+    if (roomIds.length > 0) {
+      const { data: allMsgs } = await supabase
+        .from("chat_messages")
+        .select("room_id, content, sender_type")
+        .in("room_id", roomIds)
+        .neq("sender_type", "system")
+        .eq("is_internal", false)
+        .order("created_at", { ascending: false });
+      if (allMsgs) {
+        const seen = new Set<string>();
+        for (const m of allMsgs as { room_id: string; content: string; sender_type: string }[]) {
+          if (!seen.has(m.room_id)) {
+            seen.add(m.room_id);
+            lastMsgMap[m.room_id] = { content: m.content, sender_type: m.sender_type };
+          }
+        }
+      }
+    }
+
+    const roomsWithPreview = rooms.map((room) => ({
+      ...room,
+      last_message: lastMsgMap[room.id]?.content ?? null,
+      last_message_sender: lastMsgMap[room.id]?.sender_type ?? null,
+      attendant_name: room.attendant_id ? (attMap.get(room.attendant_id) ?? null) : null,
+    }));
+
     if (append) {
       setHistoryRooms(prev => [...prev, ...roomsWithPreview]);
     } else {
