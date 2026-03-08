@@ -77,11 +77,17 @@ export function PendingRoomsList({ attendantId, selectedRoomId, onSelectRoom }: 
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "chat_rooms" },
-        () => fetchPendingRooms()
+        () => {
+          if (debounceRef.current) clearTimeout(debounceRef.current);
+          debounceRef.current = setTimeout(fetchPendingRooms, 3000);
+        }
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      supabase.removeChannel(channel);
+    };
   }, [attendantId, fetchPendingRooms]);
 
   if (rooms.length === 0) return null;
