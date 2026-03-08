@@ -27,6 +27,55 @@ export interface ClosedRoom {
 }
 
 const PAGE_SIZE = 20;
+const MAX_FILTER_IDS = 500;
+
+/** Split an array into batches of `size` */
+function batchArray<T>(arr: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    result.push(arr.slice(i, i + size));
+  }
+  return result;
+}
+
+/**
+ * Pre-fetch room IDs that match the selected tags.
+ * Returns null if no tag filter is active, or an array of room IDs.
+ */
+async function fetchRoomIdsByTags(tagIds: string[]): Promise<string[] | null> {
+  if (!tagIds || tagIds.length === 0) return null;
+
+  const batches = batchArray(tagIds, 100);
+  const allRoomIds = new Set<string>();
+
+  for (const batch of batches) {
+    const { data } = await supabase
+      .from("chat_room_tags")
+      .select("room_id")
+      .in("tag_id", batch);
+    if (data) data.forEach((r) => allRoomIds.add(r.room_id));
+  }
+
+  const ids = [...allRoomIds];
+  return ids.slice(0, MAX_FILTER_IDS);
+}
+
+/**
+ * Pre-fetch visitor IDs that match the search term.
+ * Returns null if no search filter is active, or an array of visitor IDs.
+ */
+async function fetchVisitorIdsBySearch(search: string): Promise<string[] | null> {
+  if (!search || search.trim() === "") return null;
+
+  const { data } = await supabase
+    .from("chat_visitors")
+    .select("id")
+    .ilike("name", `%${search.trim()}%`)
+    .limit(MAX_FILTER_IDS);
+
+  if (!data || data.length === 0) return [];
+  return data.map((v) => v.id);
+}
 
 export function useChatHistory(filters: HistoryFilter) {
   const [rooms, setRooms] = useState<ClosedRoom[]>([]);
@@ -35,6 +84,28 @@ export function useChatHistory(filters: HistoryFilter) {
 
   const fetchRooms = useCallback(async () => {
     setLoading(true);
+
+    // --- Pre-fetch filter IDs at SQL level ---
+    const [tagRoomIds, searchVisitorIds] = await Promise.all([
+      fetchRoomIdsByTags(filters.tagIds ?? []),
+      fetchVisitorIdsBySearch(filters.search ?? ""),
+    ]);
+
+    // If tag filter is active but returned 0 matches, short-circuit
+    if (tagRoomIds !== null && tagRoomIds.length === 0) {
+      setRooms([]);
+      setTotalCount(0);
+      setLoading(false);
+      return;
+    }
+
+    // If search filter is active but returned 0 matches, short-circuit
+    if (searchVisitorIds !== null && searchVisitorIds.length === 0) {
+      setRooms([]);
+      setTotalCount(0);
+      setLoading(false);
+      return;
+    }
 
     const from = filters.page * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
@@ -46,6 +117,14 @@ export function useChatHistory(filters: HistoryFilter) {
       .eq("status", "closed")
       .order("closed_at", { ascending: false })
       .range(from, to);
+
+    // Apply SQL-level filters
+    if (tagRoomIds !== null) {
+      query = query.in("id", tagRoomIds);
+    }
+    if (searchVisitorIds !== null) {
+      query = query.in("visitor_id", searchVisitorIds);
+    }
 
     if (filters.resolutionStatuses && filters.resolutionStatuses.length > 0) {
       query = query.in("resolution_status", filters.resolutionStatuses);
@@ -60,7 +139,6 @@ export function useChatHistory(filters: HistoryFilter) {
       query = query.lte("closed_at", filters.dateTo);
     }
     if (filters.csatFilters && filters.csatFilters.length > 0) {
-      // Build OR conditions for CSAT
       const csatConditions: string[] = [];
       if (filters.csatFilters.includes("low")) csatConditions.push("csat_score.lte.2");
       if (filters.csatFilters.includes("neutral")) csatConditions.push("csat_score.eq.3");
@@ -130,25 +208,7 @@ export function useChatHistory(filters: HistoryFilter) {
       });
     }
 
-    // Filter by tags if needed
-    let filteredRooms = roomsData;
-    if (filters.tagIds && filters.tagIds.length > 0) {
-      const roomIdsWithTag = new Set(
-        roomTags?.filter((rt) => filters.tagIds!.includes(rt.tag_id)).map((rt) => rt.room_id) ?? []
-      );
-      filteredRooms = roomsData.filter((r) => roomIdsWithTag.has(r.id));
-    }
-
-    // Filter by search (visitor name)
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      filteredRooms = filteredRooms.filter((r) => {
-        const name = visitorMap.get(r.visitor_id) ?? "";
-        return name.toLowerCase().includes(searchLower);
-      });
-    }
-
-    const enriched: ClosedRoom[] = filteredRooms.map((r) => ({
+    const enriched: ClosedRoom[] = roomsData.map((r) => ({
       id: r.id,
       status: r.status ?? "closed",
       resolution_status: r.resolution_status,

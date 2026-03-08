@@ -23,6 +23,7 @@ interface PendingRoomsListProps {
 export function PendingRoomsList({ attendantId, selectedRoomId, onSelectRoom }: PendingRoomsListProps) {
   const [rooms, setRooms] = useState<PendingRoom[]>([]);
   const [open, setOpen] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchPendingRooms = useCallback(async () => {
     if (!attendantId) return;
