@@ -60,7 +60,7 @@ describe("useChatHistory SQL-level filtering", () => {
 
   describe("fetchVisitorIdsBySearch helper logic", () => {
     it("returns null when search is empty", () => {
-      const search = "";
+      const search: string = "";
       const result = (!search || search.trim() === "") ? null : "would-fetch";
       expect(result).toBeNull();
     });
