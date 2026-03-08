@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,7 @@ interface PendingRoomsListProps {
 export function PendingRoomsList({ attendantId, selectedRoomId, onSelectRoom }: PendingRoomsListProps) {
   const [rooms, setRooms] = useState<PendingRoom[]>([]);
   const [open, setOpen] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchPendingRooms = useCallback(async () => {
     if (!attendantId) return;
@@ -77,11 +78,17 @@ export function PendingRoomsList({ attendantId, selectedRoomId, onSelectRoom }: 
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "chat_rooms" },
-        () => fetchPendingRooms()
+        () => {
+          if (debounceRef.current) clearTimeout(debounceRef.current);
+          debounceRef.current = setTimeout(fetchPendingRooms, 3000);
+        }
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      supabase.removeChannel(channel);
+    };
   }, [attendantId, fetchPendingRooms]);
 
   if (rooms.length === 0) return null;
