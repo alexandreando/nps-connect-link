@@ -245,7 +245,7 @@ const texts = {
       { label: "Plataforma completa", href: "/journey" },
     ],
     footerCompanyLinks: [
-      { label: "Acesso Antecipado", href: "#early-access" },
+      { label: "Acesso antecipado", href: "#early-access" },
       { label: "Blog", href: "#" },
     ],
     footerLegalLinks: [
