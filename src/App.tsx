@@ -12,37 +12,45 @@ import LandingPage from "./pages/LandingPage";
 import ChatLandingPage from "./pages/ChatLandingPage";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
-import Dashboard from "./pages/Dashboard";
-import Contacts from "./pages/Contacts";
-import Campaigns from "./pages/Campaigns";
-import CampaignDetails from "./pages/CampaignDetails";
-import Settings from "./pages/Settings";
 import NPSResponse from "./pages/NPSResponse";
 import NPSEmbed from "./pages/NPSEmbed";
 import NotFound from "./pages/NotFound";
-import CSDashboard from "./pages/CSDashboard";
-import CSTrailsPage from "./pages/CSTrailsPage";
-import CSHealthPage from "./pages/CSHealthPage";
-import CSChurnPage from "./pages/CSChurnPage";
-import CSFinancialPage from "./pages/CSFinancialPage";
 import ChatWidget from "./pages/ChatWidget";
-import AdminDashboard from "./pages/AdminDashboard";
 import AdminWorkspace from "./pages/AdminWorkspace";
-import AdminAttendants from "./pages/AdminAttendants";
-import AdminCSATReport from "./pages/AdminCSATReport";
-
-import AdminSettings from "./pages/AdminSettings";
-import AdminDashboardGerencial from "./pages/AdminDashboardGerencial";
-import AdminChatHistory from "./pages/AdminChatHistory";
-import AdminBanners from "./pages/AdminBanners";
-import AdminBroadcasts from "./pages/AdminBroadcasts";
 import PendingApproval from "./pages/PendingApproval";
 import UserPortal from "./pages/UserPortal";
-import People from "./pages/People";
-import NPSSettings from "./pages/NPSSettings";
-import MyProfile from "./pages/MyProfile";
-import Backoffice from "./pages/Backoffice";
 import SidebarLayout from "./components/SidebarLayout";
+
+// Lazy loaded pages — CS Module
+const Home = lazy(() => import("./pages/Home"));
+const CSDashboard = lazy(() => import("./pages/CSDashboard"));
+const CSTrailsPage = lazy(() => import("./pages/CSTrailsPage"));
+const CSHealthPage = lazy(() => import("./pages/CSHealthPage"));
+const CSChurnPage = lazy(() => import("./pages/CSChurnPage"));
+const CSFinancialPage = lazy(() => import("./pages/CSFinancialPage"));
+
+// Lazy loaded pages — NPS Module
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Contacts = lazy(() => import("./pages/Contacts"));
+const Campaigns = lazy(() => import("./pages/Campaigns"));
+const CampaignDetails = lazy(() => import("./pages/CampaignDetails"));
+const Settings = lazy(() => import("./pages/Settings"));
+const People = lazy(() => import("./pages/People"));
+const NPSSettings = lazy(() => import("./pages/NPSSettings"));
+
+// Lazy loaded pages — Chat Admin (keep AdminWorkspace eager for realtime)
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const AdminAttendants = lazy(() => import("./pages/AdminAttendants"));
+const AdminCSATReport = lazy(() => import("./pages/AdminCSATReport"));
+const AdminSettings = lazy(() => import("./pages/AdminSettings"));
+const AdminDashboardGerencial = lazy(() => import("./pages/AdminDashboardGerencial"));
+const AdminChatHistory = lazy(() => import("./pages/AdminChatHistory"));
+const AdminBanners = lazy(() => import("./pages/AdminBanners"));
+const AdminBroadcasts = lazy(() => import("./pages/AdminBroadcasts"));
+
+// Lazy loaded pages — Other
+const MyProfile = lazy(() => import("./pages/MyProfile"));
+const Backoffice = lazy(() => import("./pages/Backoffice"));
 
 // Help Center - lazy loaded
 const HelpOverview = lazy(() => import("./pages/HelpOverview"));
@@ -117,34 +125,37 @@ const App = () => (
 
           {/* Protected routes with persistent SidebarLayout */}
           <Route element={<SidebarLayout />}>
+            {/* Home */}
+            <Route path="/home" element={<Suspense fallback={<SuspenseFallback />}><Home /></Suspense>} />
+
             {/* Chat Module */}
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/dashboard" element={<Suspense fallback={<SuspenseFallback />}><AdminDashboard /></Suspense>} />
             <Route path="/admin/workspace" element={<AdminWorkspace />} />
             <Route path="/admin/workspace/:roomId" element={<AdminWorkspace />} />
-            <Route path="/admin/attendants" element={<AdminAttendants />} />
-            <Route path="/admin/settings" element={<AdminSettings />} />
-            <Route path="/admin/settings/:tab" element={<AdminSettings />} />
-            <Route path="/admin/gerencial" element={<AdminDashboardGerencial />} />
-            <Route path="/admin/history" element={<AdminChatHistory />} />
-            <Route path="/admin/banners" element={<AdminBanners />} />
-            <Route path="/admin/csat" element={<AdminCSATReport />} />
-            <Route path="/admin/broadcasts" element={<AdminBroadcasts />} />
+            <Route path="/admin/attendants" element={<Suspense fallback={<SuspenseFallback />}><AdminAttendants /></Suspense>} />
+            <Route path="/admin/settings" element={<Suspense fallback={<SuspenseFallback />}><AdminSettings /></Suspense>} />
+            <Route path="/admin/settings/:tab" element={<Suspense fallback={<SuspenseFallback />}><AdminSettings /></Suspense>} />
+            <Route path="/admin/gerencial" element={<Suspense fallback={<SuspenseFallback />}><AdminDashboardGerencial /></Suspense>} />
+            <Route path="/admin/history" element={<Suspense fallback={<SuspenseFallback />}><AdminChatHistory /></Suspense>} />
+            <Route path="/admin/banners" element={<Suspense fallback={<SuspenseFallback />}><AdminBanners /></Suspense>} />
+            <Route path="/admin/csat" element={<Suspense fallback={<SuspenseFallback />}><AdminCSATReport /></Suspense>} />
+            <Route path="/admin/broadcasts" element={<Suspense fallback={<SuspenseFallback />}><AdminBroadcasts /></Suspense>} />
 
             {/* NPS Module */}
-            <Route path="/nps/dashboard" element={<Dashboard />} />
-            <Route path="/nps/contacts" element={<Contacts />} />
-            <Route path="/nps/people" element={<People />} />
-            <Route path="/nps/campaigns" element={<Campaigns />} />
-            <Route path="/nps/campaigns/:id" element={<CampaignDetails />} />
-            <Route path="/nps/settings" element={<Settings />} />
-            <Route path="/nps/nps-settings" element={<NPSSettings />} />
+            <Route path="/nps/dashboard" element={<Suspense fallback={<SuspenseFallback />}><Dashboard /></Suspense>} />
+            <Route path="/nps/contacts" element={<Suspense fallback={<SuspenseFallback />}><Contacts /></Suspense>} />
+            <Route path="/nps/people" element={<Suspense fallback={<SuspenseFallback />}><People /></Suspense>} />
+            <Route path="/nps/campaigns" element={<Suspense fallback={<SuspenseFallback />}><Campaigns /></Suspense>} />
+            <Route path="/nps/campaigns/:id" element={<Suspense fallback={<SuspenseFallback />}><CampaignDetails /></Suspense>} />
+            <Route path="/nps/settings" element={<Suspense fallback={<SuspenseFallback />}><Settings /></Suspense>} />
+            <Route path="/nps/nps-settings" element={<Suspense fallback={<SuspenseFallback />}><NPSSettings /></Suspense>} />
 
             {/* CS Module */}
-            <Route path="/cs-dashboard" element={<CSDashboard />} />
-            <Route path="/cs-trails" element={<CSTrailsPage />} />
-            <Route path="/cs-health" element={<CSHealthPage />} />
-            <Route path="/cs-churn" element={<CSChurnPage />} />
-            <Route path="/cs-financial" element={<CSFinancialPage />} />
+            <Route path="/cs-dashboard" element={<Suspense fallback={<SuspenseFallback />}><CSDashboard /></Suspense>} />
+            <Route path="/cs-trails" element={<Suspense fallback={<SuspenseFallback />}><CSTrailsPage /></Suspense>} />
+            <Route path="/cs-health" element={<Suspense fallback={<SuspenseFallback />}><CSHealthPage /></Suspense>} />
+            <Route path="/cs-churn" element={<Suspense fallback={<SuspenseFallback />}><CSChurnPage /></Suspense>} />
+            <Route path="/cs-financial" element={<Suspense fallback={<SuspenseFallback />}><CSFinancialPage /></Suspense>} />
 
             {/* Help Center Module */}
             <Route path="/help/overview" element={<Suspense fallback={<SuspenseFallback />}><HelpOverview /></Suspense>} />
@@ -156,10 +167,10 @@ const App = () => (
             <Route path="/help/import" element={<Suspense fallback={<SuspenseFallback />}><HelpImport /></Suspense>} />
 
             {/* Profile */}
-            <Route path="/profile" element={<MyProfile />} />
+            <Route path="/profile" element={<Suspense fallback={<SuspenseFallback />}><MyProfile /></Suspense>} />
 
             {/* Backoffice Master */}
-            <Route path="/backoffice" element={<Backoffice />} />
+            <Route path="/backoffice" element={<Suspense fallback={<SuspenseFallback />}><Backoffice /></Suspense>} />
           </Route>
 
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

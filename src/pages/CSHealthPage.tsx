@@ -6,7 +6,10 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Heart, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { MetricCard } from "@/components/ui/metric-card";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Heart, TrendingUp, TrendingDown, Minus, Building2 } from "lucide-react";
 
 export default function CSHealthPage() {
   const { t } = useLanguage();
@@ -46,98 +49,87 @@ export default function CSHealthPage() {
 
   return (
     <div className="space-y-8">
-        <PageHeader title={t("cs.health.title")} subtitle={t("cs.health.subtitle")} />
+      <PageHeader title={t("cs.health.title")} subtitle={t("cs.health.subtitle")} />
 
-        {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card className="rounded-lg border bg-card shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {t("cs.health.average")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <Heart className="h-5 w-5 text-primary" />
-                <span className="text-2xl font-semibold">{avgHealth}%</span>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="rounded-lg border bg-card shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                {t("cs.health.healthy")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <span className="text-2xl font-semibold text-primary">{distribution.healthy}</span>
-            </CardContent>
-          </Card>
-          <Card className="rounded-lg border bg-card shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                <Minus className="h-4 w-4 text-warning" />
-                {t("cs.health.attention")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <span className="text-2xl font-semibold text-warning">{distribution.attention}</span>
-            </CardContent>
-          </Card>
-          <Card className="rounded-lg border bg-card shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                <TrendingDown className="h-4 w-4 text-destructive" />
-                {t("cs.health.critical")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <span className="text-2xl font-semibold text-destructive">{distribution.critical}</span>
-            </CardContent>
-          </Card>
-        </div>
+      {/* Summary Metrics */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <MetricCard
+          title={t("cs.health.average")}
+          value={`${avgHealth}%`}
+          icon={Heart}
+          iconColor={avgHealth >= 70 ? "text-primary" : avgHealth >= 40 ? "text-warning" : "text-destructive"}
+          iconBgColor={avgHealth >= 70 ? "bg-primary/10" : avgHealth >= 40 ? "bg-warning/10" : "bg-destructive/10"}
+        />
+        <MetricCard
+          title={t("cs.health.healthy")}
+          value={distribution.healthy}
+          icon={TrendingUp}
+          iconColor="text-primary"
+          iconBgColor="bg-primary/10"
+          subtitle="≥ 70%"
+        />
+        <MetricCard
+          title={t("cs.health.attention")}
+          value={distribution.attention}
+          icon={Minus}
+          iconColor="text-warning"
+          iconBgColor="bg-warning/10"
+          subtitle="40-69%"
+        />
+        <MetricCard
+          title={t("cs.health.critical")}
+          value={distribution.critical}
+          icon={TrendingDown}
+          iconColor="text-destructive"
+          iconBgColor="bg-destructive/10"
+          subtitle="< 40%"
+        />
+      </div>
 
-        {/* Companies List */}
-        <Card className="rounded-lg border bg-card shadow-sm">
-          <CardHeader>
-            <CardTitle>{t("cs.health.companiesList")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="text-center py-8 text-muted-foreground">{t("common.loading")}</div>
-            ) : companies.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">{t("cs.health.noCompanies")}</div>
-            ) : (
-              <div className="space-y-3">
-                {companies.map((company) => {
-                  const healthScore = company.health_score ?? 50;
-                  return (
-                    <div key={company.id} className="flex items-center gap-4 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">
-                          {company.trade_name || company.name}
-                        </p>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Badge variant="outline">{t(`cs.status.${company.cs_status || "implementacao"}`)}</Badge>
-                          {company.last_nps_score !== null && (
-                            <span>NPS: {company.last_nps_score}</span>
-                          )}
-                        </div>
+      {/* Companies List */}
+      <Card className="rounded-lg border bg-card shadow-sm">
+        <CardHeader>
+          <CardTitle>{t("cs.health.companiesList")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <PageSkeleton variant="table" />
+          ) : companies.length === 0 ? (
+            <EmptyState
+              icon={Building2}
+              title={t("cs.health.noCompanies")}
+              description={t("cs.dashboard.subtitle")}
+            />
+          ) : (
+            <div className="space-y-3">
+              {companies.map((company) => {
+                const healthScore = company.health_score ?? 50;
+                return (
+                  <div key={company.id} className="flex items-center gap-4 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">
+                        {company.trade_name || company.name}
+                      </p>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Badge variant="outline">{t(`cs.status.${company.cs_status || "implementacao"}`)}</Badge>
+                        {company.last_nps_score !== null && (
+                          <span>NPS: {company.last_nps_score}</span>
+                        )}
                       </div>
-                      <div className="w-32">
-                        <Progress value={healthScore} className="h-2" />
-                      </div>
-                      <Badge className={`${getHealthColor(healthScore)} text-white min-w-[80px] justify-center`}>
-                        {healthScore}%
-                      </Badge>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    <div className="w-32">
+                      <Progress value={healthScore} className="h-2" />
+                    </div>
+                    <Badge className={`${getHealthColor(healthScore)} text-white min-w-[80px] justify-center`}>
+                      {healthScore}%
+                    </Badge>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

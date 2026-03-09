@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { CSKanbanCard, type KanbanCompany } from "./CSKanbanCard";
 import { CompanyDetailsSheet } from "@/components/CompanyDetailsSheet";
 
@@ -33,9 +34,14 @@ export function CSKanbanBoard({ companies, csms, isLoading, onRefresh, canEdit =
   const { toast } = useToast();
   const [selectedCompany, setSelectedCompany] = useState<KanbanCompany | null>(null);
   const [draggedCompany, setDraggedCompany] = useState<KanbanCompany | null>(null);
+  const [csmFilter, setCsmFilter] = useState<string>("all");
+
+  const filteredCompanies = csmFilter && csmFilter !== "all"
+    ? companies.filter((c) => (c as any).csm_id === csmFilter)
+    : companies;
 
   const getCompaniesByStatus = (status: string) => {
-    return companies.filter((c) => (c.cs_status || "implementacao") === status);
+    return filteredCompanies.filter((c) => (c.cs_status || "implementacao") === status);
   };
 
   const handleDragStart = (company: KanbanCompany) => {
@@ -79,25 +85,34 @@ export function CSKanbanBoard({ companies, csms, isLoading, onRefresh, canEdit =
   };
 
   if (isLoading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {CS_STATUSES.map((status) => (
-          <Card key={status.key}>
-            <CardHeader className="pb-2">
-              <Skeleton className="h-6 w-32" />
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-24 w-full" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
+    return <PageSkeleton variant="kanban" />;
   }
 
   return (
     <>
+      {/* CSM Filter */}
+      {csms.length > 0 && (
+        <div className="flex items-center gap-3 mb-4">
+          <span className="text-sm text-muted-foreground">{t("cs.filterByCSM") || "Filtrar por CSM"}:</span>
+          <Select value={csmFilter} onValueChange={setCsmFilter}>
+            <SelectTrigger className="w-[200px] h-8 text-xs">
+              <SelectValue placeholder={t("cs.allCSMs") || "Todos os CSMs"} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("cs.allCSMs") || "Todos os CSMs"}</SelectItem>
+              {csms.map((csm) => (
+                <SelectItem key={csm.id} value={csm.id}>{csm.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {csmFilter && csmFilter !== "all" && (
+            <Badge variant="secondary" className="text-xs">
+              {filteredCompanies.length} {t("cs.metrics.totalCompanies") || "empresas"}
+            </Badge>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 overflow-x-auto">
         {CS_STATUSES.map((status) => {
           const statusCompanies = getCompaniesByStatus(status.key);
