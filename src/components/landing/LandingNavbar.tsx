@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 
 type NavTexts = {
-  navAtendimento: string;
+  navChat: string;
+  navCSAT: string;
   navNPS: string;
   navHelpCenter: string;
   navSignIn: string;
@@ -29,7 +30,8 @@ const LandingNavbar = ({ t, isLoggedIn, onToggleLang, onCtaClick }: LandingNavba
   };
 
   const navLinks = [
-    { label: t.navAtendimento, target: "chat" },
+    { label: t.navChat, target: "chat" },
+    { label: t.navCSAT, target: "csat" },
     { label: t.navNPS, target: "nps" },
     { label: t.navHelpCenter, target: "helpcenter" },
   ];

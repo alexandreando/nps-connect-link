@@ -19,7 +19,8 @@ const initLang = (): Lang => {
 const texts = {
   en: {
     // Navbar
-    navAtendimento: "Support Chat",
+    navChat: "Chat",
+    navCSAT: "CSAT",
     navNPS: "NPS",
     navHelpCenter: "Help Center",
     navSignIn: "Sign In",
@@ -44,7 +45,7 @@ const texts = {
     successSub: "We'll reach out soon with your early access invite.",
     // Product sections
     chatPain: "Your team responds without knowing who the customer is?",
-    chatTitle: "Context-driven support that retains",
+    chatTitle: "Chat with context that retains",
     chatSub: "Plan, MRR, health score and history — everything right next to the conversation.",
     chatFeatures: [
       "Automatic assignment (Round Robin / Least Busy)",
@@ -54,7 +55,7 @@ const texts = {
       "Complete conversation history",
       "Help Center article search inside chat",
     ],
-    csatPain: "You don't know how customers feel after each interaction?",
+    csatPain: "You don't know how customers feel after each chat?",
     csatTitle: "Post-chat CSAT that drives improvement",
     csatSub: "Automatic satisfaction surveys after every conversation with detailed analytics per agent.",
     csatFeatures: [
@@ -119,7 +120,8 @@ const texts = {
     footerCompany: "Company",
     footerLegal: "Legal",
     footerProductLinks: [
-      { label: "Support Chat", href: "#chat" },
+      { label: "Chat", href: "#chat" },
+      { label: "CSAT", href: "#csat" },
       { label: "NPS", href: "#nps" },
       { label: "Help Center", href: "#helpcenter" },
       { label: "Complete Platform", href: "/journey" },
@@ -135,7 +137,8 @@ const texts = {
   },
   "pt-BR": {
     // Navbar
-    navAtendimento: "Atendimento",
+    navChat: "Chat",
+    navCSAT: "CSAT",
     navNPS: "NPS",
     navHelpCenter: "Help Center",
     navSignIn: "Entrar",
@@ -160,7 +163,7 @@ const texts = {
     successSub: "Entraremos em contato em breve com seu convite.",
     // Product sections
     chatPain: "Seu time responde sem saber quem é o cliente?",
-    chatTitle: "Atendimento com contexto que retém",
+    chatTitle: "Chat com contexto que retém",
     chatSub: "Plano, MRR, health score e histórico — tudo ao lado da conversa.",
     chatFeatures: [
       "Atribuição automática (Round Robin / Least Busy)",
@@ -170,8 +173,8 @@ const texts = {
       "Histórico completo de conversas",
       "Busca de artigos do Help Center no chat",
     ],
-    csatPain: "Você não sabe como o cliente se sente após cada atendimento?",
-    csatTitle: "CSAT pós-atendimento que direciona melhoria",
+    csatPain: "Você não sabe como o cliente se sente após cada chat?",
+    csatTitle: "CSAT pós-chat que direciona melhoria",
     csatSub: "Pesquisa de satisfação automática após cada conversa com analytics detalhado por atendente.",
     csatFeatures: [
       "Pesquisa de satisfação automática pós-chat",
@@ -235,7 +238,8 @@ const texts = {
     footerCompany: "Empresa",
     footerLegal: "Legal",
     footerProductLinks: [
-      { label: "Atendimento", href: "#chat" },
+      { label: "Chat", href: "#chat" },
+      { label: "CSAT", href: "#csat" },
       { label: "NPS", href: "#nps" },
       { label: "Help Center", href: "#helpcenter" },
       { label: "Plataforma Completa", href: "/journey" },
