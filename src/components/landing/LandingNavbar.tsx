@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 
 type NavTexts = {
-  navAtendimento: string;
+  navChat: string;
+  navCSAT: string;
   navNPS: string;
   navHelpCenter: string;
   navSignIn: string;
