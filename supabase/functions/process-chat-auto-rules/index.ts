@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
 
       const { data: allMessages } = await supabase
         .from("chat_messages")
-        .select("id, room_id, created_at, sender_type, metadata")
+        .select("id, room_id, created_at, sender_type, metadata, is_internal")
         .in("room_id", roomIds)
         .gte("created_at", twentyFourHoursAgo)
         .order("created_at", { ascending: false });
