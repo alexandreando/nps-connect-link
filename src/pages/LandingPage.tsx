@@ -242,7 +242,7 @@ const texts = {
       { label: "CSAT", href: "#csat" },
       { label: "NPS", href: "#nps" },
       { label: "Help Center", href: "#helpcenter" },
-      { label: "Plataforma Completa", href: "/journey" },
+      { label: "Plataforma completa", href: "/journey" },
     ],
     footerCompanyLinks: [
       { label: "Acesso Antecipado", href: "#early-access" },
