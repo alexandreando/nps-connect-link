@@ -935,7 +935,7 @@ const AdminBanners = () => {
                       <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                          <SelectItem key={n} value={String(n)}>{n} {n === 10 ? "(máx)" : n === 1 ? "(mín)" : ""}</SelectItem>
+                          <SelectItem key={n} value={String(n)}>{n} — {PRIORITY_LABELS[n]}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -950,6 +950,30 @@ const AdminBanners = () => {
                       onChange={(e) => setForm({ ...form, max_views: e.target.value ? Number(e.target.value) : null })}
                       placeholder="Ilimitado"
                     />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground flex items-center gap-1"><Timer className="h-3 w-3" /> Auto-dismiss (seg)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      className="h-9"
+                      value={form.auto_dismiss_seconds ?? ""}
+                      onChange={(e) => setForm({ ...form, auto_dismiss_seconds: e.target.value ? Number(e.target.value) : null })}
+                      placeholder="Desativado"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground flex items-center gap-1"><Repeat className="h-3 w-3" /> Frequência</Label>
+                    <Select value={form.display_frequency} onValueChange={(v) => setForm({ ...form, display_frequency: v })}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {FREQUENCY_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>
