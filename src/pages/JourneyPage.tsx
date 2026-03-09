@@ -83,7 +83,8 @@ const texts = {
     ],
   },
   "pt-BR": {
-    navAtendimento: "Atendimento",
+    navChat: "Chat",
+    navCSAT: "CSAT",
     navNPS: "NPS",
     navHelpCenter: "Help Center",
     navPlataforma: "Plataforma",
