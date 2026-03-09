@@ -227,8 +227,8 @@ const texts = {
       { q: "O Journey tem API?", a: "Sim. Oferecemos API REST e webhooks para integrar com suas ferramentas e automatizar fluxos de trabalho." },
     ],
     // CTA
-    formLabel: "Acesso Antecipado",
-    formH2: "Seja um dos Primeiros a Usar o Journey",
+    formLabel: "Acesso antecipado",
+    formH2: "Seja um dos primeiros a usar o Journey",
     formSub: "Estamos abrindo para um grupo limitado de times de CS e Receita que querem construir crescimento previsível a partir de dados de clientes.",
     formFootnote: "Usuários selecionados terão acesso direto ao time fundador e influência no roadmap do produto.",
     // Footer
