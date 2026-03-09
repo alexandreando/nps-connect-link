@@ -455,6 +455,24 @@ const Contacts = () => {
                 className="pl-10"
               />
             </div>
+            <div className="flex items-center border rounded-lg overflow-hidden">
+              <Button
+                variant={viewMode === "cards" ? "default" : "ghost"}
+                size="sm"
+                className="rounded-none h-8 px-2"
+                onClick={() => setViewMode("cards")}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === "table" ? "default" : "ghost"}
+                size="sm"
+                className="rounded-none h-8 px-2"
+                onClick={() => setViewMode("table")}
+              >
+                <LayoutList className="h-4 w-4" />
+              </Button>
+            </div>
             {activeFilterCount > 0 && (
               <Button variant="ghost" size="sm" onClick={() => { setSectorFilter(""); setStateFilter(""); setCityFilter(""); setCsStatusFilter(""); setPriorityFilter(""); setHealthFilter(""); setNpsFilter(""); }}>
                 <X className="h-4 w-4 mr-1" />
