@@ -159,7 +159,9 @@ const NPSDashboardMockup = () => (
       ))}
     </div>
     <div className="rounded-lg p-2.5 flex items-center gap-2" style={{ background: "rgba(255,92,92,0.08)", border: "1px solid rgba(255,92,92,0.12)" }}>
-      <span className="text-sm">⚠️</span>
+      <div className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,92,92,0.2)" }}>
+        <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#FF5C5C" }} />
+      </div>
       <div>
         <div className="text-[10px] font-medium text-white">3 detractors · $12k at risk</div>
       </div>
