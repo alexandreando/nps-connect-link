@@ -87,8 +87,8 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
         <Routes>
-          {/* Public Landing Pages */}
-          <Route path="/" element={<ChatLandingPage />} />
+          {/* Public Landing Page */}
+          <Route path="/" element={<LandingPage />} />
           <Route path="/journey" element={<LandingPage />} />
           
           {/* Chat Widget (public) */}
