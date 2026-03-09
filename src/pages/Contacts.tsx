@@ -101,6 +101,7 @@ const Contacts = () => {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [deleteCompanyId, setDeleteCompanyId] = useState<string | null>(null);
   const [bulkImportType, setBulkImportType] = useState<"companies" | "contacts" | null>(null);
+  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [sectorFilter, setSectorFilter] = useState("");
   const [stateFilter, setStateFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
