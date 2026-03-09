@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
     // Build banner query with date/active filters
     let bannerQuery = supabase
       .from("chat_banners")
-      .select("id, content, content_html, text_align, bg_color, text_color, link_url, link_label, has_voting, banner_type, priority, max_views, target_all")
+      .select("id, content, content_html, text_align, bg_color, text_color, link_url, link_label, has_voting, banner_type, priority, max_views, target_all, position, auto_dismiss_seconds, display_frequency, border_style, shadow_style")
       .eq("is_active", true)
       .or(`starts_at.is.null,starts_at.lte.${now}`)
       .or(`expires_at.is.null,expires_at.gt.${now}`)
@@ -117,9 +117,59 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Load field rules for banners that have them
+    const bannerIds = allBanners.map((b: any) => b.id);
+    const { data: allRules } = await supabase
+      .from("chat_banner_field_rules")
+      .select("banner_id, field_source, field_key, operator, field_value")
+      .in("banner_id", bannerIds);
+
+    const rulesByBanner: Record<string, any[]> = {};
+    (allRules ?? []).forEach((r: any) => {
+      if (!rulesByBanner[r.banner_id]) rulesByBanner[r.banner_id] = [];
+      rulesByBanner[r.banner_id].push(r);
+    });
+
+    // Load contact data if we have rules to evaluate
+    let contactData: any = null;
+    if (contactId && Object.keys(rulesByBanner).length > 0) {
+      const { data } = await supabase
+        .from("contacts")
+        .select("name, email, company_document, company_sector, city, state, external_id, service_priority, cs_status, mrr, contract_value, health_score, custom_fields")
+        .eq("id", contactId)
+        .maybeSingle();
+      contactData = data;
+    }
+
+    // Rule evaluation helper
+    function matchRule(rule: any, contact: any): boolean {
+      const cf = (contact?.custom_fields as Record<string, any>) || {};
+      const rawVal = rule.field_source === "native" ? contact?.[rule.field_key] : cf[rule.field_key];
+      if (rawVal === undefined || rawVal === null) return false;
+      if (rule.operator === "equals") return String(rawVal).toLowerCase() === rule.field_value.toLowerCase();
+      const numA = Number(rawVal);
+      const numB = Number(rule.field_value);
+      if (isNaN(numA) || isNaN(numB)) return false;
+      switch (rule.operator) {
+        case "greater_than": return numA > numB;
+        case "less_than": return numA < numB;
+        case "greater_or_equal": return numA >= numB;
+        case "less_or_equal": return numA <= numB;
+        default: return false;
+      }
+    }
+
+    // Filter banners by rules (AND logic)
+    const filteredBanners = allBanners.filter((b: any) => {
+      const rules = rulesByBanner[b.id];
+      if (!rules || rules.length === 0) return true; // No rules = pass
+      if (!contactData) return false; // Has rules but no contact data = fail
+      return rules.every((r: any) => matchRule(r, contactData));
+    });
+
     // Separate target_all banners from individually assigned
-    const targetAllBanners = allBanners.filter((b: any) => b.target_all);
-    const individualBanners = allBanners.filter((b: any) => !b.target_all);
+    const targetAllBanners = filteredBanners.filter((b: any) => b.target_all);
+    const individualBanners = filteredBanners.filter((b: any) => !b.target_all);
 
     const result: any[] = [];
 
@@ -152,7 +202,7 @@ Deno.serve(async (req) => {
             assignment_id: existing.id,
             content: banner.content,
             content_html: banner.content_html ?? null,
-            text_align: banner.text_align ?? "left",
+            text_align: banner.text_align ?? "center",
             bg_color: banner.bg_color ?? "#3B82F6",
             text_color: banner.text_color ?? "#FFFFFF",
             link_url: banner.link_url,
@@ -161,6 +211,11 @@ Deno.serve(async (req) => {
             banner_type: banner.banner_type ?? "info",
             priority: banner.priority ?? 5,
             vote: existing.vote,
+            position: banner.position ?? "top",
+            auto_dismiss_seconds: banner.auto_dismiss_seconds ?? null,
+            display_frequency: banner.display_frequency ?? "always",
+            border_style: banner.border_style ?? "none",
+            shadow_style: banner.shadow_style ?? "none",
           });
 
           // Increment views
@@ -193,7 +248,7 @@ Deno.serve(async (req) => {
             assignment_id: assignment.id,
             content: banner.content,
             content_html: banner.content_html ?? null,
-            text_align: banner.text_align ?? "left",
+            text_align: banner.text_align ?? "center",
             bg_color: banner.bg_color ?? "#3B82F6",
             text_color: banner.text_color ?? "#FFFFFF",
             link_url: banner.link_url,
@@ -202,6 +257,11 @@ Deno.serve(async (req) => {
             banner_type: banner.banner_type ?? "info",
             priority: banner.priority ?? 5,
             vote: assignment.vote,
+            position: banner.position ?? "top",
+            auto_dismiss_seconds: banner.auto_dismiss_seconds ?? null,
+            display_frequency: banner.display_frequency ?? "always",
+            border_style: banner.border_style ?? "none",
+            shadow_style: banner.shadow_style ?? "none",
           });
 
           // Increment views

@@ -20,10 +20,12 @@ import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Plus, Edit, Trash2, Users, Eye, ThumbsUp, ThumbsDown, Search, Copy, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles, CalendarIcon, Bell, Palette, Link2, Calendar as CalendarSectionIcon, Target, ChevronDown } from "lucide-react";
+import { Plus, Edit, Trash2, Users, Eye, ThumbsUp, ThumbsDown, Search, Copy, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles, CalendarIcon, Bell, Palette, Link2, Calendar as CalendarSectionIcon, Target, ChevronDown, Timer, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import BannerPreview from "@/components/chat/BannerPreview";
 import BannerRichEditor from "@/components/chat/BannerRichEditor";
+import BannerFieldRules from "@/components/chat/BannerFieldRules";
+import BannerConflictDialog from "@/components/chat/BannerConflictDialog";
 
 type BannerType = "info" | "warning" | "success" | "promo" | "update";
 
@@ -46,6 +48,20 @@ interface Banner {
   priority: number;
   target_all: boolean;
   max_views: number | null;
+  position: string;
+  auto_dismiss_seconds: number | null;
+  display_frequency: string;
+  border_style: string;
+  shadow_style: string;
+}
+
+interface FieldRule {
+  id: string;
+  banner_id: string;
+  field_key: string;
+  field_value: string;
+  field_source: string;
+  operator: string;
 }
 
 interface Assignment {
@@ -63,6 +79,15 @@ interface Contact {
   id: string;
   name: string;
   email: string;
+}
+
+interface Conflict {
+  companyId: string;
+  companyName: string;
+  existingBannerId: string;
+  existingBannerTitle: string;
+  overlapStart: string;
+  overlapEnd: string | null;
 }
 
 const TYPE_DEFAULT_COLORS: Record<BannerType, { bg: string; text: string }> = {
@@ -91,6 +116,61 @@ const BANNER_TYPES: { value: BannerType; label: string; icon: typeof Info; bgCla
   { value: "update", label: "Atualização", icon: Sparkles, bgClass: "bg-cyan-500/15", borderClass: "border-cyan-500/50" },
 ];
 
+const POSITION_OPTIONS = [
+  { value: "top", label: "Topo" },
+  { value: "bottom", label: "Rodapé" },
+  { value: "float", label: "Flutuante" },
+];
+
+const BORDER_STYLE_OPTIONS = [
+  { value: "none", label: "Nenhuma" },
+  { value: "subtle", label: "Sutil" },
+  { value: "rounded", label: "Arredondada" },
+  { value: "pill", label: "Pill" },
+];
+
+const SHADOW_STYLE_OPTIONS = [
+  { value: "none", label: "Nenhuma" },
+  { value: "soft", label: "Suave" },
+  { value: "medium", label: "Média" },
+  { value: "strong", label: "Forte" },
+];
+
+const FREQUENCY_OPTIONS = [
+  { value: "always", label: "Sempre" },
+  { value: "once_per_session", label: "1x por sessão" },
+  { value: "once_per_day", label: "1x por dia" },
+];
+
+const PRIORITY_LABELS: Record<number, string> = {
+  1: "Baixa", 2: "Baixa", 3: "Baixa",
+  4: "Média", 5: "Média", 6: "Média",
+  7: "Alta", 8: "Alta",
+  9: "Urgente", 10: "Urgente",
+};
+
+// WCAG contrast ratio calculation
+function getLuminance(hex: string): number {
+  const rgb = hex.replace("#", "").match(/.{2}/g)?.map(x => parseInt(x, 16) / 255) || [0, 0, 0];
+  const [r, g, b] = rgb.map(c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function getContrastRatio(hex1: string, hex2: string): number {
+  const l1 = getLuminance(hex1);
+  const l2 = getLuminance(hex2);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function getContrastBadge(bgColor: string, textColor: string): { label: string; className: string } {
+  const ratio = getContrastRatio(bgColor, textColor);
+  if (ratio >= 7) return { label: "AAA", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200" };
+  if (ratio >= 4.5) return { label: "AA", className: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" };
+  return { label: "Baixo contraste", className: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" };
+}
+
 const getBannerStatus = (banner: Banner): { label: string; variant: "default" | "secondary" | "outline" | "destructive" } => {
   if (!banner.is_active) return { label: "Inativo", variant: "secondary" };
   const now = new Date();
@@ -114,12 +194,16 @@ const AdminBanners = () => {
   const [contactSearch, setContactSearch] = useState("");
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
   const [assignmentCounts, setAssignmentCounts] = useState<Record<string, { total: number; views: number; upVotes: number; downVotes: number }>>({});
+  const [fieldRules, setFieldRules] = useState<FieldRule[]>([]);
+  const [conflictDialog, setConflictDialog] = useState(false);
+  const [conflicts, setConflicts] = useState<Conflict[]>([]);
+  const [savingWithConflict, setSavingWithConflict] = useState(false);
 
   const defaultForm = {
     title: "",
     content: "",
     content_html: "",
-    text_align: "left" as "left" | "center" | "right",
+    text_align: "center" as "left" | "center" | "right",
     bg_color: "#3B82F6",
     text_color: "#FFFFFF",
     link_url: "",
@@ -132,6 +216,11 @@ const AdminBanners = () => {
     priority: 5,
     target_all: false,
     max_views: null as number | null,
+    position: "top",
+    auto_dismiss_seconds: null as number | null,
+    display_frequency: "always",
+    border_style: "none",
+    shadow_style: "soft",
   };
 
   const [form, setForm] = useState(defaultForm);
@@ -166,6 +255,14 @@ const AdminBanners = () => {
     fetchBanners();
   }, [fetchBanners]);
 
+  const fetchFieldRules = useCallback(async (bannerId: string) => {
+    const { data } = await supabase
+      .from("chat_banner_field_rules" as any)
+      .select("id, banner_id, field_key, field_value, field_source, operator")
+      .eq("banner_id", bannerId);
+    setFieldRules(((data as unknown) as FieldRule[]) ?? []);
+  }, []);
+
   const openBannerDialog = (banner?: Banner) => {
     if (banner) {
       setEditingBanner(banner);
@@ -173,7 +270,7 @@ const AdminBanners = () => {
         title: banner.title,
         content: banner.content,
         content_html: banner.content_html ?? "",
-        text_align: (banner.text_align as "left" | "center" | "right") || "left",
+        text_align: (banner.text_align as "left" | "center" | "right") || "center",
         bg_color: banner.bg_color,
         text_color: banner.text_color,
         link_url: banner.link_url ?? "",
@@ -186,10 +283,17 @@ const AdminBanners = () => {
         priority: banner.priority ?? 5,
         target_all: banner.target_all ?? false,
         max_views: banner.max_views ?? null,
+        position: banner.position ?? "top",
+        auto_dismiss_seconds: banner.auto_dismiss_seconds ?? null,
+        display_frequency: banner.display_frequency ?? "always",
+        border_style: banner.border_style ?? "none",
+        shadow_style: banner.shadow_style ?? "soft",
       });
+      fetchFieldRules(banner.id);
     } else {
       setEditingBanner(null);
       setForm({ ...defaultForm });
+      setFieldRules([]);
     }
     setBannerDialog(true);
   };
@@ -200,7 +304,7 @@ const AdminBanners = () => {
       title: banner.title + " (cópia)",
       content: banner.content,
       content_html: banner.content_html ?? "",
-      text_align: (banner.text_align as "left" | "center" | "right") || "left",
+      text_align: (banner.text_align as "left" | "center" | "right") || "center",
       bg_color: banner.bg_color,
       text_color: banner.text_color,
       link_url: banner.link_url ?? "",
@@ -213,13 +317,105 @@ const AdminBanners = () => {
       priority: banner.priority ?? 5,
       target_all: banner.target_all ?? false,
       max_views: banner.max_views ?? null,
+      position: banner.position ?? "top",
+      auto_dismiss_seconds: banner.auto_dismiss_seconds ?? null,
+      display_frequency: banner.display_frequency ?? "always",
+      border_style: banner.border_style ?? "none",
+      shadow_style: banner.shadow_style ?? "soft",
     });
+    setFieldRules([]);
     setBannerDialog(true);
   };
 
-  const saveBanner = async () => {
+  // Check for period conflicts before saving
+  const checkConflicts = async (): Promise<Conflict[]> => {
+    const startsAt = form.starts_at?.toISOString() ?? null;
+    const expiresAt = form.expires_at?.toISOString() ?? null;
+
+    // Get all active banners except the current one being edited
+    const { data: activeBanners } = await supabase
+      .from("chat_banners")
+      .select("id, title, starts_at, expires_at")
+      .eq("is_active", true)
+      .neq("id", editingBanner?.id ?? "00000000-0000-0000-0000-000000000000");
+
+    if (!activeBanners || activeBanners.length === 0) return [];
+
+    // Get target companies for this banner
+    let targetContactIds: string[] = [];
+    if (form.target_all) {
+      const { data: allContacts } = await supabase
+        .from("contacts")
+        .select("id")
+        .eq("is_company", true);
+      targetContactIds = (allContacts ?? []).map((c: any) => c.id);
+    } else if (editingBanner) {
+      const { data: existing } = await supabase
+        .from("chat_banner_assignments")
+        .select("contact_id")
+        .eq("banner_id", editingBanner.id);
+      targetContactIds = (existing ?? []).map((a: any) => a.contact_id);
+    }
+
+    if (targetContactIds.length === 0) return [];
+
+    const foundConflicts: Conflict[] = [];
+
+    for (const other of activeBanners as any[]) {
+      // Check period overlap
+      const otherStart = other.starts_at ? new Date(other.starts_at) : new Date(0);
+      const otherEnd = other.expires_at ? new Date(other.expires_at) : new Date("2099-12-31");
+      const thisStart = startsAt ? new Date(startsAt) : new Date();
+      const thisEnd = expiresAt ? new Date(expiresAt) : new Date("2099-12-31");
+
+      if (thisStart <= otherEnd && thisEnd >= otherStart) {
+        // Overlap detected - check if same companies
+        const { data: otherAssignments } = await supabase
+          .from("chat_banner_assignments")
+          .select("contact_id")
+          .eq("banner_id", other.id)
+          .is("dismissed_at", null);
+
+        const otherContactIds = new Set((otherAssignments ?? []).map((a: any) => a.contact_id));
+        const overlapping = targetContactIds.filter(id => otherContactIds.has(id));
+
+        if (overlapping.length > 0) {
+          // Get company names for first 5
+          const { data: companies } = await supabase
+            .from("contacts")
+            .select("id, name")
+            .in("id", overlapping.slice(0, 5));
+
+          for (const company of (companies ?? []) as any[]) {
+            foundConflicts.push({
+              companyId: company.id,
+              companyName: company.name,
+              existingBannerId: other.id,
+              existingBannerTitle: other.title,
+              overlapStart: (thisStart > otherStart ? thisStart : otherStart).toISOString(),
+              overlapEnd: (thisEnd < otherEnd ? thisEnd : otherEnd).toISOString(),
+            });
+          }
+        }
+      }
+    }
+
+    return foundConflicts;
+  };
+
+  const saveBanner = async (skipConflictCheck = false) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
+
+    // Check conflicts if active and not skipping
+    if (form.is_active && !skipConflictCheck) {
+      const found = await checkConflicts();
+      if (found.length > 0) {
+        setConflicts(found);
+        setConflictDialog(true);
+        return;
+      }
+    }
 
     const payload = {
       title: form.title,
@@ -238,6 +434,11 @@ const AdminBanners = () => {
       priority: form.priority,
       target_all: form.target_all,
       max_views: form.max_views,
+      position: form.position,
+      auto_dismiss_seconds: form.auto_dismiss_seconds,
+      display_frequency: form.display_frequency,
+      border_style: form.border_style,
+      shadow_style: form.shadow_style,
     };
 
     if (editingBanner) {
@@ -247,8 +448,15 @@ const AdminBanners = () => {
     }
 
     setBannerDialog(false);
+    setConflictDialog(false);
     toast({ title: t("common.save") });
     fetchBanners();
+  };
+
+  const handleConflictConfirm = async () => {
+    setSavingWithConflict(true);
+    await saveBanner(true);
+    setSavingWithConflict(false);
   };
 
   const deleteBanner = async (id: string) => {
@@ -497,6 +705,9 @@ const AdminBanners = () => {
                       bannerType={form.banner_type}
                       startsAt={form.starts_at?.toISOString()}
                       expiresAt={form.expires_at?.toISOString()}
+                      position={form.position}
+                      borderStyle={form.border_style}
+                      shadowStyle={form.shadow_style}
                     />
                   </CollapsibleContent>
                 </Collapsible>
@@ -610,6 +821,55 @@ const AdminBanners = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* WCAG Contrast Badge */}
+                {(() => {
+                  const badge = getContrastBadge(form.bg_color, form.text_color);
+                  return (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Contraste WCAG:</span>
+                      <Badge className={cn("text-xs", badge.className)}>{badge.label}</Badge>
+                      <span className="text-xs text-muted-foreground">({getContrastRatio(form.bg_color, form.text_color).toFixed(1)}:1)</span>
+                    </div>
+                  );
+                })()}
+
+                {/* Position, Border, Shadow */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Posição</Label>
+                    <Select value={form.position} onValueChange={(v) => setForm({ ...form, position: v })}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {POSITION_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Borda</Label>
+                    <Select value={form.border_style} onValueChange={(v) => setForm({ ...form, border_style: v })}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {BORDER_STYLE_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Sombra</Label>
+                    <Select value={form.shadow_style} onValueChange={(v) => setForm({ ...form, shadow_style: v })}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {SHADOW_STYLE_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
 
               {/* Section 4: Link + Voting */}
@@ -675,7 +935,7 @@ const AdminBanners = () => {
                       <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                          <SelectItem key={n} value={String(n)}>{n} {n === 10 ? "(máx)" : n === 1 ? "(mín)" : ""}</SelectItem>
+                          <SelectItem key={n} value={String(n)}>{n} — {PRIORITY_LABELS[n]}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -692,6 +952,30 @@ const AdminBanners = () => {
                     />
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground flex items-center gap-1"><Timer className="h-3 w-3" /> Auto-dismiss (seg)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      className="h-9"
+                      value={form.auto_dismiss_seconds ?? ""}
+                      onChange={(e) => setForm({ ...form, auto_dismiss_seconds: e.target.value ? Number(e.target.value) : null })}
+                      placeholder="Desativado"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground flex items-center gap-1"><Repeat className="h-3 w-3" /> Frequência</Label>
+                    <Select value={form.display_frequency} onValueChange={(v) => setForm({ ...form, display_frequency: v })}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {FREQUENCY_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
 
               {/* Section 6: Segmentation */}
@@ -704,6 +988,16 @@ const AdminBanners = () => {
                   <Checkbox checked={form.target_all} onCheckedChange={(v) => setForm({ ...form, target_all: !!v })} />
                   <Label className="text-sm">{t("banners.targetAll")}</Label>
                 </div>
+                {editingBanner && (
+                  <BannerFieldRules
+                    bannerId={editingBanner.id}
+                    rules={fieldRules}
+                    onChanged={() => fetchFieldRules(editingBanner.id)}
+                  />
+                )}
+                {!editingBanner && (
+                  <p className="text-xs text-muted-foreground">Salve o banner primeiro para configurar regras de segmentação automática.</p>
+                )}
                 <div className="flex items-center gap-3">
                   <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
                   <Label className="text-sm">{t("banners.activeLabel")}</Label>
@@ -728,6 +1022,9 @@ const AdminBanners = () => {
                     bannerType={form.banner_type}
                     startsAt={form.starts_at?.toISOString()}
                     expiresAt={form.expires_at?.toISOString()}
+                    position={form.position}
+                    borderStyle={form.border_style}
+                    shadowStyle={form.shadow_style}
                   />
                 </div>
               </div>
@@ -736,7 +1033,7 @@ const AdminBanners = () => {
 
           <DialogFooter className="px-6 py-4 border-t border-border">
             <Button variant="outline" onClick={() => setBannerDialog(false)}>{t("common.cancel")}</Button>
-            <Button onClick={saveBanner} disabled={!form.title || !form.content}>
+            <Button onClick={() => saveBanner()} disabled={!form.title || !form.content}>
               {editingBanner ? "Salvar Alterações" : "Criar Banner"}
             </Button>
           </DialogFooter>
@@ -837,6 +1134,15 @@ const AdminBanners = () => {
           </Card>
         </DialogContent>
       </Dialog>
+      {/* Conflict Dialog */}
+      <BannerConflictDialog
+        open={conflictDialog}
+        onOpenChange={setConflictDialog}
+        conflicts={conflicts}
+        onConfirm={handleConflictConfirm}
+        onCancel={() => setConflictDialog(false)}
+        isLoading={savingWithConflict}
+      />
     </>
   );
 };
