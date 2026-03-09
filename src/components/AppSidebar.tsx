@@ -207,40 +207,6 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
               </SidebarGroup>
             )}
 
-            {/* Customer Success */}
-            {showCS && (
-              <SidebarGroup>
-                <Collapsible open={csOpen} onOpenChange={handleCsOpen}>
-                  <CollapsibleTrigger asChild>
-                    <SidebarGroupLabel className={`${groupLabelCls} cursor-pointer hover:text-foreground/70 flex items-center justify-between w-full transition-colors`}>
-                      <span className="flex items-center gap-2"><LayoutDashboard className="h-3.5 w-3.5" /><span>{t("cs.title")}</span></span>
-                      {!collapsed && (csOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
-                    </SidebarGroupLabel>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarGroupContent>
-                      <SidebarMenu>
-                        {hasPermission("cs.kanban", "view") && (
-                          <SidebarMenuItem>
-                            <SidebarMenuButton onClick={() => navigate("/cs-dashboard")} isActive={isActive("/cs-dashboard")} tooltip={t("nav.overview")} className={cn(isActive("/cs-dashboard") ? activeItemCls : "hover:bg-sidebar-accent")}>
-                              <LayoutDashboard className="h-4 w-4" /><span>{t("nav.overview")}</span>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        )}
-                        {hasPermission("cs.trails", "view") && (
-                          <SidebarMenuItem>
-                            <SidebarMenuButton onClick={() => navigate("/cs-trails")} isActive={isActive("/cs-trails")} tooltip={t("nav.journeys")} className={cn(isActive("/cs-trails") ? activeItemCls : "hover:bg-sidebar-accent")}>
-                              <Route className="h-4 w-4" /><span>{t("nav.journeys")}</span>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        )}
-                      </SidebarMenu>
-                    </SidebarGroupContent>
-                  </CollapsibleContent>
-                </Collapsible>
-              </SidebarGroup>
-            )}
-
             {/* NPS */}
             {showNPS && (
               <SidebarGroup>
