@@ -10,15 +10,18 @@ const LandingFAQ = ({ t }: { t: FAQTexts }) => {
   const [open, setOpen] = useState<number | null>(null);
 
   return (
-    <section className="py-16 px-4" style={{ background: "#0F1115" }}>
+    <section className="py-16 px-4" style={{ background: "#0D0F13" }}>
       <div className="max-w-3xl mx-auto">
         <h2 className="text-xl font-medium text-white text-center mb-10">{t.faqTitle}</h2>
         <div className="space-y-2">
           {t.faqItems.map(({ q, a }, i) => (
             <div
               key={i}
-              className="rounded-xl overflow-hidden"
-              style={{ background: "#131722", border: "1px solid rgba(255,255,255,0.06)" }}
+              className="rounded-xl overflow-hidden transition-colors duration-200"
+              style={{
+                background: "#131722",
+                border: open === i ? "1px solid rgba(255,122,89,0.25)" : "1px solid rgba(255,255,255,0.06)",
+              }}
             >
               <button
                 onClick={() => setOpen(open === i ? null : i)}
@@ -27,7 +30,7 @@ const LandingFAQ = ({ t }: { t: FAQTexts }) => {
                 <span className="text-[14px] font-medium text-white pr-4">{q}</span>
                 <ChevronDown
                   className="w-4 h-4 flex-shrink-0 transition-transform duration-200"
-                  style={{ color: "rgba(255,255,255,0.4)", transform: open === i ? "rotate(180deg)" : "rotate(0)" }}
+                  style={{ color: open === i ? "#FF7A59" : "rgba(255,255,255,0.4)", transform: open === i ? "rotate(180deg)" : "rotate(0)" }}
                 />
               </button>
               {open === i && (

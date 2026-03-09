@@ -6,7 +6,6 @@ type NavTexts = {
   navAtendimento: string;
   navNPS: string;
   navHelpCenter: string;
-  navPlataforma: string;
   navSignIn: string;
   navDashboard: string;
   navCta: string;
@@ -33,27 +32,18 @@ const LandingNavbar = ({ t, isLoggedIn, onToggleLang, onCtaClick }: LandingNavba
     { label: t.navAtendimento, target: "chat" },
     { label: t.navNPS, target: "nps" },
     { label: t.navHelpCenter, target: "helpcenter" },
-    { label: t.navPlataforma, target: "plataforma" },
   ];
 
   return (
     <nav
       className="sticky top-0 z-50"
-      style={{
-        background: "rgba(15,17,21,0.92)",
-        backdropFilter: "blur(20px)",
-        borderBottom: "1px solid rgba(255,255,255,0.05)",
-      }}
+      style={{ background: "rgba(15,17,21,0.92)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
-        <div
-          className="flex items-center cursor-pointer"
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        >
+        <div className="flex items-center cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
           <img src="/logo-dark.svg" alt="Journey" className="h-12 w-auto" />
         </div>
 
-        {/* Desktop nav links */}
         <div className="hidden lg:flex items-center gap-6">
           {navLinks.map((link) => (
             <button
@@ -69,7 +59,6 @@ const LandingNavbar = ({ t, isLoggedIn, onToggleLang, onCtaClick }: LandingNavba
           ))}
         </div>
 
-        {/* Right actions */}
         <div className="flex items-center gap-3 flex-shrink-0">
           <button
             onClick={onToggleLang}
@@ -97,46 +86,24 @@ const LandingNavbar = ({ t, isLoggedIn, onToggleLang, onCtaClick }: LandingNavba
             {t.navCta}
           </button>
 
-          {/* Hamburger */}
-          <button
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className="lg:hidden p-2 rounded-lg"
-            style={{ color: "rgba(255,255,255,0.6)", background: "transparent" }}
-          >
+          <button onClick={() => setMobileOpen(!mobileOpen)} className="lg:hidden p-2 rounded-lg" style={{ color: "rgba(255,255,255,0.6)", background: "transparent" }}>
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
-      {/* Mobile menu */}
       {mobileOpen && (
-        <div
-          className="lg:hidden px-4 pb-4 space-y-1"
-          style={{ background: "rgba(15,17,21,0.98)", borderTop: "1px solid rgba(255,255,255,0.05)" }}
-        >
+        <div className="lg:hidden px-4 pb-4 space-y-1" style={{ background: "rgba(15,17,21,0.98)", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
           {navLinks.map((link) => (
-            <button
-              key={link.target}
-              onClick={() => scrollTo(link.target)}
-              className="block w-full text-left py-3 text-sm border-none bg-transparent"
-              style={{ color: "rgba(255,255,255,0.6)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}
-            >
+            <button key={link.target} onClick={() => scrollTo(link.target)} className="block w-full text-left py-3 text-sm border-none bg-transparent" style={{ color: "rgba(255,255,255,0.6)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
               {link.label}
             </button>
           ))}
           <div className="flex gap-2 pt-3">
-            <button
-              onClick={() => { setMobileOpen(false); navigate(isLoggedIn ? "/home" : "/auth"); }}
-              className="flex-1 text-sm py-2.5 rounded-lg"
-              style={{ color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.08)", background: "transparent" }}
-            >
+            <button onClick={() => { setMobileOpen(false); navigate(isLoggedIn ? "/home" : "/auth"); }} className="flex-1 text-sm py-2.5 rounded-lg" style={{ color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.08)", background: "transparent" }}>
               {isLoggedIn ? t.navDashboard : t.navSignIn}
             </button>
-            <button
-              onClick={() => { setMobileOpen(false); onCtaClick(); }}
-              className="flex-1 text-sm py-2.5 rounded-lg font-medium"
-              style={{ background: "#FF7A59", color: "#fff" }}
-            >
+            <button onClick={() => { setMobileOpen(false); onCtaClick(); }} className="flex-1 text-sm py-2.5 rounded-lg font-medium" style={{ background: "#FF7A59", color: "#fff" }}>
               {t.navCta}
             </button>
           </div>

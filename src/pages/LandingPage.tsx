@@ -18,45 +18,44 @@ const initLang = (): Lang => {
 
 const texts = {
   en: {
+    // Navbar
     navAtendimento: "Support Chat",
     navNPS: "NPS",
     navHelpCenter: "Help Center",
-    navPlataforma: "Platform",
     navSignIn: "Sign In",
     navDashboard: "Dashboard",
     navCta: "Get Started",
     langToggle: "PT",
+    // Hero
     heroBadge: "Early Access · Limited Spots",
-    heroH1a: "Retain customers with",
-    heroH1b: "real context and speed",
-    heroSub: "In-app chat, automated NPS and self-service Help Center — the CX stack built for B2B SaaS teams that need to reduce churn and scale support.",
-    heroCta: "Join Early Access",
+    heroH1: "Support, NPS & Help Center in one place",
+    heroSub: "Everything your CS team needs to retain customers and scale support.",
     heroSubCta: "No credit card · Setup in minutes",
-    heroTabChat: "Chat",
-    heroTabNPS: "NPS",
-    heroTabHelp: "Help Center",
+    heroBadgeChat: "Chat",
+    heroBadgeNPS: "NPS",
+    heroBadgeHelp: "Help Center",
+    // Form
     fieldName: "Your Name *",
     fieldEmail: "Work Email *",
     fieldPhone: "Phone *",
     formCta: "Get Started",
     successTitle: "You're on the list!",
     successSub: "We'll reach out soon with your early access invite.",
-    chatTitle: "Organized support that retains customers",
-    chatSub: "Your team responds with full context — plan, MRR, health score — right next to the conversation. Faster responses, better retention.",
+    // Product sections
+    chatPain: "Your team responds without knowing who the customer is?",
+    chatTitle: "Context-driven support that retains",
+    chatSub: "Plan, MRR, health score and history — everything right next to the conversation.",
     chatFeatures: [
       "Automatic assignment (Round Robin / Least Busy)",
-      "Customizable visitor form fields",
       "Install with 1 line of code",
+      "Customizable form fields",
       "Customer context alongside every conversation",
-      "Teams & queues organized by category",
       "Complete conversation history",
-      "Internal notes between agents",
-      "Quick replies & macros",
       "Help Center article search inside chat",
-      "Proactive banners & broadcasts",
     ],
-    npsTitle: "Automated feedback connected to action",
-    npsSub: "Automated NPS flows connected to health score and churn prediction. Detractors surface immediately with revenue impact.",
+    npsPain: "You only discover dissatisfaction when the customer cancels?",
+    npsTitle: "Automated NPS with risk alerts",
+    npsSub: "Automatic campaigns that surface detractors with revenue impact.",
     npsFeatures: [
       "Automatic & manual campaigns",
       "NPS via email and in-app embed",
@@ -64,8 +63,9 @@ const texts = {
       "Dashboard with highlighted detractors",
       "Automatic reminders",
     ],
-    helpTitle: "Knowledge base that reduces tickets",
-    helpSub: "Let customers help themselves. A customizable portal integrated into your chat widget that deflects tickets before they're created.",
+    helpPain: "Repetitive tickets consuming your team?",
+    helpTitle: "Knowledge base that resolves before the ticket",
+    helpSub: "Customizable portal integrated into chat that deflects tickets automatically.",
     helpFeatures: [
       "Customizable public portal (colors, logo, domain)",
       "Rich editor with live preview",
@@ -74,14 +74,16 @@ const texts = {
       "\"Was this helpful?\" feedback with metrics",
       "Bulk article import",
     ],
+    // Social proof
     socialTitle: "Measurable impact for your CS team",
-    socialSub: "Average results from teams using Journey",
+    socialSub: "Average results from early access teams",
     socialMetrics: [
       { value: "-40%", label: "Response Time" },
       { value: "NPS 72", label: "Average Score" },
       { value: "85%", label: "Articles Helpful" },
       { value: "-25%", label: "Ticket Volume" },
     ],
+    // FAQ
     faqTitle: "Frequently Asked Questions",
     faqItems: [
       { q: "How long does it take to install?", a: "The chat widget can be installed with a single line of JavaScript. Full setup including NPS and Help Center typically takes under 30 minutes." },
@@ -90,11 +92,15 @@ const texts = {
       { q: "How is the data protected?", a: "All data is encrypted at rest and in transit. We are LGPD compliant and follow industry-standard security practices." },
       { q: "Can I customize the chat widget?", a: "Yes — colors, position, form fields, business hours, welcome messages, and more are fully configurable." },
       { q: "How does automatic assignment work?", a: "You can configure Round Robin, Least Busy, or manual assignment. Rules can be set per category with team fallbacks." },
+      { q: "How is Journey different from Intercom/Zendesk?", a: "Journey is purpose-built for B2B CS teams. It combines chat, NPS, and Help Center with native customer health context — no bolt-ons needed." },
+      { q: "Does Journey have an API?", a: "Yes. We offer a REST API and webhooks for integrating with your existing tools and automating workflows." },
     ],
+    // CTA
     formLabel: "Early Access",
     formH2: "Be the First to Access Journey",
     formSub: "We are onboarding a limited group of CS and Revenue teams who want to build predictable growth from customer data.",
     formFootnote: "Selected early users will have direct access to the founding team and influence the product roadmap.",
+    // Footer
     footerTagline: "The CX platform for revenue-driven CS teams.",
     footerRights: "All rights reserved.",
     footerProduct: "Product",
@@ -104,10 +110,11 @@ const texts = {
       { label: "Support Chat", href: "#chat" },
       { label: "NPS", href: "#nps" },
       { label: "Help Center", href: "#helpcenter" },
-      { label: "Platform", href: "/journey" },
+      { label: "Complete Platform", href: "/journey" },
     ],
     footerCompanyLinks: [
       { label: "Early Access", href: "#early-access" },
+      { label: "Blog", href: "#" },
     ],
     footerLegalLinks: [
       { label: "Privacy Policy", href: "#" },
@@ -115,45 +122,44 @@ const texts = {
     ],
   },
   "pt-BR": {
+    // Navbar
     navAtendimento: "Atendimento",
     navNPS: "NPS",
     navHelpCenter: "Help Center",
-    navPlataforma: "Plataforma",
     navSignIn: "Entrar",
     navDashboard: "Dashboard",
-    navCta: "Clique e Conheça",
+    navCta: "Quero Conhecer",
     langToggle: "EN",
+    // Hero
     heroBadge: "Acesso Antecipado · Vagas Limitadas",
-    heroH1a: "Retenha clientes com",
-    heroH1b: "contexto real e agilidade",
-    heroSub: "Chat in-app, NPS automatizado e Help Center self-service — a stack de CX feita para times B2B SaaS que precisam reduzir churn e escalar atendimento.",
-    heroCta: "Garantir Acesso Antecipado",
+    heroH1: "Atendimento, NPS e Help Center em um só lugar",
+    heroSub: "Tudo que seu time de CS precisa para reter clientes e escalar suporte.",
     heroSubCta: "Sem cartão de crédito · Setup em minutos",
-    heroTabChat: "Chat",
-    heroTabNPS: "NPS",
-    heroTabHelp: "Help Center",
+    heroBadgeChat: "Chat",
+    heroBadgeNPS: "NPS",
+    heroBadgeHelp: "Help Center",
+    // Form
     fieldName: "Seu Nome *",
     fieldEmail: "Email Corporativo *",
     fieldPhone: "Telefone *",
-    formCta: "Começar Agora",
+    formCta: "Quero Conhecer",
     successTitle: "Você está na lista!",
     successSub: "Entraremos em contato em breve com seu convite.",
-    chatTitle: "Atendimento organizado que retém clientes",
-    chatSub: "Seu time responde com contexto completo — plano, MRR, health score — ao lado de cada conversa. Respostas mais rápidas, retenção melhor.",
+    // Product sections
+    chatPain: "Seu time responde sem saber quem é o cliente?",
+    chatTitle: "Atendimento com contexto que retém",
+    chatSub: "Plano, MRR, health score e histórico — tudo ao lado da conversa.",
     chatFeatures: [
       "Atribuição automática (Round Robin / Least Busy)",
-      "Campos customizáveis no formulário do visitante",
       "Instalação com 1 linha de código",
+      "Campos customizáveis no formulário",
       "Contexto do cliente ao lado da conversa",
-      "Times e filas organizadas por categoria",
       "Histórico completo de conversas",
-      "Notas internas entre atendentes",
-      "Macros e respostas rápidas",
-      "Busca de artigos do Help Center dentro do chat",
-      "Banners e broadcasts proativos",
+      "Busca de artigos do Help Center no chat",
     ],
-    npsTitle: "Feedback automatizado conectado à ação",
-    npsSub: "Fluxos de NPS automatizados conectados ao health score e previsão de churn. Detratores surgem imediatamente com impacto na receita.",
+    npsPain: "Você só descobre a insatisfação quando o cliente cancela?",
+    npsTitle: "NPS automatizado com alerta de risco",
+    npsSub: "Campanhas automáticas que surfaceiam detratores com impacto em receita.",
     npsFeatures: [
       "Campanhas automáticas e manuais",
       "NPS por email e embed in-app",
@@ -161,8 +167,9 @@ const texts = {
       "Dashboard com detratores destacados",
       "Lembretes automáticos",
     ],
-    helpTitle: "Base de conhecimento que reduz tickets",
-    helpSub: "Permita que seus clientes se ajudem. Um portal customizável integrado ao chat que resolve dúvidas antes de virarem tickets.",
+    helpPain: "Tickets repetitivos que consomem seu time?",
+    helpTitle: "Base de conhecimento que resolve antes do ticket",
+    helpSub: "Portal customizável integrado ao chat que desvia tickets automaticamente.",
     helpFeatures: [
       "Portal público customizável (cores, logo, domínio)",
       "Editor rico com preview ao vivo",
@@ -171,14 +178,16 @@ const texts = {
       "Feedback \"Foi útil?\" com métricas",
       "Importação em massa de artigos",
     ],
+    // Social proof
     socialTitle: "Impacto mensurável para seu time de CS",
-    socialSub: "Resultados médios de times que usam o Journey",
+    socialSub: "Resultados médios de times em early access",
     socialMetrics: [
       { value: "-40%", label: "Tempo de Resposta" },
       { value: "NPS 72", label: "Score Médio" },
       { value: "85%", label: "Artigos Úteis" },
       { value: "-25%", label: "Volume de Tickets" },
     ],
+    // FAQ
     faqTitle: "Perguntas Frequentes",
     faqItems: [
       { q: "Quanto tempo leva para instalar?", a: "O widget de chat pode ser instalado com uma única linha de JavaScript. A configuração completa incluindo NPS e Help Center leva menos de 30 minutos." },
@@ -187,11 +196,15 @@ const texts = {
       { q: "Como os dados são protegidos?", a: "Todos os dados são criptografados em repouso e em trânsito. Somos compatíveis com a LGPD e seguimos as melhores práticas de segurança." },
       { q: "Posso personalizar o widget de chat?", a: "Sim — cores, posição, campos do formulário, horários de atendimento, mensagens de boas-vindas e mais são totalmente configuráveis." },
       { q: "Como funciona a atribuição automática?", a: "Você pode configurar Round Robin, Least Busy ou manual. Regras podem ser definidas por categoria com fallback por time." },
+      { q: "Qual a diferença para Intercom/Zendesk?", a: "O Journey é feito para times de CS B2B. Combina chat, NPS e Help Center com contexto nativo de saúde do cliente — sem precisar de add-ons." },
+      { q: "O Journey tem API?", a: "Sim. Oferecemos API REST e webhooks para integrar com suas ferramentas e automatizar fluxos de trabalho." },
     ],
+    // CTA
     formLabel: "Acesso Antecipado",
     formH2: "Seja um dos Primeiros a Usar o Journey",
     formSub: "Estamos abrindo para um grupo limitado de times de CS e Receita que querem construir crescimento previsível a partir de dados de clientes.",
     formFootnote: "Usuários selecionados terão acesso direto ao time fundador e influência no roadmap do produto.",
+    // Footer
     footerTagline: "A plataforma de CX para times de CS orientados a receita.",
     footerRights: "Todos os direitos reservados.",
     footerProduct: "Produto",
@@ -201,10 +214,11 @@ const texts = {
       { label: "Atendimento", href: "#chat" },
       { label: "NPS", href: "#nps" },
       { label: "Help Center", href: "#helpcenter" },
-      { label: "Plataforma", href: "/journey" },
+      { label: "Plataforma Completa", href: "/journey" },
     ],
     footerCompanyLinks: [
       { label: "Acesso Antecipado", href: "#early-access" },
+      { label: "Blog", href: "#" },
     ],
     footerLegalLinks: [
       { label: "Política de Privacidade", href: "#" },
@@ -231,14 +245,16 @@ const LandingPage = () => {
 
   const scrollToForm = () => document.getElementById("early-access")?.scrollIntoView({ behavior: "smooth" });
 
+  const formTexts = { fieldName: t.fieldName, fieldEmail: t.fieldEmail, fieldPhone: t.fieldPhone, formCta: t.formCta, successTitle: t.successTitle, successSub: t.successSub };
+
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "#0F1115", fontFamily: "Manrope, sans-serif" }}>
       <LandingNavbar t={t} isLoggedIn={isLoggedIn} onToggleLang={toggleLang} onCtaClick={scrollToForm} />
-      <LandingHero t={t} onCtaClick={scrollToForm} formTexts={t} />
-      <LandingProductSections t={t} />
+      <LandingHero t={t} formTexts={formTexts} />
       <LandingSocialProof t={{ socialTitle: t.socialTitle, socialSub: t.socialSub, metrics: t.socialMetrics }} />
+      <LandingProductSections t={t} />
       <LandingFAQ t={{ faqTitle: t.faqTitle, faqItems: t.faqItems }} />
-      <LandingCTA t={t} />
+      <LandingCTA t={t} formTexts={formTexts} />
       <LandingFooter t={t} />
     </div>
   );
