@@ -275,7 +275,6 @@ const LandingPage = () => {
     <div className="min-h-screen flex flex-col" style={{ background: "#0F1115", fontFamily: "Manrope, sans-serif" }}>
       <LandingNavbar t={t} isLoggedIn={isLoggedIn} onToggleLang={toggleLang} onCtaClick={scrollToForm} />
       <LandingHero t={t} formTexts={formTexts} />
-      <LandingSocialProof t={{ socialTitle: t.socialTitle, socialSub: t.socialSub, metrics: t.socialMetrics }} />
       <LandingProductSections t={t} />
       <LandingFAQ t={{ faqTitle: t.faqTitle, faqItems: t.faqItems }} />
       <LandingCTA t={t} formTexts={formTexts} />
