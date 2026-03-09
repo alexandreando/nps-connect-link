@@ -200,7 +200,7 @@ Deno.serve(async (req) => {
           if (room.status === "active" && effectiveAttendantMsg) {
             // Find last non-system message after reset
             const lastNonSystem = roomMsgs.find((m) => 
-              m.sender_type !== "system" && (!resetTime || m.created_at! > resetTime)
+              m.sender_type !== "system" && !m.is_internal && (!resetTime || m.created_at! > resetTime)
             );
             if (lastNonSystem && lastNonSystem.sender_type === "attendant") {
               nextStep = "inactivity_warning";
