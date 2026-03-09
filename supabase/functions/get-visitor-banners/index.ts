@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
     // Build banner query with date/active filters
     let bannerQuery = supabase
       .from("chat_banners")
-      .select("id, content, content_html, text_align, bg_color, text_color, link_url, link_label, has_voting, banner_type, priority, max_views, target_all")
+      .select("id, content, content_html, text_align, bg_color, text_color, link_url, link_label, has_voting, banner_type, priority, max_views, target_all, position, auto_dismiss_seconds, display_frequency, border_style, shadow_style")
       .eq("is_active", true)
       .or(`starts_at.is.null,starts_at.lte.${now}`)
       .or(`expires_at.is.null,expires_at.gt.${now}`)
