@@ -132,30 +132,30 @@ const App = () => (
             <Route path="/admin/dashboard" element={<Suspense fallback={<SuspenseFallback />}><AdminDashboard /></Suspense>} />
             <Route path="/admin/workspace" element={<AdminWorkspace />} />
             <Route path="/admin/workspace/:roomId" element={<AdminWorkspace />} />
-            <Route path="/admin/attendants" element={<AdminAttendants />} />
-            <Route path="/admin/settings" element={<AdminSettings />} />
-            <Route path="/admin/settings/:tab" element={<AdminSettings />} />
-            <Route path="/admin/gerencial" element={<AdminDashboardGerencial />} />
-            <Route path="/admin/history" element={<AdminChatHistory />} />
-            <Route path="/admin/banners" element={<AdminBanners />} />
-            <Route path="/admin/csat" element={<AdminCSATReport />} />
-            <Route path="/admin/broadcasts" element={<AdminBroadcasts />} />
+            <Route path="/admin/attendants" element={<Suspense fallback={<SuspenseFallback />}><AdminAttendants /></Suspense>} />
+            <Route path="/admin/settings" element={<Suspense fallback={<SuspenseFallback />}><AdminSettings /></Suspense>} />
+            <Route path="/admin/settings/:tab" element={<Suspense fallback={<SuspenseFallback />}><AdminSettings /></Suspense>} />
+            <Route path="/admin/gerencial" element={<Suspense fallback={<SuspenseFallback />}><AdminDashboardGerencial /></Suspense>} />
+            <Route path="/admin/history" element={<Suspense fallback={<SuspenseFallback />}><AdminChatHistory /></Suspense>} />
+            <Route path="/admin/banners" element={<Suspense fallback={<SuspenseFallback />}><AdminBanners /></Suspense>} />
+            <Route path="/admin/csat" element={<Suspense fallback={<SuspenseFallback />}><AdminCSATReport /></Suspense>} />
+            <Route path="/admin/broadcasts" element={<Suspense fallback={<SuspenseFallback />}><AdminBroadcasts /></Suspense>} />
 
             {/* NPS Module */}
-            <Route path="/nps/dashboard" element={<Dashboard />} />
-            <Route path="/nps/contacts" element={<Contacts />} />
-            <Route path="/nps/people" element={<People />} />
-            <Route path="/nps/campaigns" element={<Campaigns />} />
-            <Route path="/nps/campaigns/:id" element={<CampaignDetails />} />
-            <Route path="/nps/settings" element={<Settings />} />
-            <Route path="/nps/nps-settings" element={<NPSSettings />} />
+            <Route path="/nps/dashboard" element={<Suspense fallback={<SuspenseFallback />}><Dashboard /></Suspense>} />
+            <Route path="/nps/contacts" element={<Suspense fallback={<SuspenseFallback />}><Contacts /></Suspense>} />
+            <Route path="/nps/people" element={<Suspense fallback={<SuspenseFallback />}><People /></Suspense>} />
+            <Route path="/nps/campaigns" element={<Suspense fallback={<SuspenseFallback />}><Campaigns /></Suspense>} />
+            <Route path="/nps/campaigns/:id" element={<Suspense fallback={<SuspenseFallback />}><CampaignDetails /></Suspense>} />
+            <Route path="/nps/settings" element={<Suspense fallback={<SuspenseFallback />}><Settings /></Suspense>} />
+            <Route path="/nps/nps-settings" element={<Suspense fallback={<SuspenseFallback />}><NPSSettings /></Suspense>} />
 
             {/* CS Module */}
-            <Route path="/cs-dashboard" element={<CSDashboard />} />
-            <Route path="/cs-trails" element={<CSTrailsPage />} />
-            <Route path="/cs-health" element={<CSHealthPage />} />
-            <Route path="/cs-churn" element={<CSChurnPage />} />
-            <Route path="/cs-financial" element={<CSFinancialPage />} />
+            <Route path="/cs-dashboard" element={<Suspense fallback={<SuspenseFallback />}><CSDashboard /></Suspense>} />
+            <Route path="/cs-trails" element={<Suspense fallback={<SuspenseFallback />}><CSTrailsPage /></Suspense>} />
+            <Route path="/cs-health" element={<Suspense fallback={<SuspenseFallback />}><CSHealthPage /></Suspense>} />
+            <Route path="/cs-churn" element={<Suspense fallback={<SuspenseFallback />}><CSChurnPage /></Suspense>} />
+            <Route path="/cs-financial" element={<Suspense fallback={<SuspenseFallback />}><CSFinancialPage /></Suspense>} />
 
             {/* Help Center Module */}
             <Route path="/help/overview" element={<Suspense fallback={<SuspenseFallback />}><HelpOverview /></Suspense>} />
@@ -167,10 +167,10 @@ const App = () => (
             <Route path="/help/import" element={<Suspense fallback={<SuspenseFallback />}><HelpImport /></Suspense>} />
 
             {/* Profile */}
-            <Route path="/profile" element={<MyProfile />} />
+            <Route path="/profile" element={<Suspense fallback={<SuspenseFallback />}><MyProfile /></Suspense>} />
 
             {/* Backoffice Master */}
-            <Route path="/backoffice" element={<Backoffice />} />
+            <Route path="/backoffice" element={<Suspense fallback={<SuspenseFallback />}><Backoffice /></Suspense>} />
           </Route>
 
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
