@@ -556,13 +556,64 @@ export type Database = {
           },
         ]
       }
+      chat_banner_field_rules: {
+        Row: {
+          banner_id: string
+          created_at: string | null
+          field_key: string
+          field_source: string
+          field_value: string
+          id: string
+          operator: string
+          tenant_id: string | null
+        }
+        Insert: {
+          banner_id: string
+          created_at?: string | null
+          field_key: string
+          field_source?: string
+          field_value: string
+          id?: string
+          operator?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          banner_id?: string
+          created_at?: string | null
+          field_key?: string
+          field_source?: string
+          field_value?: string
+          id?: string
+          operator?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_banner_field_rules_banner_id_fkey"
+            columns: ["banner_id"]
+            isOneToOne: false
+            referencedRelation: "chat_banners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_banner_field_rules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_banners: {
         Row: {
+          auto_dismiss_seconds: number | null
           banner_type: string
           bg_color: string | null
+          border_style: string
           content: string
           content_html: string | null
           created_at: string | null
+          display_frequency: string
           expires_at: string | null
           has_voting: boolean | null
           id: string
@@ -570,7 +621,9 @@ export type Database = {
           link_label: string | null
           link_url: string | null
           max_views: number | null
+          position: string
           priority: number
+          shadow_style: string
           starts_at: string | null
           target_all: boolean
           tenant_id: string | null
@@ -581,11 +634,14 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          auto_dismiss_seconds?: number | null
           banner_type?: string
           bg_color?: string | null
+          border_style?: string
           content: string
           content_html?: string | null
           created_at?: string | null
+          display_frequency?: string
           expires_at?: string | null
           has_voting?: boolean | null
           id?: string
@@ -593,7 +649,9 @@ export type Database = {
           link_label?: string | null
           link_url?: string | null
           max_views?: number | null
+          position?: string
           priority?: number
+          shadow_style?: string
           starts_at?: string | null
           target_all?: boolean
           tenant_id?: string | null
@@ -604,11 +662,14 @@ export type Database = {
           user_id: string
         }
         Update: {
+          auto_dismiss_seconds?: number | null
           banner_type?: string
           bg_color?: string | null
+          border_style?: string
           content?: string
           content_html?: string | null
           created_at?: string | null
+          display_frequency?: string
           expires_at?: string | null
           has_voting?: boolean | null
           id?: string
@@ -616,7 +677,9 @@ export type Database = {
           link_label?: string | null
           link_url?: string | null
           max_views?: number | null
+          position?: string
           priority?: number
+          shadow_style?: string
           starts_at?: string | null
           target_all?: boolean
           tenant_id?: string | null
