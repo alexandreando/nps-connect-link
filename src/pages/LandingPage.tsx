@@ -136,7 +136,8 @@ const texts = {
   },
   "pt-BR": {
     // Navbar
-    navAtendimento: "Atendimento",
+    navChat: "Chat",
+    navCSAT: "CSAT",
     navNPS: "NPS",
     navHelpCenter: "Help Center",
     navSignIn: "Entrar",
