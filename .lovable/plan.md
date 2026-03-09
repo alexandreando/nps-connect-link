@@ -1,33 +1,30 @@
 
+# Plan: Performance Optimizations + Dashboard Load-on-Demand
 
-## Plano: Corrigir maiúsculas indevidas nos textos em pt-BR da Landing Page
+## Status: ✅ Implemented
 
-Após revisar os textos em `src/pages/LandingPage.tsx` (objeto `texts["pt-BR"]`), identifiquei palavras com letra maiúscula no meio de frases/labels que não são nomes próprios, siglas ou início de frase.
+---
 
-### Correções no objeto `texts["pt-BR"]` (LandingPage.tsx)
+## 1. Dashboard Load-on-Demand — DONE
+- Removed 30s `setInterval` auto-polling from `useDashboardStats`
+- Added optional Realtime toggle (default: off) with 5s debounce on `chat_rooms` changes
+- Added manual "Atualizar" refresh button to both `AdminDashboard` and `AdminDashboardGerencial`
 
-| Linha | Atual | Correto |
-|-------|-------|---------|
-| 146 | `"Quero Conhecer"` | `"Quero conhecer"` |
-| 149 | `"Acesso Antecipado · Vagas Limitadas"` | `"Acesso antecipado · Vagas limitadas"` |
-| 158 | `"Seu Nome *"` | `"Seu nome *"` |
-| 159 | `"Email Corporativo *"` | `"Email corporativo *"` |
-| 161 | `"Quero Conhecer"` | `"Quero conhecer"` |
-| 212 | `"Tempo de Resposta"` | `"Tempo de resposta"` |
-| 213 | `"Score Médio"` | `"Score médio"` |
-| 214 | `"Artigos Úteis"` | `"Artigos úteis"` |
-| 215 | `"Volume de Tickets"` | `"Volume de tickets"` |
-| 218 | `"Perguntas Frequentes"` | `"Perguntas frequentes"` |
-| 230 | `"Acesso Antecipado"` | `"Acesso antecipado"` |
-| 231 | `"Seja um dos Primeiros a Usar o Journey"` | `"Seja um dos primeiros a usar o Journey"` |
-| 245 | `"Plataforma Completa"` | `"Plataforma completa"` |
-| 248 | `"Acesso Antecipado"` | `"Acesso antecipado"` |
-| 252 | `"Política de Privacidade"` | `"Política de privacidade"` |
-| 253 | `"Termos de Uso"` | `"Termos de uso"` |
+## 2. Reports: Default to Short Periods — DONE
+- Changed `AdminDashboardGerencial` default period from "month" to "week"
+- Removed "all" option from Gerencial period selector
+- Added warning text in `AdminCSATReport` when "all" period is selected
 
-**Nota:** Siglas (NPS, CS, CRM, CSAT, LGPD, MRR) e nomes próprios (Journey, Help Center, Round Robin) permanecem em maiúscula.
+## 3. Widget `fetchHistory` N+1 Fix — DONE
+- Replaced `Promise.all` with per-room queries with a single batch `.in("room_id", roomIds)` query
+- Reduced from N+1 to 2 queries per history page load
 
-### Escopo
-- **1 arquivo editado:** `src/pages/LandingPage.tsx`
-- Apenas alterações de texto, sem mudanças de layout ou lógica
+## 4. Sidebar Active Counts — DONE
+- Replaced scanning all active rooms with reading `active_conversations` from `attendant_profiles`
+- Unassigned count uses lightweight `head: true` count query
+- Realtime patches update `active_count` from `attendant_profiles` changes
 
+## 5. `useAttendantQueues` Efficiency — DONE
+- Uses `active_conversations` from `attendant_profiles` instead of counting rooms
+- Only fetches unassigned rooms + waiting counts (lighter queries)
+- Added 3s debounce to Realtime callbacks to batch rapid changes

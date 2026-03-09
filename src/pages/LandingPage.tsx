@@ -143,10 +143,10 @@ const texts = {
     navHelpCenter: "Help Center",
     navSignIn: "Entrar",
     navDashboard: "Dashboard",
-    navCta: "Quero Conhecer",
+    navCta: "Quero conhecer",
     langToggle: "EN",
     // Hero
-    heroBadge: "Acesso Antecipado · Vagas Limitadas",
+    heroBadge: "Acesso antecipado · Vagas limitadas",
     heroH1: "Atendimento, NPS e Help Center em um só lugar",
     heroSub: "Tudo que seu time de CS precisa para reter clientes e escalar suporte.",
     heroSubCta: "Sem cartão de crédito · Setup em minutos",
@@ -155,10 +155,10 @@ const texts = {
     heroBadgeNPS: "NPS",
     heroBadgeHelp: "Help Center",
     // Form
-    fieldName: "Seu Nome *",
-    fieldEmail: "Email Corporativo *",
+    fieldName: "Seu nome *",
+    fieldEmail: "Email corporativo *",
     fieldPhone: "Telefone *",
-    formCta: "Quero Conhecer",
+    formCta: "Quero conhecer",
     successTitle: "Você está na lista!",
     successSub: "Entraremos em contato em breve com seu convite.",
     // Product sections
@@ -209,13 +209,13 @@ const texts = {
     socialTitle: "Impacto mensurável para seu time de CS",
     socialSub: "Resultados médios de times em early access",
     socialMetrics: [
-      { value: "-40%", label: "Tempo de Resposta" },
-      { value: "NPS 72", label: "Score Médio" },
-      { value: "85%", label: "Artigos Úteis" },
-      { value: "-25%", label: "Volume de Tickets" },
+      { value: "-40%", label: "Tempo de resposta" },
+      { value: "NPS 72", label: "Score médio" },
+      { value: "85%", label: "Artigos úteis" },
+      { value: "-25%", label: "Volume de tickets" },
     ],
     // FAQ
-    faqTitle: "Perguntas Frequentes",
+    faqTitle: "Perguntas frequentes",
     faqItems: [
       { q: "Quanto tempo leva para instalar?", a: "O widget de chat pode ser instalado com uma única linha de JavaScript. A configuração completa incluindo NPS e Help Center leva menos de 30 minutos." },
       { q: "Preciso de cartão de crédito?", a: "Não. O acesso antecipado é gratuito e não exige informações de pagamento." },
@@ -227,8 +227,8 @@ const texts = {
       { q: "O Journey tem API?", a: "Sim. Oferecemos API REST e webhooks para integrar com suas ferramentas e automatizar fluxos de trabalho." },
     ],
     // CTA
-    formLabel: "Acesso Antecipado",
-    formH2: "Seja um dos Primeiros a Usar o Journey",
+    formLabel: "Acesso antecipado",
+    formH2: "Seja um dos primeiros a usar o Journey",
     formSub: "Estamos abrindo para um grupo limitado de times de CS e Receita que querem construir crescimento previsível a partir de dados de clientes.",
     formFootnote: "Usuários selecionados terão acesso direto ao time fundador e influência no roadmap do produto.",
     // Footer
@@ -242,15 +242,15 @@ const texts = {
       { label: "CSAT", href: "#csat" },
       { label: "NPS", href: "#nps" },
       { label: "Help Center", href: "#helpcenter" },
-      { label: "Plataforma Completa", href: "/journey" },
+      { label: "Plataforma completa", href: "/journey" },
     ],
     footerCompanyLinks: [
-      { label: "Acesso Antecipado", href: "#early-access" },
+      { label: "Acesso antecipado", href: "#early-access" },
       { label: "Blog", href: "#" },
     ],
     footerLegalLinks: [
-      { label: "Política de Privacidade", href: "#" },
-      { label: "Termos de Uso", href: "#" },
+      { label: "Política de privacidade", href: "#" },
+      { label: "Termos de uso", href: "#" },
     ],
   },
 };
