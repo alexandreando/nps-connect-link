@@ -168,8 +168,8 @@ Deno.serve(async (req) => {
     });
 
     // Separate target_all banners from individually assigned
-    const targetAllBanners = allBanners.filter((b: any) => b.target_all);
-    const individualBanners = allBanners.filter((b: any) => !b.target_all);
+    const targetAllBanners = filteredBanners.filter((b: any) => b.target_all);
+    const individualBanners = filteredBanners.filter((b: any) => !b.target_all);
 
     const result: any[] = [];
 
