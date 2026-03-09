@@ -160,7 +160,7 @@ const texts = {
     fieldPhone: "Telefone *",
     formCta: "Quero conhecer",
     successTitle: "Você está na lista!",
-    successSub: "Entraremos em contato em breve com seu convite.",
+    successSub: "Entraremos em contato em breve.",
     // Product sections
     chatPain: "Seu time responde sem saber quem é o cliente?",
     chatTitle: "Chat com contexto que retém",
