@@ -378,6 +378,14 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
                           </SidebarMenuItem>
                         )}
 
+                        {hasPermission("chat.reports", "view") && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/admin/csat")} isActive={isActive("/admin/csat")} tooltip="CSAT" className={cn("pl-6", isActive("/admin/csat") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <Star className="h-4 w-4" /><span>CSAT</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        )}
+
                         {(hasPermission("chat.settings.general", "view") || hasPermission("chat.settings.widget", "view") || hasPermission("chat.settings.macros", "view") || hasPermission("chat.settings.attendants", "view") || hasPermission("chat.settings.teams", "view") || hasPermission("chat.settings.categories", "view") || hasPermission("chat.settings.apikeys", "view") || hasPermission("chat", "manage")) && (
                           <SidebarMenuItem>
                             <SidebarMenuButton onClick={() => navigate("/admin/settings")} isActive={isActive("/admin/settings") || location.pathname.startsWith("/admin/settings/")} tooltip={t("chat.settings.title")} className={cn("pl-6", isActive("/admin/settings") ? activeItemCls : "hover:bg-sidebar-accent")}>
