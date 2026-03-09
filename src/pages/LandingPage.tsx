@@ -109,10 +109,10 @@ const texts = {
       { q: "Does Journey have an API?", a: "Yes. We offer a REST API and webhooks for integrating with your existing tools and automating workflows." },
     ],
     // CTA
-    formLabel: "Early Access",
-    formH2: "Be the First to Access Journey",
-    formSub: "We are onboarding a limited group of CS and Revenue teams who want to build predictable growth from customer data.",
-    formFootnote: "Selected early users will have direct access to the founding team and influence the product roadmap.",
+    formLabel: "Get Started",
+    formH2: "Start using Journey today",
+    formSub: "Built for CS and Revenue teams who want to build predictable growth from customer data.",
+    formFootnote: "Get direct access to the founding team and influence the product roadmap.",
     // Footer
     footerTagline: "The CX platform for revenue-driven CS teams.",
     footerRights: "All rights reserved.",
