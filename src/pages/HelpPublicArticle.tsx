@@ -239,6 +239,22 @@ export default function HelpPublicArticle() {
             } as React.CSSProperties}
             dangerouslySetInnerHTML={{ __html: htmlContent }}
           />
+
+          {/* Feedback */}
+          <ArticleFeedback
+            articleId={article.id}
+            tenantId={article.tenant_id}
+            primaryColor={primaryColor}
+          />
+
+          {/* Related Articles */}
+          <RelatedArticles
+            articleId={article.id}
+            collectionId={article.collection_id}
+            tenantId={article.tenant_id}
+            helpBase={helpBase}
+            primaryColor={primaryColor}
+          />
         </article>
       </div>
     </HelpPublicLayout>

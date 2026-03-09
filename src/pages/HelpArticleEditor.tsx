@@ -163,89 +163,120 @@ export default function HelpArticleEditor() {
 
   if (loading) return <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin" /></div>;
 
+  const editorContent = (
+    <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <PageHeader title={isNew ? t("help.newArticle") : t("help.editArticle")} subtitle={t("help.articles")}>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate("/help/articles")}>{t("team.cancel")}</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowPreview(!showPreview)}
+            className="hidden lg:inline-flex"
+          >
+            {showPreview ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+            {showPreview ? "Ocultar Preview" : "Preview"}
+          </Button>
+          <Button variant="outline" onClick={() => handleSave()}>{saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}{t("help.saveDraft")}</Button>
+          {status !== "published" && (
+            <Button onClick={() => handleSave("publish")}><Send className="h-4 w-4 mr-2" />{t("help.publish")}</Button>
+          )}
+        </div>
+      </PageHeader>
+
+      {/* Metadata */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <Label>{t("help.articleTitle")}</Label>
+          <Input value={title} onChange={e => { setTitle(e.target.value); if (isNew) setSlugState(slugify(e.target.value)); }} placeholder="Título do artigo" className="text-lg font-semibold" />
+        </div>
+        <div className="space-y-1.5">
+          <Label>{t("help.articleSlug")}</Label>
+          <Input value={slug} onChange={e => setSlugState(e.target.value)} placeholder="slug-do-artigo" className="font-mono text-sm" />
+        </div>
+        <div className="space-y-1.5 lg:col-span-2">
+          <Label>{t("help.articleSubtitle")}</Label>
+          <Textarea value={subtitle} onChange={e => setSubtitle(e.target.value)} rows={2} placeholder="Descrição curta do artigo" />
+        </div>
+        <div className="space-y-1.5">
+          <Label>{t("help.articleCollection")}</Label>
+          <Select value={collectionId || "none"} onValueChange={v => setCollectionId(v === "none" ? null : v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Sem coleção</SelectItem>
+              {collections.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Status</Label>
+          <Badge className="text-xs">{t(`help.status.${status}`)}</Badge>
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* Rich text editor */}
+      <RichTextEditor content={htmlContent} onChange={setHtmlContent} />
+
+      {/* Change summary */}
+      {!isNew && (
+        <div className="space-y-1.5">
+          <Label>Resumo da alteração (opcional)</Label>
+          <Input value={changeSummary} onChange={e => setChangeSummary(e.target.value)} placeholder="Ex: Corrigido link do vídeo" />
+        </div>
+      )}
+    </div>
+  );
+
+  const versionsSidebar = (
+    <div className="w-72 border-l bg-muted/30 overflow-y-auto p-4 space-y-4 hidden lg:block">
+      <div className="flex items-center gap-2">
+        <History className="h-4 w-4" />
+        <h3 className="text-sm font-medium">{t("help.versionHistory")}</h3>
+      </div>
+      {versions.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Nenhuma versão salva ainda.</p>
+      ) : (
+        <div className="space-y-2">
+          {versions.map(v => (
+            <Card key={v.id} className="p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium">v{v.version_number}</span>
+                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => handleRestoreVersion(v.id)}>
+                  <RotateCcw className="h-3 w-3 mr-1" />Restaurar
+                </Button>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">{format(new Date(v.created_at), "dd/MM/yy HH:mm")}</p>
+              {v.change_summary && <p className="text-[10px] text-muted-foreground truncate">{v.change_summary}</p>}
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="flex h-[calc(100vh-4rem)]">
-      {/* Main editor */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        <PageHeader title={isNew ? t("help.newArticle") : t("help.editArticle")} subtitle={t("help.articles")}>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => navigate("/help/articles")}>{t("team.cancel")}</Button>
-            <Button variant="outline" onClick={() => handleSave()}>{saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}{t("help.saveDraft")}</Button>
-            {status !== "published" && (
-              <Button onClick={() => handleSave("publish")}><Send className="h-4 w-4 mr-2" />{t("help.publish")}</Button>
-            )}
-          </div>
-        </PageHeader>
-
-        {/* Metadata */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label>{t("help.articleTitle")}</Label>
-            <Input value={title} onChange={e => { setTitle(e.target.value); if (isNew) setSlugState(slugify(e.target.value)); }} placeholder="Título do artigo" className="text-lg font-semibold" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t("help.articleSlug")}</Label>
-            <Input value={slug} onChange={e => setSlugState(e.target.value)} placeholder="slug-do-artigo" className="font-mono text-sm" />
-          </div>
-          <div className="space-y-1.5 lg:col-span-2">
-            <Label>{t("help.articleSubtitle")}</Label>
-            <Textarea value={subtitle} onChange={e => setSubtitle(e.target.value)} rows={2} placeholder="Descrição curta do artigo" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t("help.articleCollection")}</Label>
-            <Select value={collectionId || "none"} onValueChange={v => setCollectionId(v === "none" ? null : v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sem coleção</SelectItem>
-                {collections.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Status</Label>
-            <Badge className="text-xs">{t(`help.status.${status}`)}</Badge>
-          </div>
-        </div>
-
-        <Separator />
-
-        {/* Rich text editor */}
-        <RichTextEditor content={htmlContent} onChange={setHtmlContent} />
-
-        {/* Change summary */}
-        {!isNew && (
-          <div className="space-y-1.5">
-            <Label>Resumo da alteração (opcional)</Label>
-            <Input value={changeSummary} onChange={e => setChangeSummary(e.target.value)} placeholder="Ex: Corrigido link do vídeo" />
-          </div>
-        )}
-      </div>
-
-      {/* Sidebar: Versions */}
-      <div className="w-72 border-l bg-muted/30 overflow-y-auto p-4 space-y-4 hidden lg:block">
-        <div className="flex items-center gap-2">
-          <History className="h-4 w-4" />
-          <h3 className="text-sm font-medium">{t("help.versionHistory")}</h3>
-        </div>
-        {versions.length === 0 ? (
-          <p className="text-xs text-muted-foreground">Nenhuma versão salva ainda.</p>
-        ) : (
-          <div className="space-y-2">
-            {versions.map(v => (
-              <Card key={v.id} className="p-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium">v{v.version_number}</span>
-                  <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => handleRestoreVersion(v.id)}>
-                    <RotateCcw className="h-3 w-3 mr-1" />Restaurar
-                  </Button>
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-1">{format(new Date(v.created_at), "dd/MM/yy HH:mm")}</p>
-                {v.change_summary && <p className="text-[10px] text-muted-foreground truncate">{v.change_summary}</p>}
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
+      {showPreview ? (
+        <ResizablePanelGroup direction="horizontal" className="flex-1">
+          <ResizablePanel defaultSize={55} minSize={35}>
+            {editorContent}
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel defaultSize={45} minSize={25}>
+            <div className="h-full border-l overflow-y-auto">
+              <div className="sticky top-0 bg-muted/50 px-4 py-2 border-b">
+                <span className="text-xs font-medium text-muted-foreground">Preview</span>
+              </div>
+              <ArticlePreview title={title} subtitle={subtitle} htmlContent={htmlContent} />
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      ) : (
+        editorContent
+      )}
+      {!showPreview && versionsSidebar}
     </div>
   );
 }
