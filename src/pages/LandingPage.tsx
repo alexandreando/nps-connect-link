@@ -32,6 +32,7 @@ const texts = {
     heroSub: "Everything your CS team needs to retain customers and scale support.",
     heroSubCta: "No credit card · Setup in minutes",
     heroBadgeChat: "Chat",
+    heroBadgeCSAT: "CSAT",
     heroBadgeNPS: "NPS",
     heroBadgeHelp: "Help Center",
     // Form
