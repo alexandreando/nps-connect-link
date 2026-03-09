@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import LandingNavbar from "@/components/landing/LandingNavbar";
-import LandingHero from "@/components/landing/LandingHero";
-import LandingProductSections from "@/components/landing/LandingProductSections";
+import LandingTimeline from "@/components/landing/LandingTimeline";
+import LandingKanban from "@/components/landing/LandingKanban";
 import LandingSocialProof from "@/components/landing/LandingSocialProof";
 import LandingFAQ from "@/components/landing/LandingFAQ";
 import LandingCTA from "@/components/landing/LandingCTA";
@@ -26,54 +26,15 @@ const texts = {
     navDashboard: "Dashboard",
     navCta: "Get Started",
     langToggle: "PT",
-    heroBadge: "Early Access · Limited Spots",
-    heroH1a: "Retain customers with",
-    heroH1b: "real context and speed",
-    heroSub: "In-app chat, automated NPS and self-service Help Center — the CX stack built for B2B SaaS teams that need to reduce churn and scale support.",
-    heroCta: "Join Early Access",
-    heroSubCta: "No credit card · Setup in minutes",
-    heroTabChat: "Chat",
-    heroTabNPS: "NPS",
-    heroTabHelp: "Help Center",
-    fieldName: "Your Name *",
-    fieldEmail: "Work Email *",
-    fieldPhone: "Phone *",
-    formCta: "Get Started",
-    successTitle: "You're on the list!",
-    successSub: "We'll reach out soon with your early access invite.",
-    chatTitle: "Organized support that retains customers",
-    chatSub: "Your team responds with full context — plan, MRR, health score — right next to the conversation. Faster responses, better retention.",
-    chatFeatures: [
-      "Automatic assignment (Round Robin / Least Busy)",
-      "Customizable visitor form fields",
-      "Install with 1 line of code",
-      "Customer context alongside every conversation",
-      "Teams & queues organized by category",
-      "Complete conversation history",
-      "Internal notes between agents",
-      "Quick replies & macros",
-      "Help Center article search inside chat",
-      "Proactive banners & broadcasts",
-    ],
-    npsTitle: "Automated feedback connected to action",
-    npsSub: "Automated NPS flows connected to health score and churn prediction. Detractors surface immediately with revenue impact.",
-    npsFeatures: [
-      "Automatic & manual campaigns",
-      "NPS via email and in-app embed",
-      "Segmentation by company, plan, health",
-      "Dashboard with highlighted detractors",
-      "Automatic reminders",
-    ],
-    helpTitle: "Knowledge base that reduces tickets",
-    helpSub: "Let customers help themselves. A customizable portal integrated into your chat widget that deflects tickets before they're created.",
-    helpFeatures: [
-      "Customizable public portal (colors, logo, domain)",
-      "Rich editor with live preview",
-      "Organized collections with icons",
-      "Integrated search inside chat widget",
-      "\"Was this helpful?\" feedback with metrics",
-      "Bulk article import",
-    ],
+    platformLabel: "Complete Platform",
+    platformTitle: "The full CS operating system",
+    platformSub: "Beyond chat, NPS and knowledge base — Journey gives you timeline, kanban, health scoring and executive dashboards.",
+    timelineLabel: "CRM + Timeline",
+    timelineH2: "Track every interaction.\nEvery signal.\nEvery opportunity.",
+    timelineSub: "From first onboarding to renewal — every touchpoint, health change, and revenue signal captured in one unified timeline.",
+    kanbanLabel: "Customer Journey",
+    kanbanH2: "Visualize every customer journey stage.",
+    kanbanSub: "Move accounts based on signals — not assumptions.",
     socialTitle: "Measurable impact for your CS team",
     socialSub: "Average results from teams using Journey",
     socialMetrics: [
@@ -91,6 +52,12 @@ const texts = {
       { q: "Can I customize the chat widget?", a: "Yes — colors, position, form fields, business hours, welcome messages, and more are fully configurable." },
       { q: "How does automatic assignment work?", a: "You can configure Round Robin, Least Busy, or manual assignment. Rules can be set per category with team fallbacks." },
     ],
+    fieldName: "Your Name *",
+    fieldEmail: "Work Email *",
+    fieldPhone: "Phone *",
+    formCta: "Get Started",
+    successTitle: "You're on the list!",
+    successSub: "We'll reach out soon with your early access invite.",
     formLabel: "Early Access",
     formH2: "Be the First to Access Journey",
     formSub: "We are onboarding a limited group of CS and Revenue teams who want to build predictable growth from customer data.",
@@ -101,9 +68,9 @@ const texts = {
     footerCompany: "Company",
     footerLegal: "Legal",
     footerProductLinks: [
-      { label: "Support Chat", href: "#chat" },
-      { label: "NPS", href: "#nps" },
-      { label: "Help Center", href: "#helpcenter" },
+      { label: "Support Chat", href: "/#chat" },
+      { label: "NPS", href: "/#nps" },
+      { label: "Help Center", href: "/#helpcenter" },
       { label: "Platform", href: "/journey" },
     ],
     footerCompanyLinks: [
@@ -123,54 +90,15 @@ const texts = {
     navDashboard: "Dashboard",
     navCta: "Clique e Conheça",
     langToggle: "EN",
-    heroBadge: "Acesso Antecipado · Vagas Limitadas",
-    heroH1a: "Retenha clientes com",
-    heroH1b: "contexto real e agilidade",
-    heroSub: "Chat in-app, NPS automatizado e Help Center self-service — a stack de CX feita para times B2B SaaS que precisam reduzir churn e escalar atendimento.",
-    heroCta: "Garantir Acesso Antecipado",
-    heroSubCta: "Sem cartão de crédito · Setup em minutos",
-    heroTabChat: "Chat",
-    heroTabNPS: "NPS",
-    heroTabHelp: "Help Center",
-    fieldName: "Seu Nome *",
-    fieldEmail: "Email Corporativo *",
-    fieldPhone: "Telefone *",
-    formCta: "Começar Agora",
-    successTitle: "Você está na lista!",
-    successSub: "Entraremos em contato em breve com seu convite.",
-    chatTitle: "Atendimento organizado que retém clientes",
-    chatSub: "Seu time responde com contexto completo — plano, MRR, health score — ao lado de cada conversa. Respostas mais rápidas, retenção melhor.",
-    chatFeatures: [
-      "Atribuição automática (Round Robin / Least Busy)",
-      "Campos customizáveis no formulário do visitante",
-      "Instalação com 1 linha de código",
-      "Contexto do cliente ao lado da conversa",
-      "Times e filas organizadas por categoria",
-      "Histórico completo de conversas",
-      "Notas internas entre atendentes",
-      "Macros e respostas rápidas",
-      "Busca de artigos do Help Center dentro do chat",
-      "Banners e broadcasts proativos",
-    ],
-    npsTitle: "Feedback automatizado conectado à ação",
-    npsSub: "Fluxos de NPS automatizados conectados ao health score e previsão de churn. Detratores surgem imediatamente com impacto na receita.",
-    npsFeatures: [
-      "Campanhas automáticas e manuais",
-      "NPS por email e embed in-app",
-      "Segmentação por empresa, plano, health",
-      "Dashboard com detratores destacados",
-      "Lembretes automáticos",
-    ],
-    helpTitle: "Base de conhecimento que reduz tickets",
-    helpSub: "Permita que seus clientes se ajudem. Um portal customizável integrado ao chat que resolve dúvidas antes de virarem tickets.",
-    helpFeatures: [
-      "Portal público customizável (cores, logo, domínio)",
-      "Editor rico com preview ao vivo",
-      "Coleções organizadas com ícones",
-      "Busca integrada no chat widget",
-      "Feedback \"Foi útil?\" com métricas",
-      "Importação em massa de artigos",
-    ],
+    platformLabel: "Plataforma Completa",
+    platformTitle: "O sistema operacional de CS completo",
+    platformSub: "Além de chat, NPS e base de conhecimento — o Journey entrega timeline, kanban, health score e dashboards executivos.",
+    timelineLabel: "CRM + Timeline",
+    timelineH2: "Rastreie cada interação.\nCada sinal.\nCada oportunidade.",
+    timelineSub: "Do primeiro onboarding à renovação — cada touchpoint, mudança de health e sinal de receita capturado em uma timeline unificada.",
+    kanbanLabel: "Jornada do Cliente",
+    kanbanH2: "Visualize cada etapa da jornada do cliente.",
+    kanbanSub: "Mova contas com base em sinais — não em suposições.",
     socialTitle: "Impacto mensurável para seu time de CS",
     socialSub: "Resultados médios de times que usam o Journey",
     socialMetrics: [
@@ -188,6 +116,12 @@ const texts = {
       { q: "Posso personalizar o widget de chat?", a: "Sim — cores, posição, campos do formulário, horários de atendimento, mensagens de boas-vindas e mais são totalmente configuráveis." },
       { q: "Como funciona a atribuição automática?", a: "Você pode configurar Round Robin, Least Busy ou manual. Regras podem ser definidas por categoria com fallback por time." },
     ],
+    fieldName: "Seu Nome *",
+    fieldEmail: "Email Corporativo *",
+    fieldPhone: "Telefone *",
+    formCta: "Começar Agora",
+    successTitle: "Você está na lista!",
+    successSub: "Entraremos em contato em breve com seu convite.",
     formLabel: "Acesso Antecipado",
     formH2: "Seja um dos Primeiros a Usar o Journey",
     formSub: "Estamos abrindo para um grupo limitado de times de CS e Receita que querem construir crescimento previsível a partir de dados de clientes.",
@@ -198,9 +132,9 @@ const texts = {
     footerCompany: "Empresa",
     footerLegal: "Legal",
     footerProductLinks: [
-      { label: "Atendimento", href: "#chat" },
-      { label: "NPS", href: "#nps" },
-      { label: "Help Center", href: "#helpcenter" },
+      { label: "Atendimento", href: "/#chat" },
+      { label: "NPS", href: "/#nps" },
+      { label: "Help Center", href: "/#helpcenter" },
       { label: "Plataforma", href: "/journey" },
     ],
     footerCompanyLinks: [
@@ -213,7 +147,7 @@ const texts = {
   },
 };
 
-const LandingPage = () => {
+const JourneyPage = () => {
   const [lang, setLang] = useState<Lang>(initLang);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
@@ -234,8 +168,20 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "#0F1115", fontFamily: "Manrope, sans-serif" }}>
       <LandingNavbar t={t} isLoggedIn={isLoggedIn} onToggleLang={toggleLang} onCtaClick={scrollToForm} />
-      <LandingHero t={t} onCtaClick={scrollToForm} formTexts={t} />
-      <LandingProductSections t={t} />
+
+      {/* ── Platform Hero ─── */}
+      <section className="py-20 px-4 text-center" style={{ background: "#0F1115" }}>
+        <div className="max-w-3xl mx-auto">
+          <p className="text-sm font-medium uppercase tracking-widest mb-4" style={{ color: "#FF7A59" }}>{t.platformLabel}</p>
+          <h1 className="text-white font-medium mb-4" style={{ fontSize: "clamp(28px, 3.8vw, 48px)", lineHeight: 1.15, letterSpacing: "-0.025em" }}>
+            {t.platformTitle}
+          </h1>
+          <p className="text-[16px] mx-auto" style={{ color: "rgba(255,255,255,0.5)", maxWidth: 560 }}>{t.platformSub}</p>
+        </div>
+      </section>
+
+      <LandingTimeline t={t} />
+      <LandingKanban t={t} />
       <LandingSocialProof t={{ socialTitle: t.socialTitle, socialSub: t.socialSub, metrics: t.socialMetrics }} />
       <LandingFAQ t={{ faqTitle: t.faqTitle, faqItems: t.faqItems }} />
       <LandingCTA t={t} />
@@ -244,4 +190,4 @@ const LandingPage = () => {
   );
 };
 
-export default LandingPage;
+export default JourneyPage;

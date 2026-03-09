@@ -9,6 +9,7 @@ import { ThemeProvider } from "next-themes";
 import { lazy, Suspense } from "react";
 import Auth from "./pages/Auth";
 import LandingPage from "./pages/LandingPage";
+import JourneyPage from "./pages/JourneyPage";
 import ChatLandingPage from "./pages/ChatLandingPage";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -89,7 +90,7 @@ const App = () => (
         <Routes>
           {/* Public Landing Page */}
           <Route path="/" element={<LandingPage />} />
-          <Route path="/journey" element={<LandingPage />} />
+          <Route path="/journey" element={<JourneyPage />} />
           
           {/* Chat Widget (public) */}
           <Route path="/widget" element={<ChatWidget />} />
