@@ -85,7 +85,6 @@ export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange, re
         resolution_status: room.resolution_status,
         created_at: room.created_at,
         closed_at: room.closed_at,
-        tags,
       });
     };
     fetchRoomInfo();

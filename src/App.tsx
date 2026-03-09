@@ -136,7 +136,7 @@ const App = () => (
             <Route path="/admin/attendants" element={<Suspense fallback={<SuspenseFallback />}><AdminAttendants /></Suspense>} />
             <Route path="/admin/settings" element={<Suspense fallback={<SuspenseFallback />}><AdminSettings /></Suspense>} />
             <Route path="/admin/settings/:tab" element={<Suspense fallback={<SuspenseFallback />}><AdminSettings /></Suspense>} />
-            <Route path="/admin/gerencial" element={<Suspense fallback={<SuspenseFallback />}><AdminDashboardGerencial /></Suspense>} />
+            
             <Route path="/admin/history" element={<Suspense fallback={<SuspenseFallback />}><AdminChatHistory /></Suspense>} />
             <Route path="/admin/banners" element={<Suspense fallback={<SuspenseFallback />}><AdminBanners /></Suspense>} />
             <Route path="/admin/csat" element={<Suspense fallback={<SuspenseFallback />}><AdminCSATReport /></Suspense>} />
