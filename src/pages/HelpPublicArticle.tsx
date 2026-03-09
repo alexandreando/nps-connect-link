@@ -3,6 +3,8 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ChevronRight, Home, Clock } from "lucide-react";
 import HelpPublicLayout from "@/components/help/HelpPublicLayout";
+import { ArticleFeedback } from "@/components/help/ArticleFeedback";
+import { RelatedArticles } from "@/components/help/RelatedArticles";
 
 interface ArticleData {
   id: string;
