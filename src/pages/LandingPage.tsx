@@ -278,7 +278,7 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "#0F1115", fontFamily: "Manrope, sans-serif" }}>
       <LandingNavbar t={t} isLoggedIn={isLoggedIn} onToggleLang={toggleLang} onCtaClick={scrollToForm} />
-      <LandingHero t={t} onCtaClick={scrollToForm} />
+      <LandingHero t={t} onCtaClick={scrollToForm} formTexts={t} />
       <LandingProductSections t={t} />
 
       {/* ── Platform Divider ─── */}
