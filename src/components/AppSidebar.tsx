@@ -207,47 +207,6 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
               </SidebarGroup>
             )}
 
-            {/* NPS */}
-            {showNPS && (
-              <SidebarGroup>
-                <Collapsible open={npsOpen} onOpenChange={handleNpsOpen}>
-                  <CollapsibleTrigger asChild>
-                    <SidebarGroupLabel className={`${groupLabelCls} cursor-pointer hover:text-foreground/70 flex items-center justify-between w-full transition-colors`}>
-                      <span className="flex items-center gap-2"><BarChart3 className="h-3.5 w-3.5" /><span>NPS</span></span>
-                      {!collapsed && (npsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
-                    </SidebarGroupLabel>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent onClick={(e) => e.stopPropagation()}>
-                    <SidebarGroupContent>
-                      <SidebarMenu>
-                        {hasPermission("nps.dashboard", "view") && (
-                          <SidebarMenuItem>
-                            <SidebarMenuButton onClick={() => navigate("/nps/dashboard")} isActive={isActive("/nps/dashboard")} tooltip={t("nav.metrics")} className={cn("pl-6", isActive("/nps/dashboard") ? activeItemCls : "hover:bg-sidebar-accent")}>
-                              <BarChart3 className="h-4 w-4" /><span>{t("nav.metrics")}</span>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        )}
-                        {hasPermission("nps.campaigns", "view") && (
-                          <SidebarMenuItem>
-                            <SidebarMenuButton onClick={() => navigate("/nps/campaigns")} isActive={isActive("/nps/campaigns")} tooltip={t("nav.surveys")} className={cn("pl-6", isActive("/nps/campaigns") ? activeItemCls : "hover:bg-sidebar-accent")}>
-                              <Send className="h-4 w-4" /><span>{t("nav.surveys")}</span>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        )}
-                        {hasPermission("nps.settings", "view") && (
-                          <SidebarMenuItem>
-                            <SidebarMenuButton onClick={() => navigate("/nps/nps-settings")} isActive={isActive("/nps/nps-settings")} tooltip={t("npsSettings.navLabel")} className={cn("pl-6", isActive("/nps/nps-settings") ? activeItemCls : "hover:bg-sidebar-accent")}>
-                              <Settings className="h-4 w-4" /><span>{t("npsSettings.navLabel")}</span>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        )}
-                      </SidebarMenu>
-                    </SidebarGroupContent>
-                  </CollapsibleContent>
-                </Collapsible>
-              </SidebarGroup>
-            )}
-
             {/* Chat */}
             {showChat && (
               <SidebarGroup>
@@ -479,6 +438,47 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
                           <SidebarMenuItem>
                             <SidebarMenuButton onClick={() => navigate("/help/import")} isActive={isActive("/help/import")} tooltip={t("help.import")} className={cn(isActive("/help/import") ? activeItemCls : "hover:bg-sidebar-accent")}>
                               <Import className="h-4 w-4" /><span>{t("help.import")}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        )}
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </SidebarGroup>
+            )}
+
+            {/* NPS */}
+            {showNPS && (
+              <SidebarGroup>
+                <Collapsible open={npsOpen} onOpenChange={handleNpsOpen}>
+                  <CollapsibleTrigger asChild>
+                    <SidebarGroupLabel className={`${groupLabelCls} cursor-pointer hover:text-foreground/70 flex items-center justify-between w-full transition-colors`}>
+                      <span className="flex items-center gap-2"><BarChart3 className="h-3.5 w-3.5" /><span>NPS</span></span>
+                      {!collapsed && (npsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
+                    </SidebarGroupLabel>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent onClick={(e) => e.stopPropagation()}>
+                    <SidebarGroupContent>
+                      <SidebarMenu>
+                        {hasPermission("nps.dashboard", "view") && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/nps/dashboard")} isActive={isActive("/nps/dashboard")} tooltip={t("nav.metrics")} className={cn("pl-6", isActive("/nps/dashboard") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <BarChart3 className="h-4 w-4" /><span>{t("nav.metrics")}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        )}
+                        {hasPermission("nps.campaigns", "view") && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/nps/campaigns")} isActive={isActive("/nps/campaigns")} tooltip={t("nav.surveys")} className={cn("pl-6", isActive("/nps/campaigns") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <Send className="h-4 w-4" /><span>{t("nav.surveys")}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        )}
+                        {hasPermission("nps.settings", "view") && (
+                          <SidebarMenuItem>
+                            <SidebarMenuButton onClick={() => navigate("/nps/nps-settings")} isActive={isActive("/nps/nps-settings")} tooltip={t("npsSettings.navLabel")} className={cn("pl-6", isActive("/nps/nps-settings") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <Settings className="h-4 w-4" /><span>{t("npsSettings.navLabel")}</span>
                             </SidebarMenuButton>
                           </SidebarMenuItem>
                         )}
