@@ -4,7 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Loader2, Building2, Users, Upload, ChevronDown, Filter, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Loader2, Building2, Users, Upload, ChevronDown, Filter, X, ChevronLeft, ChevronRight, LayoutGrid, LayoutList } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Dialog,
