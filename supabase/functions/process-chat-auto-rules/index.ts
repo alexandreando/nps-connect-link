@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
 
       const { data: allMessages } = await supabase
         .from("chat_messages")
-        .select("id, room_id, created_at, sender_type, metadata")
+        .select("id, room_id, created_at, sender_type, metadata, is_internal")
         .in("room_id", roomIds)
         .gte("created_at", twentyFourHoursAgo)
         .order("created_at", { ascending: false });
@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
 
         // === ATTENDANT ABSENCE (independent, not part of chain) ===
         if (absenceRule && room.status === "active" && room.attendant_id) {
-          const lastNonSystem = roomMsgs.find((m) => m.sender_type !== "system");
+          const lastNonSystem = roomMsgs.find((m) => m.sender_type !== "system" && !m.is_internal);
           if (lastNonSystem && lastNonSystem.sender_type === "visitor") {
             const elapsed = (now - new Date(lastNonSystem.created_at!).getTime()) / 60000;
             if (elapsed >= absenceRule.trigger_minutes!) {
@@ -165,9 +165,9 @@ Deno.serve(async (req) => {
             } else if (autoRule && FLOW_ORDER.includes(autoRule)) {
               chainSystemMsgs.push({ rule: autoRule, created_at: msg.created_at! });
             }
-          } else if (msg.sender_type === "visitor" && !lastVisitorMsg) {
+          } else if (msg.sender_type === "visitor" && !msg.is_internal && !lastVisitorMsg) {
             lastVisitorMsg = { created_at: msg.created_at! };
-          } else if (msg.sender_type === "attendant" && !lastAttendantMsg) {
+          } else if (msg.sender_type === "attendant" && !msg.is_internal && !lastAttendantMsg) {
             lastAttendantMsg = { created_at: msg.created_at! };
           }
         }
@@ -200,7 +200,7 @@ Deno.serve(async (req) => {
           if (room.status === "active" && effectiveAttendantMsg) {
             // Find last non-system message after reset
             const lastNonSystem = roomMsgs.find((m) => 
-              m.sender_type !== "system" && (!resetTime || m.created_at! > resetTime)
+              m.sender_type !== "system" && !m.is_internal && (!resetTime || m.created_at! > resetTime)
             );
             if (lastNonSystem && lastNonSystem.sender_type === "attendant") {
               nextStep = "inactivity_warning";
