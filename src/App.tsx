@@ -125,8 +125,11 @@ const App = () => (
 
           {/* Protected routes with persistent SidebarLayout */}
           <Route element={<SidebarLayout />}>
+            {/* Home */}
+            <Route path="/home" element={<Suspense fallback={<SuspenseFallback />}><Home /></Suspense>} />
+
             {/* Chat Module */}
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/dashboard" element={<Suspense fallback={<SuspenseFallback />}><AdminDashboard /></Suspense>} />
             <Route path="/admin/workspace" element={<AdminWorkspace />} />
             <Route path="/admin/workspace/:roomId" element={<AdminWorkspace />} />
             <Route path="/admin/attendants" element={<AdminAttendants />} />
