@@ -22,6 +22,7 @@ import { format } from "date-fns";
 interface Collection { id: string; name: string; }
 interface Version { id: string; version_number: number; change_summary: string | null; created_at: string; created_by_user_id: string; }
 
+
 export default function HelpArticleEditor() {
   const { t } = useLanguage();
   const { tenantId, user } = useAuth();
