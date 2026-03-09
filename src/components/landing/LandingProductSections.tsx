@@ -177,11 +177,10 @@ const HelpCenterMockup = () => (
       <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>Search articles...</span>
     </div>
     <div className="grid grid-cols-2 gap-2">
-      {[["🚀", "Getting Started", "12"], ["⚙️", "Configuration", "8"], ["💬", "Chat Widget", "6"], ["📊", "Reports", "4"]].map(([e, t, c]) => (
+      {[["Getting Started", "12"], ["Configuration", "8"], ["Chat Widget", "6"], ["Reports", "4"]].map(([t, c]) => (
         <div key={t} className="rounded-lg p-2.5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
-          <div className="text-base mb-0.5">{e}</div>
           <div className="text-[10px] font-medium text-white">{t}</div>
-          <div className="text-[8px]" style={{ color: "rgba(255,255,255,0.3)" }}>{c} articles</div>
+          <div className="text-[8px] mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>{c} articles</div>
         </div>
       ))}
     </div>
