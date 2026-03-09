@@ -133,6 +133,7 @@ const LeadForm = ({ t, layout = "stacked" }: LeadFormProps) => {
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ArrowRight className="w-4 h-4" /> {t.formCta}</>}
         </button>
+        {errors.form && <p className="text-xs mt-2 text-center" style={{ color: "#FF5C5C" }}>{errors.form}</p>}
       </form>
 
       {showPopup && (
