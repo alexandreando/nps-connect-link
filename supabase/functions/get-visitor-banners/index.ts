@@ -117,6 +117,56 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Load field rules for banners that have them
+    const bannerIds = allBanners.map((b: any) => b.id);
+    const { data: allRules } = await supabase
+      .from("chat_banner_field_rules")
+      .select("banner_id, field_source, field_key, operator, field_value")
+      .in("banner_id", bannerIds);
+
+    const rulesByBanner: Record<string, any[]> = {};
+    (allRules ?? []).forEach((r: any) => {
+      if (!rulesByBanner[r.banner_id]) rulesByBanner[r.banner_id] = [];
+      rulesByBanner[r.banner_id].push(r);
+    });
+
+    // Load contact data if we have rules to evaluate
+    let contactData: any = null;
+    if (contactId && Object.keys(rulesByBanner).length > 0) {
+      const { data } = await supabase
+        .from("contacts")
+        .select("name, email, company_document, company_sector, city, state, external_id, service_priority, cs_status, mrr, contract_value, health_score, custom_fields")
+        .eq("id", contactId)
+        .maybeSingle();
+      contactData = data;
+    }
+
+    // Rule evaluation helper
+    function matchRule(rule: any, contact: any): boolean {
+      const cf = (contact?.custom_fields as Record<string, any>) || {};
+      const rawVal = rule.field_source === "native" ? contact?.[rule.field_key] : cf[rule.field_key];
+      if (rawVal === undefined || rawVal === null) return false;
+      if (rule.operator === "equals") return String(rawVal).toLowerCase() === rule.field_value.toLowerCase();
+      const numA = Number(rawVal);
+      const numB = Number(rule.field_value);
+      if (isNaN(numA) || isNaN(numB)) return false;
+      switch (rule.operator) {
+        case "greater_than": return numA > numB;
+        case "less_than": return numA < numB;
+        case "greater_or_equal": return numA >= numB;
+        case "less_or_equal": return numA <= numB;
+        default: return false;
+      }
+    }
+
+    // Filter banners by rules (AND logic)
+    const filteredBanners = allBanners.filter((b: any) => {
+      const rules = rulesByBanner[b.id];
+      if (!rules || rules.length === 0) return true; // No rules = pass
+      if (!contactData) return false; // Has rules but no contact data = fail
+      return rules.every((r: any) => matchRule(r, contactData));
+    });
+
     // Separate target_all banners from individually assigned
     const targetAllBanners = allBanners.filter((b: any) => b.target_all);
     const individualBanners = allBanners.filter((b: any) => !b.target_all);

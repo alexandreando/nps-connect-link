@@ -1134,6 +1134,15 @@ const AdminBanners = () => {
           </Card>
         </DialogContent>
       </Dialog>
+      {/* Conflict Dialog */}
+      <BannerConflictDialog
+        open={conflictDialog}
+        onOpenChange={setConflictDialog}
+        conflicts={conflicts}
+        onConfirm={handleConflictConfirm}
+        onCancel={() => setConflictDialog(false)}
+        isLoading={savingWithConflict}
+      />
     </>
   );
 };
