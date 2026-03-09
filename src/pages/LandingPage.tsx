@@ -28,7 +28,7 @@ const texts = {
     navCta: "Get Started",
     langToggle: "PT",
     // Hero
-    heroBadge: "Early Access · Limited Spots",
+    heroBadge: "Support · NPS · Help Center",
     heroH1: "Support, NPS & Help Center in one place",
     heroSub: "Everything your CS team needs to retain customers and scale support.",
     heroSubCta: "No credit card · Setup in minutes",
@@ -42,7 +42,7 @@ const texts = {
     fieldPhone: "Phone *",
     formCta: "Get Started",
     successTitle: "You're on the list!",
-    successSub: "We'll reach out soon with your early access invite.",
+    successSub: "We'll reach out soon to get you started.",
     // Product sections
     chatPain: "Your team responds without knowing who the customer is?",
     chatTitle: "Chat with context that retains",
@@ -89,7 +89,7 @@ const texts = {
     ],
     // Social proof
     socialTitle: "Measurable impact for your CS team",
-    socialSub: "Average results from early access teams",
+    socialSub: "Average results from teams using Journey",
     socialMetrics: [
       { value: "-40%", label: "Response Time" },
       { value: "NPS 72", label: "Average Score" },
@@ -100,7 +100,7 @@ const texts = {
     faqTitle: "Frequently Asked Questions",
     faqItems: [
       { q: "How long does it take to install?", a: "The chat widget can be installed with a single line of JavaScript. Full setup including NPS and Help Center typically takes under 30 minutes." },
-      { q: "Do I need a credit card?", a: "No. Early access is free and doesn't require payment information." },
+      { q: "Do I need a credit card?", a: "No. Getting started is free and doesn't require payment information." },
       { q: "Does it work with my CRM?", a: "Journey has a built-in CRM with timeline and kanban. We also support integrations via API and webhooks." },
       { q: "How is the data protected?", a: "All data is encrypted at rest and in transit. We are LGPD compliant and follow industry-standard security practices." },
       { q: "Can I customize the chat widget?", a: "Yes — colors, position, form fields, business hours, welcome messages, and more are fully configurable." },
@@ -109,10 +109,10 @@ const texts = {
       { q: "Does Journey have an API?", a: "Yes. We offer a REST API and webhooks for integrating with your existing tools and automating workflows." },
     ],
     // CTA
-    formLabel: "Early Access",
-    formH2: "Be the First to Access Journey",
-    formSub: "We are onboarding a limited group of CS and Revenue teams who want to build predictable growth from customer data.",
-    formFootnote: "Selected early users will have direct access to the founding team and influence the product roadmap.",
+    formLabel: "Get Started",
+    formH2: "Start using Journey today",
+    formSub: "Built for CS and Revenue teams who want to build predictable growth from customer data.",
+    formFootnote: "Get direct access to the founding team and influence the product roadmap.",
     // Footer
     footerTagline: "The CX platform for revenue-driven CS teams.",
     footerRights: "All rights reserved.",
@@ -127,7 +127,7 @@ const texts = {
       { label: "Complete Platform", href: "/journey" },
     ],
     footerCompanyLinks: [
-      { label: "Early Access", href: "#early-access" },
+      { label: "Get Started", href: "#early-access" },
       { label: "Blog", href: "#" },
     ],
     footerLegalLinks: [
@@ -146,7 +146,7 @@ const texts = {
     navCta: "Quero conhecer",
     langToggle: "EN",
     // Hero
-    heroBadge: "Acesso antecipado · Vagas limitadas",
+    heroBadge: "Atendimento · NPS · Help Center",
     heroH1: "Atendimento, NPS e Help Center em um só lugar",
     heroSub: "Tudo que seu time de CS precisa para reter clientes e escalar suporte.",
     heroSubCta: "Sem cartão de crédito · Setup em minutos",
@@ -160,7 +160,7 @@ const texts = {
     fieldPhone: "Telefone *",
     formCta: "Quero conhecer",
     successTitle: "Você está na lista!",
-    successSub: "Entraremos em contato em breve com seu convite.",
+    successSub: "Entraremos em contato em breve.",
     // Product sections
     chatPain: "Seu time responde sem saber quem é o cliente?",
     chatTitle: "Chat com contexto que retém",
@@ -207,7 +207,7 @@ const texts = {
     ],
     // Social proof
     socialTitle: "Impacto mensurável para seu time de CS",
-    socialSub: "Resultados médios de times em early access",
+    socialSub: "Resultados médios de times que usam o Journey",
     socialMetrics: [
       { value: "-40%", label: "Tempo de resposta" },
       { value: "NPS 72", label: "Score médio" },
@@ -218,7 +218,7 @@ const texts = {
     faqTitle: "Perguntas frequentes",
     faqItems: [
       { q: "Quanto tempo leva para instalar?", a: "O widget de chat pode ser instalado com uma única linha de JavaScript. A configuração completa incluindo NPS e Help Center leva menos de 30 minutos." },
-      { q: "Preciso de cartão de crédito?", a: "Não. O acesso antecipado é gratuito e não exige informações de pagamento." },
+      { q: "Preciso de cartão de crédito?", a: "Não. Começar é gratuito e não exige informações de pagamento." },
       { q: "Funciona com meu CRM?", a: "O Journey possui CRM integrado com timeline e kanban. Também suportamos integrações via API e webhooks." },
       { q: "Como os dados são protegidos?", a: "Todos os dados são criptografados em repouso e em trânsito. Somos compatíveis com a LGPD e seguimos as melhores práticas de segurança." },
       { q: "Posso personalizar o widget de chat?", a: "Sim — cores, posição, campos do formulário, horários de atendimento, mensagens de boas-vindas e mais são totalmente configuráveis." },
@@ -227,10 +227,10 @@ const texts = {
       { q: "O Journey tem API?", a: "Sim. Oferecemos API REST e webhooks para integrar com suas ferramentas e automatizar fluxos de trabalho." },
     ],
     // CTA
-    formLabel: "Acesso antecipado",
-    formH2: "Seja um dos primeiros a usar o Journey",
-    formSub: "Estamos abrindo para um grupo limitado de times de CS e Receita que querem construir crescimento previsível a partir de dados de clientes.",
-    formFootnote: "Usuários selecionados terão acesso direto ao time fundador e influência no roadmap do produto.",
+    formLabel: "Comece agora",
+    formH2: "Comece a usar o Journey hoje",
+    formSub: "Feito para times de CS e Receita que querem construir crescimento previsível a partir de dados de clientes.",
+    formFootnote: "Tenha acesso direto ao time fundador e influência no roadmap do produto.",
     // Footer
     footerTagline: "A plataforma de CX para times de CS orientados a receita.",
     footerRights: "Todos os direitos reservados.",
@@ -245,7 +245,7 @@ const texts = {
       { label: "Plataforma completa", href: "/journey" },
     ],
     footerCompanyLinks: [
-      { label: "Acesso antecipado", href: "#early-access" },
+      { label: "Começar", href: "#early-access" },
       { label: "Blog", href: "#" },
     ],
     footerLegalLinks: [
