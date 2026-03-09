@@ -66,15 +66,57 @@
     document.body.appendChild(bannerContainer);
   }
 
+  var BORDER_CSS = {
+    none: "",
+    subtle: "border-bottom:1px solid rgba(255,255,255,0.15);",
+    rounded: "border-radius:0 0 12px 12px;",
+    pill: "margin:8px 16px;border-radius:24px;"
+  };
+  var SHADOW_CSS = {
+    none: "",
+    soft: "box-shadow:0 2px 8px rgba(0,0,0,0.08);",
+    medium: "box-shadow:0 4px 16px rgba(0,0,0,0.12);",
+    strong: "box-shadow:0 8px 32px rgba(0,0,0,0.18);"
+  };
+
   function renderBanner(banner) {
     var div = document.createElement("div");
     div.setAttribute("data-assignment-id", banner.assignment_id);
-    div.style.cssText =
-      "padding:12px 20px;font-size:14px;position:relative;display:flex;align-items:center;justify-content:space-between;gap:12px;background-color:" +
-      banner.bg_color + ";color:" + banner.text_color + ";";
 
+    var borderCss = BORDER_CSS[banner.border_style] || "";
+    var shadowCss = SHADOW_CSS[banner.shadow_style] || "";
+
+    div.style.cssText =
+      "padding:18px 48px 18px 20px;font-size:14px;font-weight:500;letter-spacing:0.01em;line-height:1.5;" +
+      "position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;" +
+      "background-color:" + banner.bg_color + ";color:" + banner.text_color + ";" +
+      "transform:translateY(-100%);transition:transform 0.3s ease;" +
+      borderCss + shadowCss;
+
+    // Animate in
+    setTimeout(function() { div.style.transform = "translateY(0)"; }, 10);
+
+    // Close button - absolute top right
+    var closeBtn = document.createElement("button");
+    closeBtn.innerHTML = "✕";
+    closeBtn.style.cssText =
+      "position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;color:" + banner.text_color +
+      ";font-size:16px;padding:4px 6px;border-radius:4px;opacity:0.7;";
+    closeBtn.onmouseover = function () { closeBtn.style.opacity = "1"; };
+    closeBtn.onmouseout = function () { closeBtn.style.opacity = "0.7"; };
+    closeBtn.onclick = function () {
+      div.style.transform = "translateY(-100%)";
+      setTimeout(function() {
+        dismissBanner(banner.assignment_id);
+        div.remove();
+        if (bannerContainer && bannerContainer.children.length === 0) bannerContainer.remove();
+      }, 300);
+    };
+    div.appendChild(closeBtn);
+
+    // Content row - centered
     var contentDiv = document.createElement("div");
-    contentDiv.style.cssText = "flex:1;display:flex;align-items:center;gap:10px;flex-wrap:wrap;";
+    contentDiv.style.cssText = "display:flex;align-items:center;justify-content:center;gap:10px;text-align:center;width:100%;";
 
     // Type icon
     var iconHtml = BANNER_ICONS[banner.banner_type || "info"] || BANNER_ICONS.info;
@@ -84,74 +126,85 @@
     contentDiv.appendChild(iconSpan);
 
     var text = document.createElement("span");
-    text.style.cssText = "max-height:3em;overflow:hidden;display:block;line-height:1.4;flex:1;word-break:break-word;";
+    text.style.cssText = "max-height:3em;overflow:hidden;display:block;line-height:1.5;word-break:break-word;";
     if (banner.content_html) {
       text.innerHTML = banner.content_html;
     } else {
       text.textContent = banner.content;
     }
     contentDiv.appendChild(text);
-    if (banner.text_align) contentDiv.style.textAlign = banner.text_align;
-
-    if (banner.link_url) {
-      var link = document.createElement("a");
-      link.href = banner.link_url;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      link.textContent = banner.link_label || "Saiba mais";
-      link.style.cssText = "color:" + banner.text_color + ";text-decoration:underline;font-size:13px;opacity:0.9;";
-      contentDiv.appendChild(link);
-    }
-
     div.appendChild(contentDiv);
 
-    var actions = document.createElement("div");
-    actions.style.cssText = "display:flex;align-items:center;gap:6px;";
+    // Actions row - centered below content
+    var hasActions = banner.link_url || banner.has_voting;
+    if (hasActions) {
+      var actions = document.createElement("div");
+      actions.style.cssText = "display:flex;align-items:center;justify-content:center;gap:12px;margin-top:2px;";
 
-    if (banner.has_voting) {
-      var upBtn = document.createElement("button");
-      upBtn.innerHTML = "👍";
-      upBtn.title = "Like";
-      upBtn.style.cssText =
-        "background:none;border:none;cursor:pointer;font-size:16px;padding:4px;border-radius:4px;opacity:" +
-        (banner.vote === "up" ? "1" : "0.6") + ";";
-      upBtn.onclick = function () {
-        voteBanner(banner.assignment_id, "up");
-        upBtn.style.opacity = "1";
-        downBtn.style.opacity = "0.6";
-      };
-      actions.appendChild(upBtn);
+      if (banner.link_url) {
+        var link = document.createElement("a");
+        link.href = banner.link_url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = banner.link_label || "Saiba mais";
+        link.style.cssText = "color:" + banner.text_color + ";text-decoration:underline;font-size:13px;opacity:0.9;";
+        actions.appendChild(link);
+      }
 
-      var downBtn = document.createElement("button");
-      downBtn.innerHTML = "👎";
-      downBtn.title = "Dislike";
-      downBtn.style.cssText =
-        "background:none;border:none;cursor:pointer;font-size:16px;padding:4px;border-radius:4px;opacity:" +
-        (banner.vote === "down" ? "1" : "0.6") + ";";
-      downBtn.onclick = function () {
-        voteBanner(banner.assignment_id, "down");
-        downBtn.style.opacity = "1";
-        upBtn.style.opacity = "0.6";
-      };
-      actions.appendChild(downBtn);
+      if (banner.has_voting) {
+        var upBtn = document.createElement("button");
+        upBtn.innerHTML = "👍";
+        upBtn.title = "Like";
+        upBtn.style.cssText =
+          "background:none;border:none;cursor:pointer;font-size:16px;padding:4px;border-radius:4px;opacity:" +
+          (banner.vote === "up" ? "1" : "0.6") + ";";
+        upBtn.onclick = function () {
+          voteBanner(banner.assignment_id, "up");
+          upBtn.style.opacity = "1";
+          downBtn.style.opacity = "0.6";
+        };
+        actions.appendChild(upBtn);
+
+        var downBtn = document.createElement("button");
+        downBtn.innerHTML = "👎";
+        downBtn.title = "Dislike";
+        downBtn.style.cssText =
+          "background:none;border:none;cursor:pointer;font-size:16px;padding:4px;border-radius:4px;opacity:" +
+          (banner.vote === "down" ? "1" : "0.6") + ";";
+        downBtn.onclick = function () {
+          voteBanner(banner.assignment_id, "down");
+          downBtn.style.opacity = "1";
+          upBtn.style.opacity = "0.6";
+        };
+        actions.appendChild(downBtn);
+      }
+
+      div.appendChild(actions);
     }
 
-    var closeBtn = document.createElement("button");
-    closeBtn.innerHTML = "✕";
-    closeBtn.style.cssText =
-      "background:none;border:none;cursor:pointer;color:" + banner.text_color +
-      ";font-size:16px;padding:4px 6px;border-radius:4px;opacity:0.7;";
-    closeBtn.onmouseover = function () { closeBtn.style.opacity = "1"; };
-    closeBtn.onmouseout = function () { closeBtn.style.opacity = "0.7"; };
-    closeBtn.onclick = function () {
-      // Permanent dismiss
-      dismissBanner(banner.assignment_id);
-      div.remove();
-      if (bannerContainer && bannerContainer.children.length === 0) bannerContainer.remove();
-    };
-    actions.appendChild(closeBtn);
+    // Auto-dismiss
+    if (banner.auto_dismiss_seconds && banner.auto_dismiss_seconds > 0) {
+      setTimeout(function() {
+        div.style.transform = "translateY(-100%)";
+        setTimeout(function() {
+          div.remove();
+          if (bannerContainer && bannerContainer.children.length === 0) bannerContainer.remove();
+        }, 300);
+      }, banner.auto_dismiss_seconds * 1000);
+    }
 
-    div.appendChild(actions);
+    // Display frequency check
+    var freqKey = "banner_freq_" + banner.assignment_id;
+    if (banner.display_frequency === "once_per_session") {
+      if (sessionStorage.getItem(freqKey)) return null;
+      sessionStorage.setItem(freqKey, "1");
+    } else if (banner.display_frequency === "once_per_day") {
+      var lastShown = localStorage.getItem(freqKey);
+      var today = new Date().toDateString();
+      if (lastShown === today) return null;
+      localStorage.setItem(freqKey, today);
+    }
+
     return div;
   }
 
