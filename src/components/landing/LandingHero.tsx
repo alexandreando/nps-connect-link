@@ -1,4 +1,4 @@
-import { MessageSquare, Target, BookOpen } from "lucide-react";
+import { MessageSquare, Star, Target, BookOpen } from "lucide-react";
 import LeadForm, { type LeadFormTexts } from "./LeadForm";
 
 type HeroTexts = {
@@ -7,6 +7,7 @@ type HeroTexts = {
   heroSub: string;
   heroSubCta: string;
   heroBadgeChat: string;
+  heroBadgeCSAT: string;
   heroBadgeNPS: string;
   heroBadgeHelp: string;
 };
@@ -14,6 +15,7 @@ type HeroTexts = {
 const LandingHero = ({ t, formTexts }: { t: HeroTexts; formTexts: LeadFormTexts }) => {
   const badges = [
     { label: t.heroBadgeChat, icon: MessageSquare, color: "#FF7A59" },
+    { label: t.heroBadgeCSAT, icon: Star, color: "#F59E0B" },
     { label: t.heroBadgeNPS, icon: Target, color: "#3498DB" },
     { label: t.heroBadgeHelp, icon: BookOpen, color: "#2ECC71" },
   ];
