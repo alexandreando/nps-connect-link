@@ -39,6 +39,13 @@ const texts = {
     heroTabChat: "Chat",
     heroTabNPS: "NPS",
     heroTabHelp: "Help Center",
+    // Form fields (hero + CTA)
+    fieldName: "Your Name *",
+    fieldEmail: "Work Email *",
+    fieldPhone: "Phone *",
+    formCta: "Get Started",
+    successTitle: "You're on the list!",
+    successSub: "We'll reach out soon with your early access invite.",
     // Product sections — Chat
     chatTitle: "Organized support that retains customers",
     chatSub: "Your team responds with full context — plan, MRR, health score — right next to the conversation. Faster responses, better retention.",
@@ -109,15 +116,7 @@ const texts = {
     formLabel: "Early Access",
     formH2: "Be the First to Access Journey",
     formSub: "We are onboarding a limited group of CS and Revenue teams who want to build predictable growth from customer data.",
-    fieldName: "Full Name *",
-    fieldEmail: "Work Email *",
-    fieldCompany: "Company Name *",
-    fieldRole: "Role / Position",
-    formCta: "Join Early Access",
     formFootnote: "Selected early users will have direct access to the founding team and influence the product roadmap.",
-    successTitle: "You're on the list!",
-    successSub: "We'll reach out soon with your early access invite.",
-    successBtn: "Submit another",
     // Footer
     footerTagline: "The CX platform for revenue-driven CS teams.",
     footerRights: "All rights reserved.",
@@ -224,19 +223,18 @@ const texts = {
       { q: "Posso personalizar o widget de chat?", a: "Sim — cores, posição, campos do formulário, horários de atendimento, mensagens de boas-vindas e mais são totalmente configuráveis." },
       { q: "Como funciona a atribuição automática?", a: "Você pode configurar Round Robin, Least Busy ou manual. Regras podem ser definidas por categoria com fallback por time." },
     ],
+    // Form fields (hero + CTA)
+    fieldName: "Seu Nome *",
+    fieldEmail: "Email Corporativo *",
+    fieldPhone: "Telefone *",
+    formCta: "Começar Agora",
+    successTitle: "Você está na lista!",
+    successSub: "Entraremos em contato em breve com seu convite.",
     // CTA / Form
     formLabel: "Acesso Antecipado",
     formH2: "Seja um dos Primeiros a Usar o Journey",
     formSub: "Estamos abrindo para um grupo limitado de times de CS e Receita que querem construir crescimento previsível a partir de dados de clientes.",
-    fieldName: "Nome Completo *",
-    fieldEmail: "Email Corporativo *",
-    fieldCompany: "Nome da Empresa *",
-    fieldRole: "Cargo / Função",
-    formCta: "Entrar para o Acesso Antecipado",
     formFootnote: "Usuários selecionados terão acesso direto ao time fundador e influência no roadmap do produto.",
-    successTitle: "Você está na lista!",
-    successSub: "Entraremos em contato em breve com seu convite.",
-    successBtn: "Enviar outro",
     // Footer
     footerTagline: "A plataforma de CX para times de CS orientados a receita.",
     footerRights: "Todos os direitos reservados.",
@@ -280,7 +278,7 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "#0F1115", fontFamily: "Manrope, sans-serif" }}>
       <LandingNavbar t={t} isLoggedIn={isLoggedIn} onToggleLang={toggleLang} onCtaClick={scrollToForm} />
-      <LandingHero t={t} onCtaClick={scrollToForm} />
+      <LandingHero t={t} onCtaClick={scrollToForm} formTexts={t} />
       <LandingProductSections t={t} />
 
       {/* ── Platform Divider ─── */}

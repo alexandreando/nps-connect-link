@@ -1,17 +1,13 @@
 import { useState } from "react";
-import { ArrowRight, CheckCircle2, Loader2, X } from "lucide-react";
+import { ArrowRight, Loader2, CheckCircle2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 
-type CTATexts = {
-  formLabel: string;
-  formH2: string;
-  formSub: string;
+type HeroFormTexts = {
   fieldName: string;
   fieldEmail: string;
   fieldPhone: string;
   formCta: string;
-  formFootnote: string;
   successTitle: string;
   successSub: string;
 };
@@ -22,20 +18,20 @@ const leadSchema = z.object({
   phone: z.string().trim().min(8).max(20),
 });
 
-const LandingInput = ({ placeholder, type = "text", value, onChange }: { placeholder: string; type?: string; value: string; onChange: (v: string) => void }) => (
+const HeroInput = ({ placeholder, type = "text", value, onChange }: { placeholder: string; type?: string; value: string; onChange: (v: string) => void }) => (
   <input
     type={type}
     placeholder={placeholder}
     value={value}
     onChange={(e) => onChange(e.target.value)}
     className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-colors duration-150"
-    style={{ background: "#1A1F2E", border: "1px solid rgba(255,255,255,0.08)", color: "#F2F4F8" }}
-    onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(255,122,89,0.4)")}
-    onBlur={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)")}
+    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#F2F4F8" }}
+    onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(255,122,89,0.5)")}
+    onBlur={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)")}
   />
 );
 
-const LandingCTA = ({ t }: { t: CTATexts }) => {
+const LandingHeroForm = ({ t }: { t: HeroFormTexts }) => {
   const [loading, setLoading] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
@@ -85,35 +81,29 @@ const LandingCTA = ({ t }: { t: CTATexts }) => {
   };
 
   return (
-    <section id="early-access" className="py-16 px-4 relative overflow-hidden" style={{ background: "#0F1115" }}>
-      <div className="absolute pointer-events-none" style={{ bottom: 0, left: "50%", transform: "translateX(-50%)", width: 700, height: 280, background: "radial-gradient(ellipse, rgba(61,165,244,0.04) 0%, transparent 70%)" }} />
-      <div className="relative z-10 max-w-lg mx-auto">
-        <div className="text-center mb-10">
-          <p className="text-sm font-medium uppercase tracking-widest mb-3" style={{ color: "#3DA5F4" }}>{t.formLabel}</p>
-          <h2 className="text-[26px] font-medium text-white mb-3" style={{ lineHeight: 1.25, letterSpacing: "-0.02em" }}>{t.formH2}</h2>
-          <p className="text-[15px]" style={{ color: "rgba(255,255,255,0.45)" }}>{t.formSub}</p>
+    <>
+      <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2 w-full max-w-xl">
+        <div className="flex-1 min-w-0">
+          <HeroInput placeholder={t.fieldName} value={form.name} onChange={(v) => handleChange("name", v)} />
+          {errors.name && <p className="text-[10px] mt-0.5" style={{ color: "#FF5C5C" }}>{errors.name}</p>}
         </div>
-        <div className="rounded-xl p-8" style={{ background: "#131722", border: "1px solid rgba(255,255,255,0.06)", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" }}>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div>
-              <LandingInput placeholder={t.fieldName} value={form.name} onChange={(v) => handleChange("name", v)} />
-              {errors.name && <p className="text-xs mt-1" style={{ color: "#FF5C5C" }}>{errors.name}</p>}
-            </div>
-            <div>
-              <LandingInput placeholder={t.fieldEmail} type="email" value={form.email} onChange={(v) => handleChange("email", v)} />
-              {errors.email && <p className="text-xs mt-1" style={{ color: "#FF5C5C" }}>{errors.email}</p>}
-            </div>
-            <div>
-              <LandingInput placeholder={t.fieldPhone} type="tel" value={form.phone} onChange={(v) => handleChange("phone", v)} />
-              {errors.phone && <p className="text-xs mt-1" style={{ color: "#FF5C5C" }}>{errors.phone}</p>}
-            </div>
-            <button type="submit" disabled={loading} className="w-full py-3.5 rounded-lg font-medium text-sm mt-1 transition-all duration-150 hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2" style={{ background: "#FF7A59", color: "#fff" }}>
-              {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando…</> : <><ArrowRight className="w-4 h-4" /> {t.formCta}</>}
-            </button>
-            <p className="text-center text-[11px] mt-1" style={{ color: "rgba(255,255,255,0.28)" }}>{t.formFootnote}</p>
-          </form>
+        <div className="flex-1 min-w-0">
+          <HeroInput placeholder={t.fieldEmail} type="email" value={form.email} onChange={(v) => handleChange("email", v)} />
+          {errors.email && <p className="text-[10px] mt-0.5" style={{ color: "#FF5C5C" }}>{errors.email}</p>}
         </div>
-      </div>
+        <div className="flex-1 min-w-0">
+          <HeroInput placeholder={t.fieldPhone} type="tel" value={form.phone} onChange={(v) => handleChange("phone", v)} />
+          {errors.phone && <p className="text-[10px] mt-0.5" style={{ color: "#FF5C5C" }}>{errors.phone}</p>}
+        </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="px-6 py-3 rounded-lg font-medium text-sm transition-all duration-150 hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap flex-shrink-0"
+          style={{ background: "#FF7A59", color: "#fff" }}
+        >
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ArrowRight className="w-4 h-4" /> {t.formCta}</>}
+        </button>
+      </form>
 
       {/* Thank you popup */}
       {showPopup && (
@@ -142,8 +132,8 @@ const LandingCTA = ({ t }: { t: CTATexts }) => {
           </div>
         </div>
       )}
-    </section>
+    </>
   );
 };
 
-export default LandingCTA;
+export default LandingHeroForm;

@@ -1,5 +1,15 @@
 import { useState } from "react";
-import { ArrowRight, MessageSquare, Target, BookOpen, Send, X, User } from "lucide-react";
+import { MessageSquare, Target, BookOpen, Send, X, User } from "lucide-react";
+import LandingHeroForm from "./LandingHeroForm";
+
+type HeroFormTexts = {
+  fieldName: string;
+  fieldEmail: string;
+  fieldPhone: string;
+  formCta: string;
+  successTitle: string;
+  successSub: string;
+};
 
 type HeroTexts = {
   heroBadge: string;
@@ -163,7 +173,7 @@ const HelpMockup = () => (
   </div>
 );
 
-const LandingHero = ({ t, onCtaClick }: { t: HeroTexts; onCtaClick: () => void }) => {
+const LandingHero = ({ t, onCtaClick, formTexts }: { t: HeroTexts; onCtaClick: () => void; formTexts: HeroFormTexts }) => {
   const [activeTab, setActiveTab] = useState<"chat" | "nps" | "help">("chat");
 
   const tabs = [
@@ -199,16 +209,7 @@ const LandingHero = ({ t, onCtaClick }: { t: HeroTexts; onCtaClick: () => void }
           <p className="mb-10" style={{ fontSize: "clamp(14px, 1.5vw, 16px)", lineHeight: 1.75, color: "rgba(255,255,255,0.5)", maxWidth: 500 }}>
             {t.heroSub}
           </p>
-          <div className="flex flex-col sm:flex-row items-start gap-3">
-            <button
-              onClick={onCtaClick}
-              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl font-medium text-base transition-all duration-150 hover:opacity-90 hover:-translate-y-0.5"
-              style={{ background: "#FF7A59", color: "#fff", boxShadow: "0 8px 32px rgba(255,122,89,0.3)" }}
-            >
-              {t.heroCta}
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
+          <LandingHeroForm t={formTexts} />
           <p className="text-xs mt-3" style={{ color: "rgba(255,255,255,0.28)" }}>{t.heroSubCta}</p>
         </div>
 
