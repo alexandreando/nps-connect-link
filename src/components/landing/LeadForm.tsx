@@ -96,8 +96,8 @@ const LeadForm = ({ t, layout = "stacked" }: LeadFormProps) => {
       if (error) throw error;
       setShowPopup(true);
       setForm({ name: "", email: "", phone: "" });
-    } catch {
-      // silently fail
+    } catch (err) {
+      setErrors({ form: "Erro ao enviar. Tente novamente." });
     } finally {
       setLoading(false);
     }

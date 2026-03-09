@@ -2438,7 +2438,7 @@ export type Database = {
       }
       leads: {
         Row: {
-          company: string
+          company: string | null
           created_at: string | null
           email: string
           id: string
@@ -2458,7 +2458,7 @@ export type Database = {
           utm_term: string | null
         }
         Insert: {
-          company: string
+          company?: string | null
           created_at?: string | null
           email: string
           id?: string
@@ -2478,7 +2478,7 @@ export type Database = {
           utm_term?: string | null
         }
         Update: {
-          company?: string
+          company?: string | null
           created_at?: string | null
           email?: string
           id?: string
