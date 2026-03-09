@@ -24,11 +24,6 @@ import SidebarLayout from "./components/SidebarLayout";
 
 // Lazy loaded pages — CS Module
 const Home = lazy(() => import("./pages/Home"));
-const CSDashboard = lazy(() => import("./pages/CSDashboard"));
-const CSTrailsPage = lazy(() => import("./pages/CSTrailsPage"));
-const CSHealthPage = lazy(() => import("./pages/CSHealthPage"));
-const CSChurnPage = lazy(() => import("./pages/CSChurnPage"));
-const CSFinancialPage = lazy(() => import("./pages/CSFinancialPage"));
 
 // Lazy loaded pages — NPS Module
 const Dashboard = lazy(() => import("./pages/Dashboard"));
