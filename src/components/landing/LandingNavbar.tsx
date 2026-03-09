@@ -30,7 +30,8 @@ const LandingNavbar = ({ t, isLoggedIn, onToggleLang, onCtaClick }: LandingNavba
   };
 
   const navLinks = [
-    { label: t.navAtendimento, target: "chat" },
+    { label: t.navChat, target: "chat" },
+    { label: t.navCSAT, target: "csat" },
     { label: t.navNPS, target: "nps" },
     { label: t.navHelpCenter, target: "helpcenter" },
   ];
