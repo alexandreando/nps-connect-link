@@ -44,7 +44,7 @@ const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const AdminAttendants = lazy(() => import("./pages/AdminAttendants"));
 const AdminCSATReport = lazy(() => import("./pages/AdminCSATReport"));
 const AdminSettings = lazy(() => import("./pages/AdminSettings"));
-const AdminDashboardGerencial = lazy(() => import("./pages/AdminDashboardGerencial"));
+
 const AdminChatHistory = lazy(() => import("./pages/AdminChatHistory"));
 const AdminBanners = lazy(() => import("./pages/AdminBanners"));
 const AdminBroadcasts = lazy(() => import("./pages/AdminBroadcasts"));
