@@ -172,8 +172,8 @@ const texts = {
       "Histórico completo de conversas",
       "Busca de artigos do Help Center no chat",
     ],
-    csatPain: "Você não sabe como o cliente se sente após cada atendimento?",
-    csatTitle: "CSAT pós-atendimento que direciona melhoria",
+    csatPain: "Você não sabe como o cliente se sente após cada chat?",
+    csatTitle: "CSAT pós-chat que direciona melhoria",
     csatSub: "Pesquisa de satisfação automática após cada conversa com analytics detalhado por atendente.",
     csatFeatures: [
       "Pesquisa de satisfação automática pós-chat",
