@@ -206,6 +206,18 @@ const sections = (t: ProductTexts) => [
     bg: "#0F1115",
   },
   {
+    id: "csat",
+    icon: Star,
+    color: "#F59E0B",
+    pain: t.csatPain,
+    title: t.csatTitle,
+    sub: t.csatSub,
+    features: t.csatFeatures,
+    Mockup: CSATDashboardMockup,
+    reverse: true,
+    bg: "#0D0F13",
+  },
+  {
     id: "nps",
     icon: Target,
     color: "#3498DB",
@@ -214,8 +226,8 @@ const sections = (t: ProductTexts) => [
     sub: t.npsSub,
     features: t.npsFeatures,
     Mockup: NPSDashboardMockup,
-    reverse: true,
-    bg: "#0D0F13",
+    reverse: false,
+    bg: "#0F1115",
   },
   {
     id: "helpcenter",
@@ -226,8 +238,8 @@ const sections = (t: ProductTexts) => [
     sub: t.helpSub,
     features: t.helpFeatures,
     Mockup: HelpCenterMockup,
-    reverse: false,
-    bg: "#0F1115",
+    reverse: true,
+    bg: "#0D0F13",
   },
 ];
 
