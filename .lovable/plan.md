@@ -1,50 +1,39 @@
 
+# Plan: Performance Optimizations + Realtime Counters
 
-## Fix: Contadores de chat descasados — Trigger COUNT-based + Frontend resync
+## Status: ✅ Fully Implemented
 
-### Analise de performance
+---
 
-Dados atuais do banco:
-- **403 salas totais**, apenas **6 ativas** — COUNT filtrado é trivial
-- Indice existente em `chat_rooms(status)` — ajuda no filtro
-- **Falta** indice em `chat_rooms(attendant_id)` — precisa criar
-- 8 triggers já existem em `chat_rooms` — adicionar 1 trigger COUNT-based não impacta
+## 1. Dashboard Load-on-Demand — DONE
+- Removed 30s `setInterval` auto-polling from `useDashboardStats`
+- Added optional Realtime toggle (default: off) with 5s debounce on `chat_rooms` changes
+- Added manual "Atualizar" refresh button to `AdminDashboard` and `AdminDashboardGerencial`
 
-**Veredicto**: A abordagem COUNT-based é a melhor solução. Com ~6 salas ativas, o COUNT executa em < 1ms. Mesmo com 10x crescimento (60 salas ativas), continua irrelevante. A alternativa incremental é mais rápida em teoria mas falha na prática (drift comprovado).
+## 2. Reports: Default to Short Periods — DONE
+- Changed `AdminDashboardGerencial` default period from "month" to "week"
+- Removed "all" option from Gerencial period selector
+- Added warning text in `AdminCSATReport` when "all" period is selected
 
-### Mudanças
+## 3. Widget `fetchHistory` N+1 Fix — DONE
+- Replaced `Promise.all` per-room queries with single batch `.in("room_id", roomIds)` query
+- Reduced from N+1 to 2 queries per history page load
 
-**1. Migration SQL**
+## 4. Sidebar Active Counts — DONE (v2: COUNT-based trigger)
+- **v1 (replaced)**: Incremental patches via Realtime events — caused drift
+- **v2 (current)**: COUNT-based database trigger `resync_attendant_counter_on_room_change`
+  - Trigger fires AFTER INSERT/UPDATE/DELETE on `chat_rooms`
+  - Recalculates `active_conversations` via real `COUNT(*)` for affected attendants
+  - Composite index `idx_chat_rooms_attendant_status` ensures COUNT < 1ms
+  - Frontend `handleRoomChange` simplified to debounced `resyncCounts()` (1s)
+  - `handleAttendantChange` trusts `active_conversations` from Realtime (now always accurate)
+  - Fallback resync interval reduced from 60s to 30s
 
-- Criar indice composto `(attendant_id, status)` para otimizar o COUNT
-- Substituir trigger `decrement_attendant_active_conversations` por `resync_attendant_counter_on_room_change` que faz COUNT real
-- Resync one-time para corrigir valores atuais
+## 5. `useAttendantQueues` Efficiency — DONE
+- Uses `active_conversations` from `attendant_profiles` instead of counting rooms
+- Only fetches unassigned rooms + waiting counts (lighter queries)
+- Added 3s debounce to Realtime callbacks to batch rapid changes
 
-```sql
--- Index for fast COUNT
-CREATE INDEX IF NOT EXISTS idx_chat_rooms_attendant_status 
-ON chat_rooms(attendant_id, status) WHERE status IN ('active', 'waiting');
-
--- Replace incremental trigger with COUNT-based
-CREATE OR REPLACE FUNCTION resync_attendant_counter_on_room_change() ...
--- Does COUNT(*) for OLD.attendant_id and NEW.attendant_id
-
--- Drop old trigger, create new one
--- One-time resync all counters
-```
-
-**2. Frontend: `SidebarDataContext.tsx`**
-
-- Simplificar `handleRoomChange`: chamar `resyncCounts()` com debounce 1s (em vez de patches incrementais)
-- Simplificar `handleAttendantChange`: manter patch de `status`/`display_name`, usar `active_conversations` do evento Realtime diretamente (agora confiável pois o trigger é COUNT-based)
-- Reduzir intervalo de resync fallback de 60s para 30s
-
-### Por que é a melhor opção
-
-| Critério | Incremental (atual) | COUNT-based (proposto) |
-|----------|---------------------|----------------------|
-| Precisão | Drift comprovado | Impossível driftar |
-| Performance trigger | ~0.1ms | ~0.3ms (6 rows) |
-| Performance frontend | Patches falham | Resync 2 queries leves |
-| Complexidade | Alta (edge cases) | Baixa (sempre correto) |
-
+## 6. Realtime Publication for `attendant_profiles` — DONE
+- Added `ALTER PUBLICATION supabase_realtime ADD TABLE public.attendant_profiles`
+- Enables live updates for sidebar counters and status changes
