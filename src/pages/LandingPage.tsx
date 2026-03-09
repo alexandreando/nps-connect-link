@@ -89,7 +89,7 @@ const texts = {
     ],
     // Social proof
     socialTitle: "Measurable impact for your CS team",
-    socialSub: "Average results from early access teams",
+    socialSub: "Average results from teams using Journey",
     socialMetrics: [
       { value: "-40%", label: "Response Time" },
       { value: "NPS 72", label: "Average Score" },
