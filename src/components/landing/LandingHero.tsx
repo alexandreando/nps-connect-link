@@ -173,7 +173,7 @@ const HelpMockup = () => (
   </div>
 );
 
-const LandingHero = ({ t, onCtaClick }: { t: HeroTexts; onCtaClick: () => void }) => {
+const LandingHero = ({ t, onCtaClick, formTexts }: { t: HeroTexts; onCtaClick: () => void; formTexts: HeroFormTexts }) => {
   const [activeTab, setActiveTab] = useState<"chat" | "nps" | "help">("chat");
 
   const tabs = [
