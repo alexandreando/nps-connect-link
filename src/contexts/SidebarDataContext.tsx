@@ -165,39 +165,18 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
     initializedForRef.current = userId + (currentTenantId ?? '');
   }, []);
 
-  const handleRoomChange = useCallback((payload: any) => {
-    const { eventType, new: newRoom, old: oldRoom } = payload;
+  // Debounced resync: triggers on any room change instead of incremental patches
+  const resyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedResync = useCallback(() => {
+    if (resyncTimerRef.current) clearTimeout(resyncTimerRef.current);
+    resyncTimerRef.current = setTimeout(() => {
+      resyncCounts();
+    }, 1000);
+  }, [resyncCounts]);
 
-    // For unassigned count, only track rooms without attendant_id
-    if (eventType === "INSERT") {
-      if ((newRoom.status === "active" || newRoom.status === "waiting") && !newRoom.attendant_id) {
-        setUnassignedCount(prev => prev + 1);
-      }
-    }
-
-    if (eventType === "UPDATE") {
-      const oldAttendant = oldRoom.attendant_id ?? undefined;
-
-      if (newRoom.status === "closed" && oldRoom.status !== "closed") {
-        if (!oldAttendant && !newRoom.attendant_id) {
-          setUnassignedCount(prev => Math.max(0, prev - 1));
-        }
-      } else if (newRoom.attendant_id !== oldAttendant && newRoom.status !== "closed") {
-        if (!oldAttendant && oldRoom.status !== "closed") {
-          setUnassignedCount(prev => Math.max(0, prev - 1));
-        }
-        if (!newRoom.attendant_id) {
-          setUnassignedCount(prev => prev + 1);
-        }
-      }
-    }
-
-    if (eventType === "DELETE") {
-      if (oldRoom.status !== "closed" && !oldRoom.attendant_id) {
-        setUnassignedCount(prev => Math.max(0, prev - 1));
-      }
-    }
-  }, []);
+  const handleRoomChange = useCallback(() => {
+    debouncedResync();
+  }, [debouncedResync]);
 
   const handleAttendantChange = useCallback((payload: any) => {
     const updated = payload.new as any;
