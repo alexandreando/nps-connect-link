@@ -1,39 +1,28 @@
 
-# Plan: Performance Optimizations + Realtime Counters
 
-## Status: ✅ Fully Implemented
+## Fix: Notas internas não devem afetar triggers de inatividade
 
----
+### Problema
 
-## 1. Dashboard Load-on-Demand — DONE
-- Removed 30s `setInterval` auto-polling from `useDashboardStats`
-- Added optional Realtime toggle (default: off) with 5s debounce on `chat_rooms` changes
-- Added manual "Atualizar" refresh button to `AdminDashboard` and `AdminDashboardGerencial`
+A Edge Function `process-chat-auto-rules` não diferencia notas internas (`is_internal = true`) de mensagens reais. Quando um atendente adiciona uma nota interna, ela é tratada como mensagem de atendente, o que:
+- Na regra de **ausência do atendente**: uma nota interna "responde" ao visitante, impedindo o disparo do aviso
+- Na **cadeia de inatividade**: uma nota interna do atendente é considerada como "última mensagem do atendente", reiniciando o timer de inatividade indevidamente
 
-## 2. Reports: Default to Short Periods — DONE
-- Changed `AdminDashboardGerencial` default period from "month" to "week"
-- Removed "all" option from Gerencial period selector
-- Added warning text in `AdminCSATReport` when "all" period is selected
+### Solução
 
-## 3. Widget `fetchHistory` N+1 Fix — DONE
-- Replaced `Promise.all` per-room queries with single batch `.in("room_id", roomIds)` query
-- Reduced from N+1 to 2 queries per history page load
+Uma única mudança no `process-chat-auto-rules/index.ts`:
 
-## 4. Sidebar Active Counts — DONE (v2: COUNT-based trigger)
-- **v1 (replaced)**: Incremental patches via Realtime events — caused drift
-- **v2 (current)**: COUNT-based database trigger `resync_attendant_counter_on_room_change`
-  - Trigger fires AFTER INSERT/UPDATE/DELETE on `chat_rooms`
-  - Recalculates `active_conversations` via real `COUNT(*)` for affected attendants
-  - Composite index `idx_chat_rooms_attendant_status` ensures COUNT < 1ms
-  - Frontend `handleRoomChange` simplified to debounced `resyncCounts()` (1s)
-  - `handleAttendantChange` trusts `active_conversations` from Realtime (now always accurate)
-  - Fallback resync interval reduced from 60s to 30s
+1. **Adicionar `is_internal` ao SELECT** da query de mensagens (linha 105)
+2. **Filtrar notas internas** em todos os pontos onde se busca a última mensagem não-sistema:
+   - Linha 126: `lastNonSystem` para regra de ausência — adicionar `&& !m.is_internal`
+   - Linhas 157-165: detecção de `lastVisitorMsg` e `lastAttendantMsg` para cadeia — adicionar `&& !m.is_internal`
+   - Linha 195: `lastNonSystem` para início da cadeia — adicionar `&& !m.is_internal`
 
-## 5. `useAttendantQueues` Efficiency — DONE
-- Uses `active_conversations` from `attendant_profiles` instead of counting rooms
-- Only fetches unassigned rooms + waiting counts (lighter queries)
-- Added 3s debounce to Realtime callbacks to batch rapid changes
+Essencialmente, notas internas passam a ser **invisíveis** para o motor de regras automáticas, como se não existissem.
 
-## 6. Realtime Publication for `attendant_profiles` — DONE
-- Added `ALTER PUBLICATION supabase_realtime ADD TABLE public.attendant_profiles`
-- Enables live updates for sidebar counters and status changes
+### Arquivo modificado
+
+| Arquivo | Mudança |
+|---------|---------|
+| `supabase/functions/process-chat-auto-rules/index.ts` | Adicionar `is_internal` ao select e filtrar `!is_internal` em todas as buscas de última mensagem |
+
