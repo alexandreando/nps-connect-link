@@ -249,8 +249,8 @@ const texts = {
       { label: "Blog", href: "#" },
     ],
     footerLegalLinks: [
-      { label: "Política de Privacidade", href: "#" },
-      { label: "Termos de Uso", href: "#" },
+      { label: "Política de privacidade", href: "#" },
+      { label: "Termos de uso", href: "#" },
     ],
   },
 };
