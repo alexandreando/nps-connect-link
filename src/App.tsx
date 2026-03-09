@@ -44,7 +44,7 @@ const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const AdminAttendants = lazy(() => import("./pages/AdminAttendants"));
 const AdminCSATReport = lazy(() => import("./pages/AdminCSATReport"));
 const AdminSettings = lazy(() => import("./pages/AdminSettings"));
-const AdminDashboardGerencial = lazy(() => import("./pages/AdminDashboardGerencial"));
+
 const AdminChatHistory = lazy(() => import("./pages/AdminChatHistory"));
 const AdminBanners = lazy(() => import("./pages/AdminBanners"));
 const AdminBroadcasts = lazy(() => import("./pages/AdminBroadcasts"));
@@ -136,7 +136,7 @@ const App = () => (
             <Route path="/admin/attendants" element={<Suspense fallback={<SuspenseFallback />}><AdminAttendants /></Suspense>} />
             <Route path="/admin/settings" element={<Suspense fallback={<SuspenseFallback />}><AdminSettings /></Suspense>} />
             <Route path="/admin/settings/:tab" element={<Suspense fallback={<SuspenseFallback />}><AdminSettings /></Suspense>} />
-            <Route path="/admin/gerencial" element={<Suspense fallback={<SuspenseFallback />}><AdminDashboardGerencial /></Suspense>} />
+            
             <Route path="/admin/history" element={<Suspense fallback={<SuspenseFallback />}><AdminChatHistory /></Suspense>} />
             <Route path="/admin/banners" element={<Suspense fallback={<SuspenseFallback />}><AdminBanners /></Suspense>} />
             <Route path="/admin/csat" element={<Suspense fallback={<SuspenseFallback />}><AdminCSATReport /></Suspense>} />

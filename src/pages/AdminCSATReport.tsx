@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableMultiSelect } from "@/components/ui/searchable-multi-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
@@ -111,50 +112,50 @@ const AdminCSATReport = () => {
                 ⚠ Períodos longos podem demorar com alto volume de dados
               </span>
             )}
-            <Select value={filters.attendantId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, attendantId: v === "all" ? null : v, page: 0 }))}>
-              <SelectTrigger className="w-[170px] h-9"><SelectValue placeholder={t("chat.gerencial.filter_by_attendant")} /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("filter.all_attendants")}</SelectItem>
-                {attendantOptions.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <SearchableMultiSelect
+              label={t("chat.gerencial.filter_by_attendant")}
+              options={attendantOptions.map((a) => ({ value: a.id, label: a.name }))}
+              selected={filters.attendantId ? [filters.attendantId] : []}
+              onChange={(v) => setFilters((f) => ({ ...f, attendantId: v[0] ?? null, page: 0 }))}
+              placeholder={t("chat.gerencial.filter_by_attendant")}
+            />
             {teamOptions.length > 0 && (
-              <Select value={filters.teamId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, teamId: v === "all" ? null : v, page: 0 }))}>
-                <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder={t("csat.report.team")} /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t("filter.all_teams")}</SelectItem>
-                  {teamOptions.map((team) => <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableMultiSelect
+                label={t("csat.report.team")}
+                options={teamOptions.map((t) => ({ value: t.id, label: t.name }))}
+                selected={filters.teamId ? [filters.teamId] : []}
+                onChange={(v) => setFilters((f) => ({ ...f, teamId: v[0] ?? null, page: 0 }))}
+                placeholder={t("csat.report.team")}
+              />
             )}
             {tagOptions.length > 0 && (
-              <Select value={filters.tagId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, tagId: v === "all" ? null : v, page: 0 }))}>
-                <SelectTrigger className="w-[150px] h-9"><SelectValue placeholder="Tag" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t("filter.all_tags")}</SelectItem>
-                  {tagOptions.map((tag) => <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableMultiSelect
+                label="Tag"
+                options={tagOptions.map((t) => ({ value: t.id, label: t.name }))}
+                selected={filters.tagId ? [filters.tagId] : []}
+                onChange={(v) => setFilters((f) => ({ ...f, tagId: v[0] ?? null, page: 0 }))}
+                placeholder="Tag"
+              />
             )}
             <Input type="date" className="w-[140px] h-9" value={filters.dateFrom ?? ""} onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value || null, page: 0 }))} placeholder="De" />
             <Input type="date" className="w-[140px] h-9" value={filters.dateTo ?? ""} onChange={(e) => setFilters((f) => ({ ...f, dateTo: e.target.value || null, page: 0 }))} placeholder="Até" />
             {companyOptions.length > 0 && (
-              <Select value={filters.contactId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, contactId: v === "all" ? null : v, companyContactId: null, page: 0 }))}>
-                <SelectTrigger className="w-[170px] h-9"><SelectValue placeholder="Empresa" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas Empresas</SelectItem>
-                  {companyOptions.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableMultiSelect
+                label="Empresa"
+                options={companyOptions.map((c) => ({ value: c.id, label: c.name }))}
+                selected={filters.contactId ? [filters.contactId] : []}
+                onChange={(v) => setFilters((f) => ({ ...f, contactId: v[0] ?? null, companyContactId: null, page: 0 }))}
+                placeholder="Empresa"
+              />
             )}
             {contactOptions.length > 0 && (
-              <Select value={filters.companyContactId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, companyContactId: v === "all" ? null : v, page: 0 }))}>
-                <SelectTrigger className="w-[170px] h-9"><SelectValue placeholder="Contato" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos Contatos</SelectItem>
-                  {(filters.contactId ? contactOptions.filter(c => c.companyId === filters.contactId) : contactOptions).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableMultiSelect
+                label="Contato"
+                options={(filters.contactId ? contactOptions.filter(c => c.companyId === filters.contactId) : contactOptions).map((c) => ({ value: c.id, label: c.name }))}
+                selected={filters.companyContactId ? [filters.companyContactId] : []}
+                onChange={(v) => setFilters((f) => ({ ...f, companyContactId: v[0] ?? null, page: 0 }))}
+                placeholder="Contato"
+              />
             )}
           </FilterBar>
 

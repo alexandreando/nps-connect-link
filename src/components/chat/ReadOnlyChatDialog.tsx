@@ -4,9 +4,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Send, Eye, MessageSquare, RotateCcw, Clock, Star, User, Building2, ExternalLink, Tag } from "lucide-react";
+import { Send, Eye, MessageSquare, RotateCcw, Clock, Star, User, Building2, ExternalLink } from "lucide-react";
 import { useChatMessages } from "@/hooks/useChatRealtime";
 import { ChatMessageList } from "@/components/chat/ChatMessageList";
+import { ChatTagSelector } from "@/components/chat/ChatTagSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -31,7 +32,7 @@ interface RoomInfo {
   resolution_status: string | null;
   created_at: string | null;
   closed_at: string | null;
-  tags: { name: string; color: string }[];
+  
 }
 
 export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange, resolutionStatus, onReopen }: ReadOnlyChatDialogProps) {
@@ -65,14 +66,7 @@ export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange, re
         contact_name = contact?.name ?? null;
       }
 
-      // Fetch tags
-      const { data: roomTags } = await supabase.from("chat_room_tags").select("tag_id").eq("room_id", roomId);
-      let tags: { name: string; color: string }[] = [];
-      if (roomTags && roomTags.length > 0) {
-        const tagIds = roomTags.map(rt => rt.tag_id);
-        const { data: tagData } = await supabase.from("chat_tags").select("name, color").in("id", tagIds);
-        tags = tagData?.map(t => ({ name: t.name, color: t.color ?? "#6366f1" })) ?? [];
-      }
+
 
       setRoomInfo({
         attendant_name,
@@ -84,7 +78,6 @@ export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange, re
         resolution_status: room.resolution_status,
         created_at: room.created_at,
         closed_at: room.closed_at,
-        tags,
       });
     };
     fetchRoomInfo();
@@ -178,14 +171,7 @@ export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange, re
                   <Building2 className="h-3 w-3" />{roomInfo.contact_name}<ExternalLink className="h-2.5 w-2.5" />
                 </button>
               )}
-              {roomInfo.tags.length > 0 && (
-                <div className="flex items-center gap-1">
-                  <Tag className="h-3 w-3 text-muted-foreground" />
-                  {roomInfo.tags.map((tag, i) => (
-                    <Badge key={i} variant="outline" className="text-[9px] py-0" style={{ borderColor: tag.color, color: tag.color }}>{tag.name}</Badge>
-                  ))}
-                </div>
-              )}
+              {roomId && <ChatTagSelector roomId={roomId} compact />}
             </div>
           </div>
         )}

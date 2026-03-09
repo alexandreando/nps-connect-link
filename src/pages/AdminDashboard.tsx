@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableMultiSelect } from "@/components/ui/searchable-multi-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -301,13 +302,13 @@ const AdminDashboard = () => {
               <SelectItem value="all">{t("chat.gerencial.all_time")}</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={filters.attendantId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, attendantId: v === "all" ? null : v }))}>
-            <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder={t("chat.gerencial.filter_by_attendant")} /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("filter.all_attendants")}</SelectItem>
-              {attendantOptions.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <SearchableMultiSelect
+            label={t("chat.gerencial.filter_by_attendant")}
+            options={attendantOptions.map((a) => ({ value: a.id, label: a.name }))}
+            selected={filters.attendantId ? [filters.attendantId] : []}
+            onChange={(v) => setFilters((f) => ({ ...f, attendantId: v[0] ?? null }))}
+            placeholder={t("chat.gerencial.filter_by_attendant")}
+          />
           <Select value={filters.status ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, status: v === "all" ? null : v }))}>
             <SelectTrigger className="w-[130px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
@@ -327,40 +328,40 @@ const AdminDashboard = () => {
             </SelectContent>
           </Select>
           {categories.length > 0 && (
-            <Select value={filters.categoryId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, categoryId: v === "all" ? null : v }))}>
-              <SelectTrigger className="w-[170px] h-9"><SelectValue placeholder={t("chat.gerencial.filter_by_category")} /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <SearchableMultiSelect
+              label={t("chat.gerencial.filter_by_category")}
+              options={categories.map((c) => ({ value: c.id, label: c.name }))}
+              selected={filters.categoryId ? [filters.categoryId] : []}
+              onChange={(v) => setFilters((f) => ({ ...f, categoryId: v[0] ?? null }))}
+              placeholder={t("chat.gerencial.filter_by_category")}
+            />
           )}
-           {tags.length > 0 && (
-            <Select value={filters.tagId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, tagId: v === "all" ? null : v }))}>
-              <SelectTrigger className="w-[150px] h-9"><SelectValue placeholder="Tag" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("filter.all_tags")}</SelectItem>
-                {tags.map((tag) => <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          {tags.length > 0 && (
+            <SearchableMultiSelect
+              label="Tag"
+              options={tags.map((tag) => ({ value: tag.id, label: tag.name }))}
+              selected={filters.tagId ? [filters.tagId] : []}
+              onChange={(v) => setFilters((f) => ({ ...f, tagId: v[0] ?? null }))}
+              placeholder="Tag"
+            />
           )}
           {companyOptions.length > 0 && (
-            <Select value={filters.contactId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, contactId: v === "all" ? null : v, companyContactId: null }))}>
-              <SelectTrigger className="w-[170px] h-9"><SelectValue placeholder="Empresa" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas Empresas</SelectItem>
-                {companyOptions.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <SearchableMultiSelect
+              label="Empresa"
+              options={companyOptions.map((c) => ({ value: c.id, label: c.name }))}
+              selected={filters.contactId ? [filters.contactId] : []}
+              onChange={(v) => setFilters((f) => ({ ...f, contactId: v[0] ?? null, companyContactId: null }))}
+              placeholder="Empresa"
+            />
           )}
           {contactOptions.length > 0 && (
-            <Select value={filters.companyContactId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, companyContactId: v === "all" ? null : v }))}>
-              <SelectTrigger className="w-[170px] h-9"><SelectValue placeholder="Contato" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos Contatos</SelectItem>
-                {(filters.contactId ? contactOptions.filter(c => c.companyId === filters.contactId) : contactOptions).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <SearchableMultiSelect
+              label="Contato"
+              options={(filters.contactId ? contactOptions.filter(c => c.companyId === filters.contactId) : contactOptions).map((c) => ({ value: c.id, label: c.name }))}
+              selected={filters.companyContactId ? [filters.companyContactId] : []}
+              onChange={(v) => setFilters((f) => ({ ...f, companyContactId: v[0] ?? null }))}
+              placeholder="Contato"
+            />
           )}
         </FilterBar>
 
