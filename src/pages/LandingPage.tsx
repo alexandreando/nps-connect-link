@@ -207,7 +207,7 @@ const texts = {
     ],
     // Social proof
     socialTitle: "Impacto mensurável para seu time de CS",
-    socialSub: "Resultados médios de times em early access",
+    socialSub: "Resultados médios de times que usam o Journey",
     socialMetrics: [
       { value: "-40%", label: "Tempo de resposta" },
       { value: "NPS 72", label: "Score médio" },
