@@ -821,6 +821,55 @@ const AdminBanners = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* WCAG Contrast Badge */}
+                {(() => {
+                  const badge = getContrastBadge(form.bg_color, form.text_color);
+                  return (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Contraste WCAG:</span>
+                      <Badge className={cn("text-xs", badge.className)}>{badge.label}</Badge>
+                      <span className="text-xs text-muted-foreground">({getContrastRatio(form.bg_color, form.text_color).toFixed(1)}:1)</span>
+                    </div>
+                  );
+                })()}
+
+                {/* Position, Border, Shadow */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Posição</Label>
+                    <Select value={form.position} onValueChange={(v) => setForm({ ...form, position: v })}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {POSITION_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Borda</Label>
+                    <Select value={form.border_style} onValueChange={(v) => setForm({ ...form, border_style: v })}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {BORDER_STYLE_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Sombra</Label>
+                    <Select value={form.shadow_style} onValueChange={(v) => setForm({ ...form, shadow_style: v })}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {SHADOW_STYLE_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
 
               {/* Section 4: Link + Voting */}
