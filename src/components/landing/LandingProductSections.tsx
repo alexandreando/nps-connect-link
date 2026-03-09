@@ -1,16 +1,15 @@
-import {
-  MessageSquare, Target, BookOpen, CheckCircle2,
-  Users, Zap, Settings, BarChart3, History, StickyNote,
-  Mail, Layers, Search, FileText, ThumbsUp, Upload
-} from "lucide-react";
+import { MessageSquare, Target, BookOpen, CheckCircle2, Search } from "lucide-react";
 
 type ProductTexts = {
+  chatPain: string;
   chatTitle: string;
   chatSub: string;
   chatFeatures: string[];
+  npsPain: string;
   npsTitle: string;
   npsSub: string;
   npsFeatures: string[];
+  helpPain: string;
   helpTitle: string;
   helpSub: string;
   helpFeatures: string[];
@@ -30,48 +29,35 @@ const FeatureList = ({ features, color }: { features: string[]; color: string })
 /* ── Chat Workspace Mockup ──────────────── */
 const ChatWorkspaceMockup = () => (
   <div className="rounded-xl overflow-hidden" style={{ background: "#0F1115", border: "1px solid rgba(255,255,255,0.06)" }}>
-    <div className="flex" style={{ minHeight: 300 }}>
-      {/* Sidebar */}
+    <div className="flex" style={{ minHeight: 320 }}>
       <div className="w-[140px] border-r flex-shrink-0 p-2 space-y-1.5" style={{ borderColor: "rgba(255,255,255,0.06)", background: "#131722" }}>
         {[
           { name: "João Silva", badge: 2, active: true },
           { name: "Maria Santos", badge: 0, active: false },
           { name: "Pedro Costa", badge: 1, active: false },
         ].map((c) => (
-          <div
-            key={c.name}
-            className="flex items-center gap-2 rounded-lg px-2 py-2 cursor-default"
-            style={{ background: c.active ? "rgba(255,122,89,0.1)" : "transparent" }}
-          >
+          <div key={c.name} className="flex items-center gap-2 rounded-lg px-2 py-2 cursor-default" style={{ background: c.active ? "rgba(255,122,89,0.1)" : "transparent" }}>
             <div className="w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-semibold" style={{ background: "rgba(255,122,89,0.18)", color: "#FF7A59" }}>
-              {c.name.split(" ").map(n => n[0]).join("")}
+              {c.name.split(" ").map((n) => n[0]).join("")}
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-[10px] text-white truncate">{c.name}</div>
             </div>
-            {c.badge > 0 && (
-              <div className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ background: "#FF7A59" }}>{c.badge}</div>
-            )}
+            {c.badge > 0 && <div className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ background: "#FF7A59" }}>{c.badge}</div>}
           </div>
         ))}
       </div>
-      {/* Chat area */}
       <div className="flex-1 p-3 flex flex-col justify-between">
         <div className="space-y-2">
           <div className="flex gap-1.5 items-end">
-            <div className="rounded-lg rounded-bl-sm px-2.5 py-1.5 text-[10px]" style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)" }}>
-              Oi, preciso de ajuda com a exportação
-            </div>
+            <div className="rounded-lg rounded-bl-sm px-2.5 py-1.5 text-[10px]" style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)" }}>Oi, preciso de ajuda com a exportação</div>
           </div>
           <div className="flex justify-end">
-            <div className="rounded-lg rounded-br-sm px-2.5 py-1.5 text-[10px]" style={{ background: "rgba(255,122,89,0.15)", color: "rgba(255,255,255,0.8)" }}>
-              Claro! Vou verificar seu plano agora...
-            </div>
+            <div className="rounded-lg rounded-br-sm px-2.5 py-1.5 text-[10px]" style={{ background: "rgba(255,122,89,0.15)", color: "rgba(255,255,255,0.8)" }}>Claro! Vou verificar seu plano agora...</div>
           </div>
         </div>
         <div className="h-7 rounded-full mt-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }} />
       </div>
-      {/* Right panel */}
       <div className="w-[130px] border-l flex-shrink-0 p-2.5 space-y-2" style={{ borderColor: "rgba(255,255,255,0.06)", background: "#131722" }}>
         <div className="text-[9px] uppercase tracking-wider font-medium mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>Context</div>
         {[["Plan", "Pro"], ["MRR", "$2.4k"], ["Health", "72%"], ["NPS", "9"]].map(([k, v]) => (
@@ -150,41 +136,48 @@ const sections = (t: ProductTexts) => [
     id: "chat",
     icon: MessageSquare,
     color: "#FF7A59",
+    pain: t.chatPain,
     title: t.chatTitle,
     sub: t.chatSub,
     features: t.chatFeatures,
     Mockup: ChatWorkspaceMockup,
     reverse: false,
+    bg: "#0F1115",
   },
   {
     id: "nps",
     icon: Target,
     color: "#3498DB",
+    pain: t.npsPain,
     title: t.npsTitle,
     sub: t.npsSub,
     features: t.npsFeatures,
     Mockup: NPSDashboardMockup,
     reverse: true,
+    bg: "#0D0F13",
   },
   {
     id: "helpcenter",
     icon: BookOpen,
     color: "#2ECC71",
+    pain: t.helpPain,
     title: t.helpTitle,
     sub: t.helpSub,
     features: t.helpFeatures,
     Mockup: HelpCenterMockup,
     reverse: false,
+    bg: "#0F1115",
   },
 ];
 
 const LandingProductSections = ({ t }: { t: ProductTexts }) => (
-  <div style={{ background: "#0F1115" }}>
-    {sections(t).map(({ id, icon: Icon, color, title, sub, features, Mockup, reverse }) => (
-      <section key={id} id={id} className="py-16 px-4" style={{ background: "#0F1115" }}>
+  <div>
+    {sections(t).map(({ id, icon: Icon, color, pain, title, sub, features, Mockup, reverse, bg }) => (
+      <section key={id} id={id} className="py-20 px-4" style={{ background: bg }}>
         <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-14 items-center">
-          {/* Text */}
           <div className={`flex flex-col ${reverse ? "" : "lg:order-last"}`}>
+            {/* Pain label */}
+            <p className="text-[13px] font-medium mb-3" style={{ color }}>{pain}</p>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${color}14` }}>
                 <Icon style={{ color }} className="w-5 h-5" />
@@ -194,7 +187,6 @@ const LandingProductSections = ({ t }: { t: ProductTexts }) => (
             <p className="text-[14px] leading-relaxed mt-2" style={{ color: "rgba(255,255,255,0.5)", maxWidth: 500 }}>{sub}</p>
             <FeatureList features={features} color={color} />
           </div>
-          {/* Mockup */}
           <div className={`${reverse ? "" : "lg:order-first"}`}>
             <div className="rounded-xl p-5" style={{ background: "#171C28", border: "1px solid rgba(255,255,255,0.05)", boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}>
               <Mockup />

@@ -3,7 +3,7 @@ import { ArrowRight, Loader2, CheckCircle2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 
-type HeroFormTexts = {
+export type LeadFormTexts = {
   fieldName: string;
   fieldEmail: string;
   fieldPhone: string;
@@ -18,20 +18,41 @@ const leadSchema = z.object({
   phone: z.string().trim().min(8).max(20),
 });
 
-const HeroInput = ({ placeholder, type = "text", value, onChange }: { placeholder: string; type?: string; value: string; onChange: (v: string) => void }) => (
+const LeadInput = ({
+  placeholder,
+  type = "text",
+  value,
+  onChange,
+  variant = "dark",
+}: {
+  placeholder: string;
+  type?: string;
+  value: string;
+  onChange: (v: string) => void;
+  variant?: "dark" | "inline";
+}) => (
   <input
     type={type}
     placeholder={placeholder}
     value={value}
     onChange={(e) => onChange(e.target.value)}
     className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-colors duration-150"
-    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#F2F4F8" }}
+    style={{
+      background: variant === "inline" ? "rgba(255,255,255,0.06)" : "#1A1F2E",
+      border: "1px solid rgba(255,255,255,0.1)",
+      color: "#F2F4F8",
+    }}
     onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(255,122,89,0.5)")}
     onBlur={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)")}
   />
 );
 
-const LandingHeroForm = ({ t }: { t: HeroFormTexts }) => {
+interface LeadFormProps {
+  t: LeadFormTexts;
+  layout?: "inline" | "stacked";
+}
+
+const LeadForm = ({ t, layout = "stacked" }: LeadFormProps) => {
   const [loading, setLoading] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
@@ -48,7 +69,9 @@ const LandingHeroForm = ({ t }: { t: HeroFormTexts }) => {
     const result = leadSchema.safeParse(form);
     if (!result.success) {
       const fe: Record<string, string> = {};
-      result.error.errors.forEach((err) => { if (err.path[0]) fe[err.path[0] as string] = err.message; });
+      result.error.errors.forEach((err) => {
+        if (err.path[0]) fe[err.path[0] as string] = err.message;
+      });
       setErrors(fe);
       return;
     }
@@ -80,53 +103,51 @@ const LandingHeroForm = ({ t }: { t: HeroFormTexts }) => {
     }
   };
 
+  const variant = layout === "inline" ? "inline" : "dark";
+
   return (
     <>
-      <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2 w-full max-w-xl">
-        <div className="flex-1 min-w-0">
-          <HeroInput placeholder={t.fieldName} value={form.name} onChange={(v) => handleChange("name", v)} />
+      <form
+        onSubmit={handleSubmit}
+        className={layout === "inline" ? "flex flex-col sm:flex-row gap-2 w-full" : "flex flex-col gap-4 w-full"}
+      >
+        <div className={layout === "inline" ? "flex-1 min-w-0" : ""}>
+          <LeadInput placeholder={t.fieldName} value={form.name} onChange={(v) => handleChange("name", v)} variant={variant} />
           {errors.name && <p className="text-[10px] mt-0.5" style={{ color: "#FF5C5C" }}>{errors.name}</p>}
         </div>
-        <div className="flex-1 min-w-0">
-          <HeroInput placeholder={t.fieldEmail} type="email" value={form.email} onChange={(v) => handleChange("email", v)} />
+        <div className={layout === "inline" ? "flex-1 min-w-0" : ""}>
+          <LeadInput placeholder={t.fieldEmail} type="email" value={form.email} onChange={(v) => handleChange("email", v)} variant={variant} />
           {errors.email && <p className="text-[10px] mt-0.5" style={{ color: "#FF5C5C" }}>{errors.email}</p>}
         </div>
-        <div className="flex-1 min-w-0">
-          <HeroInput placeholder={t.fieldPhone} type="tel" value={form.phone} onChange={(v) => handleChange("phone", v)} />
+        <div className={layout === "inline" ? "flex-1 min-w-0" : ""}>
+          <LeadInput placeholder={t.fieldPhone} type="tel" value={form.phone} onChange={(v) => handleChange("phone", v)} variant={variant} />
           {errors.phone && <p className="text-[10px] mt-0.5" style={{ color: "#FF5C5C" }}>{errors.phone}</p>}
         </div>
         <button
           type="submit"
           disabled={loading}
-          className="px-6 py-3 rounded-lg font-medium text-sm transition-all duration-150 hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap flex-shrink-0"
+          className={`rounded-lg font-medium text-sm transition-all duration-150 hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap flex-shrink-0 ${
+            layout === "inline" ? "px-6 py-3" : "w-full py-3.5 mt-1"
+          }`}
           style={{ background: "#FF7A59", color: "#fff" }}
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ArrowRight className="w-4 h-4" /> {t.formCta}</>}
         </button>
       </form>
 
-      {/* Thank you popup */}
       {showPopup && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}>
           <div
             className="relative rounded-2xl p-8 text-center max-w-sm mx-4"
             style={{ background: "#131722", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 32px 80px rgba(0,0,0,0.6)" }}
           >
-            <button
-              onClick={() => setShowPopup(false)}
-              className="absolute top-4 right-4 p-1 rounded-lg transition-colors"
-              style={{ color: "rgba(255,255,255,0.4)" }}
-            >
+            <button onClick={() => setShowPopup(false)} className="absolute top-4 right-4 p-1 rounded-lg" style={{ color: "rgba(255,255,255,0.4)" }}>
               <X className="w-4 h-4" />
             </button>
             <CheckCircle2 className="w-14 h-14 mx-auto mb-4" style={{ color: "#2ED47A" }} />
             <h3 className="text-xl font-semibold text-white mb-2">{t.successTitle}</h3>
             <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.5)" }}>{t.successSub}</p>
-            <button
-              onClick={() => setShowPopup(false)}
-              className="px-6 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
-              style={{ background: "#FF7A59", color: "#fff" }}
-            >
+            <button onClick={() => setShowPopup(false)} className="px-6 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90" style={{ background: "#FF7A59", color: "#fff" }}>
               OK
             </button>
           </div>
@@ -136,4 +157,4 @@ const LandingHeroForm = ({ t }: { t: HeroFormTexts }) => {
   );
 };
 
-export default LandingHeroForm;
+export default LeadForm;
