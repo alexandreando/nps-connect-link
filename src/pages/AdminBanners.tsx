@@ -108,6 +108,30 @@ const TEXT_COLOR_PRESETS = [
   "#ECFDF5", "#EFF6FF", "#F5F3FF", "#ECFEFF", "#FEE2E2",
 ];
 
+const GRADIENT_PRESETS = [
+  // Duo-color
+  { name: "Ocean", value: "linear-gradient(135deg, #3B82F6, #8B5CF6)", group: "duo" },
+  { name: "Sunset", value: "linear-gradient(135deg, #F97316, #EF4444)", group: "duo" },
+  { name: "Emerald", value: "linear-gradient(135deg, #10B981, #06B6D4)", group: "duo" },
+  { name: "Berry", value: "linear-gradient(135deg, #8B5CF6, #EC4899)", group: "duo" },
+  { name: "Midnight", value: "linear-gradient(135deg, #1E293B, #3B82F6)", group: "duo" },
+  { name: "Amber", value: "linear-gradient(135deg, #F59E0B, #F97316)", group: "duo" },
+  { name: "Fuchsia", value: "linear-gradient(135deg, #EC4899, #8B5CF6)", group: "duo" },
+  { name: "Teal", value: "linear-gradient(135deg, #06B6D4, #10B981)", group: "duo" },
+  // Monocromáticos
+  { name: "Blue", value: "linear-gradient(135deg, #93C5FD, #1D4ED8)", group: "mono" },
+  { name: "Red", value: "linear-gradient(135deg, #FCA5A5, #B91C1C)", group: "mono" },
+  { name: "Green", value: "linear-gradient(135deg, #86EFAC, #15803D)", group: "mono" },
+  { name: "Purple", value: "linear-gradient(135deg, #C4B5FD, #6D28D9)", group: "mono" },
+  { name: "Gray", value: "linear-gradient(135deg, #D1D5DB, #374151)", group: "mono" },
+  { name: "Pink", value: "linear-gradient(135deg, #F9A8D4, #BE185D)", group: "mono" },
+  { name: "Orange", value: "linear-gradient(135deg, #FDBA74, #C2410C)", group: "mono" },
+  { name: "Cyan", value: "linear-gradient(135deg, #67E8F9, #0E7490)", group: "mono" },
+];
+
+const isGradient = (color: string) => color.startsWith("linear-gradient");
+const bgStyle = (color: string) => isGradient(color) ? { background: color } : { backgroundColor: color };
+
 const BANNER_TYPES: { value: BannerType; label: string; icon: typeof Info; bgClass: string; borderClass: string }[] = [
   { value: "info", label: "Informação", icon: Info, bgClass: "bg-blue-500/15", borderClass: "border-blue-500/50" },
   { value: "warning", label: "Alerta", icon: AlertTriangle, bgClass: "bg-amber-500/15", borderClass: "border-amber-500/50" },
