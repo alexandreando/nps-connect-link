@@ -142,7 +142,7 @@ const texts = {
       { label: "Plataforma", href: "/journey" },
     ],
     footerCompanyLinks: [
-      { label: "Acesso Antecipado", href: "#early-access" },
+      { label: "Começar", href: "#early-access" },
     ],
     footerLegalLinks: [
       { label: "Política de Privacidade", href: "#" },
