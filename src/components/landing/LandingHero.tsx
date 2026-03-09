@@ -1,5 +1,15 @@
 import { useState } from "react";
-import { ArrowRight, MessageSquare, Target, BookOpen, Send, X, User } from "lucide-react";
+import { MessageSquare, Target, BookOpen, Send, X, User } from "lucide-react";
+import LandingHeroForm from "./LandingHeroForm";
+
+type HeroFormTexts = {
+  fieldName: string;
+  fieldEmail: string;
+  fieldPhone: string;
+  formCta: string;
+  successTitle: string;
+  successSub: string;
+};
 
 type HeroTexts = {
   heroBadge: string;
