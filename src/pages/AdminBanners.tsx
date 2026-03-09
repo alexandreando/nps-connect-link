@@ -883,7 +883,7 @@ const AdminBanners = () => {
                 </div>
 
                 {/* WCAG Contrast Badge */}
-                {(() => {
+                {!isGradient(form.bg_color) && (() => {
                   const badge = getContrastBadge(form.bg_color, form.text_color);
                   return (
                     <div className="flex items-center gap-2">

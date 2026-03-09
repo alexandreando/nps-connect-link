@@ -89,7 +89,7 @@
     div.style.cssText =
       "padding:18px 48px 18px 20px;font-size:14px;font-weight:500;letter-spacing:0.01em;line-height:1.5;" +
       "position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;" +
-      "background-color:" + banner.bg_color + ";color:" + banner.text_color + ";" +
+      (banner.bg_color && banner.bg_color.indexOf("linear-gradient") === 0 ? "background:" : "background-color:") + banner.bg_color + ";color:" + banner.text_color + ";" +
       "transform:translateY(-100%);transition:transform 0.3s ease;" +
       borderCss + shadowCss;
 

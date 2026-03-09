@@ -96,7 +96,7 @@ const BannerPreview = ({
           borderClass,
           shadowClass
         )}
-        style={{ backgroundColor: bgColor, color: textColor }}
+        style={{ ...(bgColor.startsWith("linear-gradient") ? { background: bgColor } : { backgroundColor: bgColor }), color: textColor }}
       >
         {/* Close button - absolute positioned */}
         <button
