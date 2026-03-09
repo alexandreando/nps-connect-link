@@ -108,6 +108,30 @@ const TEXT_COLOR_PRESETS = [
   "#ECFDF5", "#EFF6FF", "#F5F3FF", "#ECFEFF", "#FEE2E2",
 ];
 
+const GRADIENT_PRESETS = [
+  // Duo-color
+  { name: "Ocean", value: "linear-gradient(135deg, #3B82F6, #8B5CF6)", group: "duo" },
+  { name: "Sunset", value: "linear-gradient(135deg, #F97316, #EF4444)", group: "duo" },
+  { name: "Emerald", value: "linear-gradient(135deg, #10B981, #06B6D4)", group: "duo" },
+  { name: "Berry", value: "linear-gradient(135deg, #8B5CF6, #EC4899)", group: "duo" },
+  { name: "Midnight", value: "linear-gradient(135deg, #1E293B, #3B82F6)", group: "duo" },
+  { name: "Amber", value: "linear-gradient(135deg, #F59E0B, #F97316)", group: "duo" },
+  { name: "Fuchsia", value: "linear-gradient(135deg, #EC4899, #8B5CF6)", group: "duo" },
+  { name: "Teal", value: "linear-gradient(135deg, #06B6D4, #10B981)", group: "duo" },
+  // Monocromáticos
+  { name: "Blue", value: "linear-gradient(135deg, #93C5FD, #1D4ED8)", group: "mono" },
+  { name: "Red", value: "linear-gradient(135deg, #FCA5A5, #B91C1C)", group: "mono" },
+  { name: "Green", value: "linear-gradient(135deg, #86EFAC, #15803D)", group: "mono" },
+  { name: "Purple", value: "linear-gradient(135deg, #C4B5FD, #6D28D9)", group: "mono" },
+  { name: "Gray", value: "linear-gradient(135deg, #D1D5DB, #374151)", group: "mono" },
+  { name: "Pink", value: "linear-gradient(135deg, #F9A8D4, #BE185D)", group: "mono" },
+  { name: "Orange", value: "linear-gradient(135deg, #FDBA74, #C2410C)", group: "mono" },
+  { name: "Cyan", value: "linear-gradient(135deg, #67E8F9, #0E7490)", group: "mono" },
+];
+
+const isGradient = (color: string) => color.startsWith("linear-gradient");
+const bgStyle = (color: string) => isGradient(color) ? { background: color } : { backgroundColor: color };
+
 const BANNER_TYPES: { value: BannerType; label: string; icon: typeof Info; bgClass: string; borderClass: string }[] = [
   { value: "info", label: "Informação", icon: Info, bgClass: "bg-blue-500/15", borderClass: "border-blue-500/50" },
   { value: "warning", label: "Alerta", icon: AlertTriangle, bgClass: "bg-amber-500/15", borderClass: "border-amber-500/50" },
@@ -578,7 +602,7 @@ const AdminBanners = () => {
                       {/* Type icon + color stripe */}
                       <div
                         className="w-12 h-12 rounded-lg flex-shrink-0 flex items-center justify-center"
-                        style={{ backgroundColor: banner.bg_color }}
+                        style={bgStyle(banner.bg_color)}
                       >
                         <TypeIcon className="h-5 w-5" style={{ color: banner.text_color }} />
                       </div>
@@ -781,7 +805,7 @@ const AdminBanners = () => {
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground">{t("banners.bgColor")}</Label>
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-8 h-8 rounded-md border border-border flex-shrink-0" style={{ backgroundColor: form.bg_color }} />
+                      <div className="w-8 h-8 rounded-md border border-border flex-shrink-0" style={bgStyle(form.bg_color)} />
                       <Input value={form.bg_color} onChange={(e) => setForm({ ...form, bg_color: e.target.value })} className="flex-1 h-8 text-xs font-mono" />
                     </div>
                     <div className="grid grid-cols-5 gap-1">
@@ -791,10 +815,46 @@ const AdminBanners = () => {
                           type="button"
                           className={cn(
                             "w-full aspect-square rounded-md border-2 transition-transform hover:scale-110",
-                            form.bg_color.toLowerCase() === color.toLowerCase() ? "border-foreground ring-1 ring-foreground scale-110" : "border-transparent"
+                            !isGradient(form.bg_color) && form.bg_color.toLowerCase() === color.toLowerCase() ? "border-foreground ring-1 ring-foreground scale-110" : "border-transparent"
                           )}
                           style={{ backgroundColor: color }}
                           onClick={() => setForm({ ...form, bg_color: color })}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Gradient Presets - Duo */}
+                    <Label className="text-xs text-muted-foreground mt-2">Gradientes</Label>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {GRADIENT_PRESETS.filter(g => g.group === "duo").map((g) => (
+                        <button
+                          key={g.name}
+                          type="button"
+                          title={g.name}
+                          className={cn(
+                            "w-full rounded-md border-2 transition-transform hover:scale-105",
+                            form.bg_color === g.value ? "border-foreground ring-1 ring-foreground scale-105" : "border-transparent"
+                          )}
+                          style={{ background: g.value, aspectRatio: "3/1" }}
+                          onClick={() => setForm({ ...form, bg_color: g.value })}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Gradient Presets - Mono */}
+                    <Label className="text-xs text-muted-foreground mt-1">Monocromáticos</Label>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {GRADIENT_PRESETS.filter(g => g.group === "mono").map((g) => (
+                        <button
+                          key={g.name}
+                          type="button"
+                          title={g.name}
+                          className={cn(
+                            "w-full rounded-md border-2 transition-transform hover:scale-105",
+                            form.bg_color === g.value ? "border-foreground ring-1 ring-foreground scale-105" : "border-transparent"
+                          )}
+                          style={{ background: g.value, aspectRatio: "3/1" }}
+                          onClick={() => setForm({ ...form, bg_color: g.value })}
                         />
                       ))}
                     </div>
@@ -823,7 +883,7 @@ const AdminBanners = () => {
                 </div>
 
                 {/* WCAG Contrast Badge */}
-                {(() => {
+                {!isGradient(form.bg_color) && (() => {
                   const badge = getContrastBadge(form.bg_color, form.text_color);
                   return (
                     <div className="flex items-center gap-2">
