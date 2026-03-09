@@ -90,10 +90,6 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
   const [contactsOpen, handleContactsOpen] = usePersistedState("sidebar-contacts-open");
   const [helpOpen, handleHelpOpen] = usePersistedState("sidebar-help-open");
 
-  const showCS = hasPermission("cs", "view") || hasPermission("cs.kanban", "view") || hasPermission("cs.trails", "view");
-  const showCSReports = hasPermission("cs.reports.health", "view") || hasPermission("cs.reports.churn", "view") || hasPermission("cs.reports.financial", "view");
-  const showChatReports = hasPermission("chat.reports", "view");
-  const showReports = showCSReports || showChatReports;
   const showChat = hasPermission("chat", "view") || hasPermission("chat.workspace", "view") || hasPermission("chat.history", "view") || hasPermission("chat.broadcasts", "view");
   const showNPS = hasPermission("nps", "view") || hasPermission("nps.dashboard", "view") || hasPermission("nps.campaigns", "view");
   const showContacts = hasPermission("contacts", "view") || hasPermission("contacts.companies", "view") || hasPermission("contacts.people", "view");
