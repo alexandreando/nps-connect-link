@@ -75,6 +75,63 @@ const ChatWorkspaceMockup = () => (
   </div>
 );
 
+/* ── CSAT Dashboard Mockup ──────────────── */
+const CSATDashboardMockup = () => (
+  <div className="rounded-xl p-4 space-y-3" style={{ background: "#0F1115", border: "1px solid rgba(255,255,255,0.06)" }}>
+    <div className="flex items-center justify-between">
+      <div>
+        <div className="text-[10px] uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.3)" }}>CSAT Score</div>
+        <div className="text-3xl font-semibold" style={{ color: "#F59E0B" }}>4.6<span className="text-base font-normal" style={{ color: "rgba(255,255,255,0.3)" }}>/5</span></div>
+      </div>
+      <div className="text-right">
+        <div className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>Responses</div>
+        <div className="text-lg font-medium text-white">842</div>
+      </div>
+    </div>
+    {/* Star distribution bars */}
+    <div className="space-y-1.5">
+      {[
+        { stars: 5, pct: 68, color: "#2ECC71" },
+        { stars: 4, pct: 18, color: "#F59E0B" },
+        { stars: 3, pct: 8, color: "#F5B546" },
+        { stars: 2, pct: 4, color: "#FF8C42" },
+        { stars: 1, pct: 2, color: "#FF5C5C" },
+      ].map((row) => (
+        <div key={row.stars} className="flex items-center gap-2">
+          <div className="flex gap-0.5 w-[52px]">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Star key={i} className="w-2.5 h-2.5" style={{ color: i < row.stars ? row.color : "rgba(255,255,255,0.1)" }} fill={i < row.stars ? row.color : "none"} />
+            ))}
+          </div>
+          <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
+            <div className="h-full rounded-full" style={{ width: `${row.pct}%`, background: row.color }} />
+          </div>
+          <div className="text-[9px] w-7 text-right" style={{ color: "rgba(255,255,255,0.4)" }}>{row.pct}%</div>
+        </div>
+      ))}
+    </div>
+    {/* Recent feedback */}
+    <div className="space-y-1.5">
+      {[
+        { name: "Ana L.", score: 5, text: "Excelente atendimento!" },
+        { name: "Carlos M.", score: 2, text: "Demorou para resolver..." },
+      ].map((fb) => (
+        <div key={fb.name} className="rounded-lg p-2" style={{ background: fb.score <= 2 ? "rgba(255,92,92,0.06)" : "rgba(255,255,255,0.02)", border: `1px solid ${fb.score <= 2 ? "rgba(255,92,92,0.1)" : "rgba(255,255,255,0.04)"}` }}>
+          <div className="flex items-center justify-between mb-0.5">
+            <span className="text-[9px] font-medium text-white">{fb.name}</span>
+            <div className="flex gap-0.5">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star key={i} className="w-2 h-2" style={{ color: i < fb.score ? "#F59E0B" : "rgba(255,255,255,0.1)" }} fill={i < fb.score ? "#F59E0B" : "none"} />
+              ))}
+            </div>
+          </div>
+          <div className="text-[9px]" style={{ color: "rgba(255,255,255,0.5)" }}>{fb.text}</div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
 /* ── NPS Dashboard Mockup ──────────────── */
 const NPSDashboardMockup = () => (
   <div className="rounded-xl p-4 space-y-3" style={{ background: "#0F1115", border: "1px solid rgba(255,255,255,0.06)" }}>
