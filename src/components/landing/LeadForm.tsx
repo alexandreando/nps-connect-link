@@ -111,15 +111,15 @@ const LeadForm = ({ t, layout = "stacked" }: LeadFormProps) => {
         onSubmit={handleSubmit}
         className={layout === "inline" ? "flex flex-col md:flex-row gap-2 w-full" : "flex flex-col gap-4 w-full"}
       >
-        <div className={layout === "inline" ? "flex-1 min-w-0" : ""}>
+        <div className={layout === "inline" ? "flex-1 min-w-[140px]" : ""}>
           <LeadInput placeholder={t.fieldName} value={form.name} onChange={(v) => handleChange("name", v)} variant={variant} />
           {errors.name && <p className="text-[10px] mt-0.5" style={{ color: "#FF5C5C" }}>{errors.name}</p>}
         </div>
-        <div className={layout === "inline" ? "flex-1 min-w-0" : ""}>
+        <div className={layout === "inline" ? "flex-1 min-w-[160px]" : ""}>
           <LeadInput placeholder={t.fieldEmail} type="email" value={form.email} onChange={(v) => handleChange("email", v)} variant={variant} />
           {errors.email && <p className="text-[10px] mt-0.5" style={{ color: "#FF5C5C" }}>{errors.email}</p>}
         </div>
-        <div className={layout === "inline" ? "flex-1 min-w-0" : ""}>
+        <div className={layout === "inline" ? "flex-1 min-w-[120px]" : ""}>
           <LeadInput placeholder={t.fieldPhone} type="tel" value={form.phone} onChange={(v) => handleChange("phone", v)} variant={variant} />
           {errors.phone && <p className="text-[10px] mt-0.5" style={{ color: "#FF5C5C" }}>{errors.phone}</p>}
         </div>
