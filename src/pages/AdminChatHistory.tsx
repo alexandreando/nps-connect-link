@@ -35,13 +35,15 @@ function csatColor(score: number | null): string {
   return "text-green-500";
 }
 
-// Multi-select filter component
+// Multi-select filter component with search
 function MultiSelectFilter({ label, options, selected, onChange }: {
   label: string;
   options: { value: string; label: string; color?: string }[];
   selected: string[];
   onChange: (values: string[]) => void;
 }) {
+  const [search, setSearch] = useState("");
+  const filtered = options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()));
   const toggle = (value: string) => {
     onChange(selected.includes(value) ? selected.filter(v => v !== value) : [...selected, value]);
   };
@@ -56,21 +58,34 @@ function MultiSelectFilter({ label, options, selected, onChange }: {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-56 p-2" align="start">
-        <div className="space-y-1">
-          {options.map(opt => (
+      <PopoverContent className="w-60 p-2" align="start">
+        <div className="relative mb-2">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar..."
+            className="h-8 text-xs pl-8"
+            autoFocus
+          />
+        </div>
+        <div className="max-h-48 overflow-y-auto space-y-0.5">
+          {filtered.map(opt => (
             <label key={opt.value} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-sm">
               <Checkbox checked={selected.includes(opt.value)} onCheckedChange={() => toggle(opt.value)} />
               {opt.color && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: opt.color }} />}
               <span className="truncate">{opt.label}</span>
             </label>
           ))}
-          {selected.length > 0 && (
-            <Button variant="ghost" size="sm" className="w-full text-[11px] mt-1" onClick={() => onChange([])}>
-              <X className="h-3 w-3 mr-1" />Limpar
-            </Button>
+          {filtered.length === 0 && (
+            <p className="text-[11px] text-muted-foreground text-center py-3">Nenhum resultado</p>
           )}
         </div>
+        {selected.length > 0 && (
+          <Button variant="ghost" size="sm" className="w-full text-[11px] mt-1" onClick={() => onChange([])}>
+            <X className="h-3 w-3 mr-1" />Limpar
+          </Button>
+        )}
       </PopoverContent>
     </Popover>
   );
