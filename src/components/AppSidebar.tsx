@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSidebarData } from "@/contexts/SidebarDataContext";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Route,
