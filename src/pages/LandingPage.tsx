@@ -218,7 +218,7 @@ const texts = {
     faqTitle: "Perguntas frequentes",
     faqItems: [
       { q: "Quanto tempo leva para instalar?", a: "O widget de chat pode ser instalado com uma única linha de JavaScript. A configuração completa incluindo NPS e Help Center leva menos de 30 minutos." },
-      { q: "Preciso de cartão de crédito?", a: "Não. O acesso antecipado é gratuito e não exige informações de pagamento." },
+      { q: "Preciso de cartão de crédito?", a: "Não. Começar é gratuito e não exige informações de pagamento." },
       { q: "Funciona com meu CRM?", a: "O Journey possui CRM integrado com timeline e kanban. Também suportamos integrações via API e webhooks." },
       { q: "Como os dados são protegidos?", a: "Todos os dados são criptografados em repouso e em trânsito. Somos compatíveis com a LGPD e seguimos as melhores práticas de segurança." },
       { q: "Posso personalizar o widget de chat?", a: "Sim — cores, posição, campos do formulário, horários de atendimento, mensagens de boas-vindas e mais são totalmente configuráveis." },
