@@ -100,7 +100,7 @@ const texts = {
     faqTitle: "Frequently Asked Questions",
     faqItems: [
       { q: "How long does it take to install?", a: "The chat widget can be installed with a single line of JavaScript. Full setup including NPS and Help Center typically takes under 30 minutes." },
-      { q: "Do I need a credit card?", a: "No. Early access is free and doesn't require payment information." },
+      { q: "Do I need a credit card?", a: "No. Getting started is free and doesn't require payment information." },
       { q: "Does it work with my CRM?", a: "Journey has a built-in CRM with timeline and kanban. We also support integrations via API and webhooks." },
       { q: "How is the data protected?", a: "All data is encrypted at rest and in transit. We are LGPD compliant and follow industry-standard security practices." },
       { q: "Can I customize the chat widget?", a: "Yes — colors, position, form fields, business hours, welcome messages, and more are fully configurable." },
