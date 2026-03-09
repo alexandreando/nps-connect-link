@@ -1,5 +1,6 @@
 import { ThumbsUp, ThumbsDown, ExternalLink, X, MessageSquare, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface BannerPreviewProps {
   content: string;
@@ -13,6 +14,9 @@ interface BannerPreviewProps {
   bannerType?: string;
   startsAt?: string;
   expiresAt?: string;
+  position?: string;
+  borderStyle?: string;
+  shadowStyle?: string;
 }
 
 const BANNER_TYPE_ICONS: Record<string, typeof Info> = {
@@ -23,61 +27,124 @@ const BANNER_TYPE_ICONS: Record<string, typeof Info> = {
   update: Sparkles,
 };
 
-const BannerPreview = ({ content, contentHtml, textAlign = "left", bgColor, textColor, linkUrl, linkLabel, hasVoting, bannerType = "info", startsAt, expiresAt }: BannerPreviewProps) => {
+const BORDER_STYLES: Record<string, string> = {
+  none: "",
+  subtle: "border-b border-white/15",
+  rounded: "rounded-b-xl",
+  pill: "mx-4 mt-2 rounded-3xl",
+};
+
+const SHADOW_STYLES: Record<string, string> = {
+  none: "",
+  soft: "shadow-[0_2px_8px_rgba(0,0,0,0.08)]",
+  medium: "shadow-[0_4px_16px_rgba(0,0,0,0.12)]",
+  strong: "shadow-[0_8px_32px_rgba(0,0,0,0.18)]",
+};
+
+const BannerPreview = ({
+  content,
+  contentHtml,
+  textAlign = "center",
+  bgColor,
+  textColor,
+  linkUrl,
+  linkLabel,
+  hasVoting,
+  bannerType = "info",
+  startsAt,
+  expiresAt,
+  position = "top",
+  borderStyle = "none",
+  shadowStyle = "none",
+}: BannerPreviewProps) => {
   const TypeIcon = BANNER_TYPE_ICONS[bannerType] ?? Info;
 
   const getScheduleBadge = () => {
     if (!startsAt && !expiresAt) return null;
     const now = new Date();
     if (startsAt && new Date(startsAt) > now) {
-      return <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-current opacity-70" style={{ color: textColor }}>Agendado</Badge>;
+      return (
+        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-current opacity-70" style={{ color: textColor }}>
+          Agendado
+        </Badge>
+      );
     }
     if (expiresAt) {
       const diff = Math.ceil((new Date(expiresAt).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       if (diff > 0 && diff <= 7) {
-        return <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-current opacity-70" style={{ color: textColor }}>Expira em {diff}d</Badge>;
+        return (
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-current opacity-70" style={{ color: textColor }}>
+            Expira em {diff}d
+          </Badge>
+        );
       }
     }
     return null;
   };
 
+  const borderClass = BORDER_STYLES[borderStyle] || "";
+  const shadowClass = SHADOW_STYLES[shadowStyle] || "";
+  const isPill = borderStyle === "pill";
+
   return (
     <div className="w-full max-w-lg mx-auto rounded-xl overflow-hidden shadow-lg border bg-background">
       {/* Banner */}
       <div
-        className="px-4 py-3 text-sm relative flex items-center justify-between gap-3"
+        className={cn(
+          "px-5 py-4 text-sm relative flex flex-col items-center justify-center gap-2",
+          "font-medium tracking-[0.01em] leading-relaxed",
+          borderClass,
+          shadowClass
+        )}
         style={{ backgroundColor: bgColor, color: textColor }}
       >
-        <div className="flex-1 flex items-center gap-2.5 flex-wrap" style={{ textAlign: textAlign as any }}>
+        {/* Close button - absolute positioned */}
+        <button
+          className="absolute top-3 right-3 p-1 rounded opacity-70 hover:opacity-100 transition-opacity"
+          style={{ color: textColor }}
+        >
+          <X className="h-4 w-4" />
+        </button>
+
+        {/* Main content - centered */}
+        <div className="flex items-center justify-center gap-2.5 w-full pr-8 text-center">
           <TypeIcon className="h-4 w-4 flex-shrink-0 opacity-90" />
           {contentHtml ? (
-            <span dangerouslySetInnerHTML={{ __html: contentHtml }} style={{ maxHeight: "3em", overflow: "hidden", display: "block", lineHeight: "1.4", flex: 1, wordBreak: "break-word" }} />
+            <span
+              dangerouslySetInnerHTML={{ __html: contentHtml }}
+              className="flex-1"
+              style={{ maxHeight: "3em", overflow: "hidden", display: "block", lineHeight: "1.5", wordBreak: "break-word" }}
+            />
           ) : (
             <span className="flex-1">{content || "Texto do banner aqui..."}</span>
           )}
           {getScheduleBadge()}
-          {linkUrl && (
-            <span className="inline-flex items-center gap-1 text-xs underline opacity-90" style={{ color: textColor }}>
-              {linkLabel || "Saiba mais"}
-              <ExternalLink className="h-3 w-3" />
-            </span>
-          )}
         </div>
-        <div className="flex items-center gap-1">
-          {hasVoting && (
-            <>
-              <span className="p-1 rounded" style={{ color: textColor }}>
-                <ThumbsUp className="h-3.5 w-3.5" />
+
+        {/* Actions row - centered below content */}
+        {(linkUrl || hasVoting) && (
+          <div className="flex items-center justify-center gap-3 mt-1">
+            {linkUrl && (
+              <span
+                className="inline-flex items-center gap-1 text-xs underline opacity-90 hover:opacity-100 cursor-pointer"
+                style={{ color: textColor }}
+              >
+                {linkLabel || "Saiba mais"}
+                <ExternalLink className="h-3 w-3" />
               </span>
-              <span className="p-1 rounded" style={{ color: textColor }}>
-                <ThumbsDown className="h-3.5 w-3.5" />
-              </span>
-            </>
-          )}
-          <span className="p-1 rounded opacity-70" style={{ color: textColor }}>
-            <X className="h-3.5 w-3.5" />
-          </span>
-        </div>
+            )}
+            {hasVoting && (
+              <div className="flex items-center gap-1">
+                <span className="p-1 rounded hover:bg-white/10 cursor-pointer" style={{ color: textColor }}>
+                  <ThumbsUp className="h-3.5 w-3.5" />
+                </span>
+                <span className="p-1 rounded hover:bg-white/10 cursor-pointer" style={{ color: textColor }}>
+                  <ThumbsDown className="h-3.5 w-3.5" />
+                </span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Mock navbar */}
