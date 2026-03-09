@@ -50,13 +50,11 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
         .eq("tenant_id", currentTenantId);
       attendants = data ?? [];
     } else if (adminStatus) {
-      // Fetch all tenant attendants
       const { data: allData } = await supabase
         .from("attendant_profiles")
         .select("id, display_name, user_id, status, active_conversations");
       const allAttendants = allData ?? [];
 
-      // Check if admin belongs to any team to split my team vs other teams
       if (myProfile) {
         const { data: myTeams } = await supabase
           .from("chat_team_members")
@@ -73,7 +71,6 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
           attendants = allAttendants.filter((a: any) => myTeamIds.has(a.id));
           otherAttendants = allAttendants.filter((a: any) => !myTeamIds.has(a.id));
         } else {
-          // Admin not in any team: show all in main list
           attendants = allAttendants;
         }
       } else {
@@ -109,7 +106,6 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Fetch other team attendants for non-admin users with a tenant
     if (!adminStatus && !masterImpersonating && currentTenantId && myProfile) {
       const { data: allTenant } = await supabase
         .from("attendant_profiles")
@@ -119,8 +115,6 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
       otherAttendants = (allTenant ?? []).filter((a: any) => !myIds.has(a.id));
     }
 
-    // Use active_conversations from attendant_profiles instead of scanning all rooms
-    // Only fetch unassigned count with a lightweight head-only query
     let unassignedQuery = supabase
       .from("chat_rooms")
       .select("id", { count: "exact", head: true })
@@ -165,6 +159,33 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
     initializedForRef.current = userId + (currentTenantId ?? '');
   }, []);
 
+  // Resync counts from the database (always accurate thanks to COUNT-based trigger)
+  const resyncCounts = useCallback(async () => {
+    const { count: unassigned } = await supabase
+      .from("chat_rooms")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["active", "waiting"])
+      .is("attendant_id", null);
+    setUnassignedCount(unassigned ?? 0);
+
+    const allIds = [...new Set([
+      ...teamAttendants.map(a => a.id),
+      ...otherTeamAttendants.map(a => a.id),
+    ])];
+    if (allIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("attendant_profiles")
+        .select("id, active_conversations")
+        .in("id", allIds);
+      if (profiles) {
+        const countsMap: Record<string, number> = {};
+        profiles.forEach(p => { countsMap[p.id] = p.active_conversations ?? 0; });
+        setTeamAttendants(prev => prev.map(a => ({ ...a, active_count: countsMap[a.id] ?? a.active_count })));
+        setOtherTeamAttendants(prev => prev.map(a => ({ ...a, active_count: countsMap[a.id] ?? a.active_count })));
+      }
+    }
+  }, [teamAttendants, otherTeamAttendants]);
+
   // Debounced resync: triggers on any room change instead of incremental patches
   const resyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const debouncedResync = useCallback(() => {
@@ -195,7 +216,6 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
     };
 
     if (payload.eventType === "INSERT") {
-      // For inserts, we add to teamAttendants if not present
       setTeamAttendants(prev => {
         if (prev.find(a => a.id === updated.id)) return prev;
         return [...prev, {
@@ -211,34 +231,6 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
     applyToSetter(setTeamAttendants);
     applyToSetter(setOtherTeamAttendants);
   }, []);
-
-  const resyncCounts = useCallback(async () => {
-    // Lightweight: only count unassigned rooms
-    const { count: unassigned } = await supabase
-      .from("chat_rooms")
-      .select("id", { count: "exact", head: true })
-      .in("status", ["active", "waiting"])
-      .is("attendant_id", null);
-    setUnassignedCount(unassigned ?? 0);
-
-    // Re-read active_conversations from profiles
-    const allIds = [...new Set([
-      ...teamAttendants.map(a => a.id),
-      ...otherTeamAttendants.map(a => a.id),
-    ])];
-    if (allIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from("attendant_profiles")
-        .select("id, active_conversations")
-        .in("id", allIds);
-      if (profiles) {
-        const countsMap: Record<string, number> = {};
-        profiles.forEach(p => { countsMap[p.id] = p.active_conversations ?? 0; });
-        setTeamAttendants(prev => prev.map(a => ({ ...a, active_count: countsMap[a.id] ?? a.active_count })));
-        setOtherTeamAttendants(prev => prev.map(a => ({ ...a, active_count: countsMap[a.id] ?? a.active_count })));
-      }
-    }
-  }, [teamAttendants, otherTeamAttendants]);
 
   // Refs for stable values used inside effects without triggering re-runs
   const isAdminRef = useRef(isAdmin);
@@ -289,7 +281,7 @@ export function SidebarDataProvider({ children }: { children: ReactNode }) {
       )
       .subscribe();
 
-    const resyncInterval = setInterval(resyncCounts, 60_000);
+    const resyncInterval = setInterval(resyncCounts, 30_000);
 
     return () => {
       supabase.removeChannel(roomsChannel);
