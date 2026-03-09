@@ -1012,6 +1012,9 @@ const AdminBanners = () => {
                     bannerType={form.banner_type}
                     startsAt={form.starts_at?.toISOString()}
                     expiresAt={form.expires_at?.toISOString()}
+                    position={form.position}
+                    borderStyle={form.border_style}
+                    shadowStyle={form.shadow_style}
                   />
                 </div>
               </div>
