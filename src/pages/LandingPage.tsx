@@ -39,6 +39,13 @@ const texts = {
     heroTabChat: "Chat",
     heroTabNPS: "NPS",
     heroTabHelp: "Help Center",
+    // Form fields (hero + CTA)
+    fieldName: "Your Name *",
+    fieldEmail: "Work Email *",
+    fieldPhone: "Phone *",
+    formCta: "Get Started",
+    successTitle: "You're on the list!",
+    successSub: "We'll reach out soon with your early access invite.",
     // Product sections — Chat
     chatTitle: "Organized support that retains customers",
     chatSub: "Your team responds with full context — plan, MRR, health score — right next to the conversation. Faster responses, better retention.",
