@@ -3,6 +3,8 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ChevronRight, Home, Clock } from "lucide-react";
 import HelpPublicLayout from "@/components/help/HelpPublicLayout";
+import { ArticleFeedback } from "@/components/help/ArticleFeedback";
+import { RelatedArticles } from "@/components/help/RelatedArticles";
 
 interface ArticleData {
   id: string;
@@ -236,6 +238,22 @@ export default function HelpPublicArticle() {
               "--tw-prose-quote-borders": primaryColor,
             } as React.CSSProperties}
             dangerouslySetInnerHTML={{ __html: htmlContent }}
+          />
+
+          {/* Feedback */}
+          <ArticleFeedback
+            articleId={article.id}
+            tenantId={article.tenant_id}
+            primaryColor={primaryColor}
+          />
+
+          {/* Related Articles */}
+          <RelatedArticles
+            articleId={article.id}
+            collectionId={article.collection_id}
+            tenantId={article.tenant_id}
+            helpBase={helpBase}
+            primaryColor={primaryColor}
           />
         </article>
       </div>

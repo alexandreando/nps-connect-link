@@ -4,7 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Loader2, Building2, Users, Upload, ChevronDown, Filter, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Loader2, Building2, Users, Upload, ChevronDown, Filter, X, ChevronLeft, ChevronRight, LayoutGrid, LayoutList } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Dialog,
@@ -99,6 +101,7 @@ const Contacts = () => {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [deleteCompanyId, setDeleteCompanyId] = useState<string | null>(null);
   const [bulkImportType, setBulkImportType] = useState<"companies" | "contacts" | null>(null);
+  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [sectorFilter, setSectorFilter] = useState("");
   const [stateFilter, setStateFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
@@ -452,6 +455,24 @@ const Contacts = () => {
                 className="pl-10"
               />
             </div>
+            <div className="flex items-center border rounded-lg overflow-hidden">
+              <Button
+                variant={viewMode === "cards" ? "default" : "ghost"}
+                size="sm"
+                className="rounded-none h-8 px-2"
+                onClick={() => setViewMode("cards")}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === "table" ? "default" : "ghost"}
+                size="sm"
+                className="rounded-none h-8 px-2"
+                onClick={() => setViewMode("table")}
+              >
+                <LayoutList className="h-4 w-4" />
+              </Button>
+            </div>
             {activeFilterCount > 0 && (
               <Button variant="ghost" size="sm" onClick={() => { setSectorFilter(""); setStateFilter(""); setCityFilter(""); setCsStatusFilter(""); setPriorityFilter(""); setHealthFilter(""); setNpsFilter(""); }}>
                 <X className="h-4 w-4 mr-1" />
@@ -568,17 +589,99 @@ const Contacts = () => {
           </Card>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {companies.map((company) => (
-                <CompanyCard
-                  key={company.id}
-                  company={company}
-                  onClick={() => handleCompanyClick(company)}
-                  onDelete={() => setDeleteCompanyId(company.id)}
-                  canDelete={canDelete}
-                />
-              ))}
-            </div>
+            {viewMode === "cards" ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {companies.map((company) => (
+                  <CompanyCard
+                    key={company.id}
+                    company={company}
+                    onClick={() => handleCompanyClick(company)}
+                    onDelete={() => setDeleteCompanyId(company.id)}
+                    canDelete={canDelete}
+                  />
+                ))}
+              </div>
+            ) : (
+              <Card className="overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("contacts.name")}</TableHead>
+                      <TableHead className="hidden md:table-cell">{t("contacts.email")}</TableHead>
+                      <TableHead className="hidden lg:table-cell">Setor</TableHead>
+                      <TableHead className="hidden lg:table-cell">Estado</TableHead>
+                      <TableHead className="text-center">Health</TableHead>
+                      <TableHead className="text-center">NPS</TableHead>
+                      <TableHead className="text-right hidden md:table-cell">MRR</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {companies.map((company) => (
+                      <TableRow
+                        key={company.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => handleCompanyClick(company)}
+                      >
+                        <TableCell className="font-medium">
+                          <div>
+                            <p className="truncate max-w-[200px]">{company.trade_name || company.name}</p>
+                            {company.trade_name && (
+                              <p className="text-xs text-muted-foreground truncate max-w-[200px]">{company.name}</p>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-sm text-muted-foreground truncate max-w-[180px]">
+                          {company.email}
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell text-sm">
+                          {company.company_sector || "-"}
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell text-sm">
+                          {company.state || "-"}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {company.health_score != null ? (
+                            <Badge
+                              variant="secondary"
+                              className={`text-xs ${
+                                company.health_score >= 70
+                                  ? "bg-primary/10 text-primary"
+                                  : company.health_score >= 40
+                                  ? "bg-warning/10 text-warning"
+                                  : "bg-destructive/10 text-destructive"
+                              }`}
+                            >
+                              {company.health_score}%
+                            </Badge>
+                          ) : "-"}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {company.last_nps_score != null ? (
+                            <Badge
+                              variant="secondary"
+                              className={`text-xs ${
+                                company.last_nps_score >= 9
+                                  ? "bg-primary/10 text-primary"
+                                  : company.last_nps_score >= 7
+                                  ? "bg-warning/10 text-warning"
+                                  : "bg-destructive/10 text-destructive"
+                              }`}
+                            >
+                              {company.last_nps_score}
+                            </Badge>
+                          ) : "-"}
+                        </TableCell>
+                        <TableCell className="text-right hidden md:table-cell text-sm">
+                          {company.mrr
+                            ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(company.mrr)
+                            : "-"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Card>
+            )}
 
             {/* Pagination */}
             {totalPages > 1 && (

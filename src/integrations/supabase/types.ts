@@ -2141,6 +2141,41 @@ export type Database = {
           },
         ]
       }
+      help_article_feedback: {
+        Row: {
+          article_id: string
+          created_at: string
+          helpful: boolean
+          id: string
+          tenant_id: string
+          visitor_id: string | null
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          helpful: boolean
+          id?: string
+          tenant_id: string
+          visitor_id?: string | null
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          helpful?: boolean
+          id?: string
+          tenant_id?: string
+          visitor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "help_article_feedback_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "help_articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       help_article_versions: {
         Row: {
           article_id: string

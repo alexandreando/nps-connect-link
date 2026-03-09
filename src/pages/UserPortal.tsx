@@ -1,11 +1,15 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageSquare, User } from "lucide-react";
+import { MessageSquare, User, ClipboardList, BookOpen, UserCog } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import PortalChatList from "@/components/portal/PortalChatList";
 import PortalChatView from "@/components/portal/PortalChatView";
+import PortalNPSTab from "@/components/portal/PortalNPSTab";
+import PortalProfileTab from "@/components/portal/PortalProfileTab";
+import PortalHelpTab from "@/components/portal/PortalHelpTab";
 
 interface PortalContact {
   id: string;
@@ -377,7 +381,7 @@ const UserPortal = () => {
     );
   }
 
-  // List view
+  // List view with tabs
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
@@ -393,14 +397,61 @@ const UserPortal = () => {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-6">
-        <PortalChatList
-          rooms={rooms}
-          activeRoom={activeRoom}
-          onNewChat={handleNewChat}
-          onResumeChat={handleResumeChat}
-          onReopenChat={handleReopenChat}
-          loading={creatingChat}
-        />
+        <Tabs defaultValue="chats" className="w-full">
+          <TabsList className="w-full grid grid-cols-4 mb-6">
+            <TabsTrigger value="chats" className="gap-1.5">
+              <MessageSquare className="h-4 w-4" />
+              <span className="hidden sm:inline">Meus Chats</span>
+            </TabsTrigger>
+            <TabsTrigger value="nps" className="gap-1.5">
+              <ClipboardList className="h-4 w-4" />
+              <span className="hidden sm:inline">NPS</span>
+            </TabsTrigger>
+            <TabsTrigger value="help" className="gap-1.5">
+              <BookOpen className="h-4 w-4" />
+              <span className="hidden sm:inline">Ajuda</span>
+            </TabsTrigger>
+            <TabsTrigger value="profile" className="gap-1.5">
+              <UserCog className="h-4 w-4" />
+              <span className="hidden sm:inline">Meus Dados</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="chats">
+            <PortalChatList
+              rooms={rooms}
+              activeRoom={activeRoom}
+              onNewChat={handleNewChat}
+              onResumeChat={handleResumeChat}
+              onReopenChat={handleReopenChat}
+              loading={creatingChat}
+            />
+          </TabsContent>
+
+          <TabsContent value="nps">
+            {contact && (
+              <PortalNPSTab
+                companyId={contact.company_id}
+                contactName={contact.name}
+              />
+            )}
+          </TabsContent>
+
+          <TabsContent value="help">
+            {contact && (
+              <PortalHelpTab tenantId={contact.user_id} />
+            )}
+          </TabsContent>
+
+          <TabsContent value="profile">
+            {contact && (
+              <PortalProfileTab
+                contact={contact}
+                onUpdate={(updated) => setContact(updated)}
+              />
+            )}
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
