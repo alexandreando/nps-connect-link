@@ -988,6 +988,16 @@ const AdminBanners = () => {
                   <Checkbox checked={form.target_all} onCheckedChange={(v) => setForm({ ...form, target_all: !!v })} />
                   <Label className="text-sm">{t("banners.targetAll")}</Label>
                 </div>
+                {editingBanner && (
+                  <BannerFieldRules
+                    bannerId={editingBanner.id}
+                    rules={fieldRules}
+                    onChanged={() => fetchFieldRules(editingBanner.id)}
+                  />
+                )}
+                {!editingBanner && (
+                  <p className="text-xs text-muted-foreground">Salve o banner primeiro para configurar regras de segmentação automática.</p>
+                )}
                 <div className="flex items-center gap-3">
                   <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
                   <Label className="text-sm">{t("banners.activeLabel")}</Label>
