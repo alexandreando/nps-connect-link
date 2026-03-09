@@ -28,7 +28,7 @@ const texts = {
     navCta: "Get Started",
     langToggle: "PT",
     // Hero
-    heroBadge: "Early Access · Limited Spots",
+    heroBadge: "Support · NPS · Help Center",
     heroH1: "Support, NPS & Help Center in one place",
     heroSub: "Everything your CS team needs to retain customers and scale support.",
     heroSubCta: "No credit card · Setup in minutes",
