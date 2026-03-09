@@ -19,7 +19,8 @@ const initLang = (): Lang => {
 const texts = {
   en: {
     // Navbar
-    navAtendimento: "Support Chat",
+    navChat: "Chat",
+    navCSAT: "CSAT",
     navNPS: "NPS",
     navHelpCenter: "Help Center",
     navSignIn: "Sign In",
