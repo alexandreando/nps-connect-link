@@ -127,7 +127,7 @@ const texts = {
       { label: "Complete Platform", href: "/journey" },
     ],
     footerCompanyLinks: [
-      { label: "Early Access", href: "#early-access" },
+      { label: "Get Started", href: "#early-access" },
       { label: "Blog", href: "#" },
     ],
     footerLegalLinks: [
