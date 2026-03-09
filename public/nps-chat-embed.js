@@ -240,9 +240,16 @@
       .then(function (data) {
         if (data.banners && data.banners.length > 0) {
           createBannerContainer();
+          var shown = 0;
           data.banners.forEach(function (banner) {
-            bannerContainer.appendChild(renderBanner(banner));
+            if (shown >= 2) return; // Limit to 2 simultaneous banners
+            var el = renderBanner(banner);
+            if (el) {
+              bannerContainer.appendChild(el);
+              shown++;
+            }
           });
+          if (bannerContainer && bannerContainer.children.length === 0) bannerContainer.remove();
         }
       })
       .catch(function () {});

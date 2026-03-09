@@ -248,7 +248,7 @@ Deno.serve(async (req) => {
             assignment_id: assignment.id,
             content: banner.content,
             content_html: banner.content_html ?? null,
-            text_align: banner.text_align ?? "left",
+            text_align: banner.text_align ?? "center",
             bg_color: banner.bg_color ?? "#3B82F6",
             text_color: banner.text_color ?? "#FFFFFF",
             link_url: banner.link_url,
@@ -257,6 +257,11 @@ Deno.serve(async (req) => {
             banner_type: banner.banner_type ?? "info",
             priority: banner.priority ?? 5,
             vote: assignment.vote,
+            position: banner.position ?? "top",
+            auto_dismiss_seconds: banner.auto_dismiss_seconds ?? null,
+            display_frequency: banner.display_frequency ?? "always",
+            border_style: banner.border_style ?? "none",
+            shadow_style: banner.shadow_style ?? "none",
           });
 
           // Increment views
