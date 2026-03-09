@@ -209,10 +209,10 @@ const texts = {
     socialTitle: "Impacto mensurável para seu time de CS",
     socialSub: "Resultados médios de times em early access",
     socialMetrics: [
-      { value: "-40%", label: "Tempo de Resposta" },
-      { value: "NPS 72", label: "Score Médio" },
-      { value: "85%", label: "Artigos Úteis" },
-      { value: "-25%", label: "Volume de Tickets" },
+      { value: "-40%", label: "Tempo de resposta" },
+      { value: "NPS 72", label: "Score médio" },
+      { value: "85%", label: "Artigos úteis" },
+      { value: "-25%", label: "Volume de tickets" },
     ],
     // FAQ
     faqTitle: "Perguntas Frequentes",
