@@ -45,7 +45,7 @@ const texts = {
     successSub: "We'll reach out soon with your early access invite.",
     // Product sections
     chatPain: "Your team responds without knowing who the customer is?",
-    chatTitle: "Context-driven support that retains",
+    chatTitle: "Chat with context that retains",
     chatSub: "Plan, MRR, health score and history — everything right next to the conversation.",
     chatFeatures: [
       "Automatic assignment (Round Robin / Least Busy)",
