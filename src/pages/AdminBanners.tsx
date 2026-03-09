@@ -20,10 +20,12 @@ import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Plus, Edit, Trash2, Users, Eye, ThumbsUp, ThumbsDown, Search, Copy, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles, CalendarIcon, Bell, Palette, Link2, Calendar as CalendarSectionIcon, Target, ChevronDown } from "lucide-react";
+import { Plus, Edit, Trash2, Users, Eye, ThumbsUp, ThumbsDown, Search, Copy, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles, CalendarIcon, Bell, Palette, Link2, Calendar as CalendarSectionIcon, Target, ChevronDown, Timer, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import BannerPreview from "@/components/chat/BannerPreview";
 import BannerRichEditor from "@/components/chat/BannerRichEditor";
+import BannerFieldRules from "@/components/chat/BannerFieldRules";
+import BannerConflictDialog from "@/components/chat/BannerConflictDialog";
 
 type BannerType = "info" | "warning" | "success" | "promo" | "update";
 
@@ -46,6 +48,20 @@ interface Banner {
   priority: number;
   target_all: boolean;
   max_views: number | null;
+  position: string;
+  auto_dismiss_seconds: number | null;
+  display_frequency: string;
+  border_style: string;
+  shadow_style: string;
+}
+
+interface FieldRule {
+  id: string;
+  banner_id: string;
+  field_key: string;
+  field_value: string;
+  field_source: string;
+  operator: string;
 }
 
 interface Assignment {
@@ -63,6 +79,15 @@ interface Contact {
   id: string;
   name: string;
   email: string;
+}
+
+interface Conflict {
+  companyId: string;
+  companyName: string;
+  existingBannerId: string;
+  existingBannerTitle: string;
+  overlapStart: string;
+  overlapEnd: string | null;
 }
 
 const TYPE_DEFAULT_COLORS: Record<BannerType, { bg: string; text: string }> = {
@@ -91,6 +116,61 @@ const BANNER_TYPES: { value: BannerType; label: string; icon: typeof Info; bgCla
   { value: "update", label: "Atualização", icon: Sparkles, bgClass: "bg-cyan-500/15", borderClass: "border-cyan-500/50" },
 ];
 
+const POSITION_OPTIONS = [
+  { value: "top", label: "Topo" },
+  { value: "bottom", label: "Rodapé" },
+  { value: "float", label: "Flutuante" },
+];
+
+const BORDER_STYLE_OPTIONS = [
+  { value: "none", label: "Nenhuma" },
+  { value: "subtle", label: "Sutil" },
+  { value: "rounded", label: "Arredondada" },
+  { value: "pill", label: "Pill" },
+];
+
+const SHADOW_STYLE_OPTIONS = [
+  { value: "none", label: "Nenhuma" },
+  { value: "soft", label: "Suave" },
+  { value: "medium", label: "Média" },
+  { value: "strong", label: "Forte" },
+];
+
+const FREQUENCY_OPTIONS = [
+  { value: "always", label: "Sempre" },
+  { value: "once_per_session", label: "1x por sessão" },
+  { value: "once_per_day", label: "1x por dia" },
+];
+
+const PRIORITY_LABELS: Record<number, string> = {
+  1: "Baixa", 2: "Baixa", 3: "Baixa",
+  4: "Média", 5: "Média", 6: "Média",
+  7: "Alta", 8: "Alta",
+  9: "Urgente", 10: "Urgente",
+};
+
+// WCAG contrast ratio calculation
+function getLuminance(hex: string): number {
+  const rgb = hex.replace("#", "").match(/.{2}/g)?.map(x => parseInt(x, 16) / 255) || [0, 0, 0];
+  const [r, g, b] = rgb.map(c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function getContrastRatio(hex1: string, hex2: string): number {
+  const l1 = getLuminance(hex1);
+  const l2 = getLuminance(hex2);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function getContrastBadge(bgColor: string, textColor: string): { label: string; className: string } {
+  const ratio = getContrastRatio(bgColor, textColor);
+  if (ratio >= 7) return { label: "AAA", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200" };
+  if (ratio >= 4.5) return { label: "AA", className: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" };
+  return { label: "Baixo contraste", className: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" };
+}
+
 const getBannerStatus = (banner: Banner): { label: string; variant: "default" | "secondary" | "outline" | "destructive" } => {
   if (!banner.is_active) return { label: "Inativo", variant: "secondary" };
   const now = new Date();
@@ -114,12 +194,16 @@ const AdminBanners = () => {
   const [contactSearch, setContactSearch] = useState("");
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
   const [assignmentCounts, setAssignmentCounts] = useState<Record<string, { total: number; views: number; upVotes: number; downVotes: number }>>({});
+  const [fieldRules, setFieldRules] = useState<FieldRule[]>([]);
+  const [conflictDialog, setConflictDialog] = useState(false);
+  const [conflicts, setConflicts] = useState<Conflict[]>([]);
+  const [savingWithConflict, setSavingWithConflict] = useState(false);
 
   const defaultForm = {
     title: "",
     content: "",
     content_html: "",
-    text_align: "left" as "left" | "center" | "right",
+    text_align: "center" as "left" | "center" | "right",
     bg_color: "#3B82F6",
     text_color: "#FFFFFF",
     link_url: "",
@@ -132,6 +216,11 @@ const AdminBanners = () => {
     priority: 5,
     target_all: false,
     max_views: null as number | null,
+    position: "top",
+    auto_dismiss_seconds: null as number | null,
+    display_frequency: "always",
+    border_style: "none",
+    shadow_style: "soft",
   };
 
   const [form, setForm] = useState(defaultForm);
