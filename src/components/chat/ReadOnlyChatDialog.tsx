@@ -66,14 +66,7 @@ export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange, re
         contact_name = contact?.name ?? null;
       }
 
-      // Fetch tags
-      const { data: roomTags } = await supabase.from("chat_room_tags").select("tag_id").eq("room_id", roomId);
-      let tags: { name: string; color: string }[] = [];
-      if (roomTags && roomTags.length > 0) {
-        const tagIds = roomTags.map(rt => rt.tag_id);
-        const { data: tagData } = await supabase.from("chat_tags").select("name, color").in("id", tagIds);
-        tags = tagData?.map(t => ({ name: t.name, color: t.color ?? "#6366f1" })) ?? [];
-      }
+
 
       setRoomInfo({
         attendant_name,
