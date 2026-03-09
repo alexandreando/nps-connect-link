@@ -42,7 +42,7 @@ const texts = {
     fieldPhone: "Phone *",
     formCta: "Get Started",
     successTitle: "You're on the list!",
-    successSub: "We'll reach out soon with your early access invite.",
+    successSub: "We'll reach out soon to get you started.",
     // Product sections
     chatPain: "Your team responds without knowing who the customer is?",
     chatTitle: "Chat with context that retains",
