@@ -185,6 +185,19 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
           </div>
         ) : (
           <>
+            {/* Home */}
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton onClick={() => navigate("/home")} isActive={isActive("/home")} tooltip="Home" className={cn(isActive("/home") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                      <Home className="h-4 w-4" /><span>{collapsed ? "" : "Home"}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
             {/* Backoffice Master */}
             {isMaster && (
               <SidebarGroup>
