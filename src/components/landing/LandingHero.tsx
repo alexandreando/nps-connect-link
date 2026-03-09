@@ -21,7 +21,7 @@ const LandingHero = ({ t, formTexts }: { t: HeroTexts; formTexts: LeadFormTexts 
   ];
 
   return (
-    <section className="relative py-14 sm:py-20 lg:py-28 px-4 overflow-hidden" style={{ background: "#0F1115" }}>
+    <section className="relative py-20 lg:py-28 px-4 overflow-hidden" style={{ background: "#0F1115" }}>
       {/* Subtle background glow */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div style={{ position: "absolute", top: "30%", left: "50%", transform: "translate(-50%, -50%)", width: 800, height: 500, background: "radial-gradient(ellipse, rgba(255,122,89,0.06) 0%, transparent 70%)" }} />
@@ -57,14 +57,14 @@ const LandingHero = ({ t, formTexts }: { t: HeroTexts; formTexts: LeadFormTexts 
         <p className="text-xs mt-3" style={{ color: "rgba(255,255,255,0.28)" }}>{t.heroSubCta}</p>
 
         {/* Module badges */}
-        <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mt-8 sm:mt-10">
+        <div className="flex flex-wrap justify-center gap-3 mt-10">
           {badges.map(({ label, icon: Icon, color }) => (
             <div
               key={label}
-              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-[12px] font-medium"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-full text-[12px] font-medium"
               style={{ background: `${color}10`, border: `1px solid ${color}25`, color }}
             >
-              <Icon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <Icon className="w-3.5 h-3.5" />
               {label}
             </div>
           ))}

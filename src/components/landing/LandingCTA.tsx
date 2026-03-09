@@ -16,7 +16,7 @@ const LandingCTA = ({ t, formTexts }: { t: CTATexts; formTexts: LeadFormTexts })
         <h2 className="text-[26px] font-medium text-white mb-3" style={{ lineHeight: 1.25, letterSpacing: "-0.02em" }}>{t.formH2}</h2>
         <p className="text-[15px]" style={{ color: "rgba(255,255,255,0.45)" }}>{t.formSub}</p>
       </div>
-      <div className="rounded-xl p-5 sm:p-8" style={{ background: "#131722", border: "1px solid rgba(255,255,255,0.06)", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" }}>
+      <div className="rounded-xl p-8" style={{ background: "#131722", border: "1px solid rgba(255,255,255,0.06)", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" }}>
         <LeadForm t={formTexts} layout="stacked" />
         <p className="text-center text-[11px] mt-4" style={{ color: "rgba(255,255,255,0.28)" }}>{t.formFootnote}</p>
       </div>
