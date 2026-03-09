@@ -106,10 +106,6 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
     navigate("/auth");
   };
 
-  const csItems = [
-    { path: "/cs-dashboard", icon: LayoutDashboard, label: t("nav.overview") },
-    { path: "/cs-trails", icon: Route, label: t("nav.journeys") },
-  ];
 
   const npsItems = [
     { path: "/nps/dashboard", icon: BarChart3, label: t("nav.metrics") },
