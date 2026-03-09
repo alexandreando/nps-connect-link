@@ -55,7 +55,7 @@ const texts = {
       "Complete conversation history",
       "Help Center article search inside chat",
     ],
-    csatPain: "You don't know how customers feel after each interaction?",
+    csatPain: "You don't know how customers feel after each chat?",
     csatTitle: "Post-chat CSAT that drives improvement",
     csatSub: "Automatic satisfaction surveys after every conversation with detailed analytics per agent.",
     csatFeatures: [
