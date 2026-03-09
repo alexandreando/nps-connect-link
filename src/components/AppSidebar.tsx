@@ -86,7 +86,7 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
   const [workspaceOpen, handleWorkspaceOpen] = usePersistedState("sidebar-workspace-open");
   const [otherTeamsOpen, handleOtherTeamsOpen] = usePersistedState("sidebar-other-teams-open", false);
   const [backofficeOpen, handleBackofficeOpen] = usePersistedState("sidebar-backoffice-open");
-  const [csOpen, handleCsOpen] = usePersistedState("sidebar-cs-open");
+  
   const [contactsOpen, handleContactsOpen] = usePersistedState("sidebar-contacts-open");
   const [helpOpen, handleHelpOpen] = usePersistedState("sidebar-help-open");
 
