@@ -162,7 +162,7 @@ const texts = {
     successSub: "Entraremos em contato em breve com seu convite.",
     // Product sections
     chatPain: "Seu time responde sem saber quem é o cliente?",
-    chatTitle: "Atendimento com contexto que retém",
+    chatTitle: "Chat com contexto que retém",
     chatSub: "Plano, MRR, health score e histórico — tudo ao lado da conversa.",
     chatFeatures: [
       "Atribuição automática (Round Robin / Least Busy)",
