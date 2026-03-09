@@ -184,7 +184,7 @@ const JourneyPage = () => {
       <LandingKanban t={t} />
       <LandingSocialProof t={{ socialTitle: t.socialTitle, socialSub: t.socialSub, metrics: t.socialMetrics }} />
       <LandingFAQ t={{ faqTitle: t.faqTitle, faqItems: t.faqItems }} />
-      <LandingCTA t={t} />
+      <LandingCTA t={t} formTexts={{ fieldName: t.fieldName, fieldEmail: t.fieldEmail, fieldPhone: t.fieldPhone, formCta: t.formCta, successTitle: t.successTitle, successSub: t.successSub }} />
       <LandingFooter t={t} />
     </div>
   );
