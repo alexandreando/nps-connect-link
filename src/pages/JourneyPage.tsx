@@ -76,7 +76,7 @@ const texts = {
       { label: "Platform", href: "/journey" },
     ],
     footerCompanyLinks: [
-      { label: "Early Access", href: "#early-access" },
+      { label: "Get Started", href: "#early-access" },
     ],
     footerLegalLinks: [
       { label: "Privacy Policy", href: "#" },
