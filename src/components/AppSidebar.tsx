@@ -392,60 +392,6 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
               </SidebarGroup>
             )}
 
-            {/* Reports */}
-            {showReports && (
-              <SidebarGroup>
-                <Collapsible open={reportsOpen} onOpenChange={handleReportsOpen}>
-                  <CollapsibleTrigger asChild>
-                    <SidebarGroupLabel
-                      className={`${groupLabelCls} cursor-pointer hover:text-foreground/70 flex items-center justify-between w-full transition-colors`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <BarChart3 className="h-3.5 w-3.5" />
-                        <span>{t("cs.reports")}</span>
-                      </span>
-                      {!collapsed &&
-                        (reportsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}
-                    </SidebarGroupLabel>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent onClick={(e) => e.stopPropagation()}>
-                    <SidebarGroupContent>
-                      <SidebarMenu>
-                        {hasPermission("cs.reports.health", "view") && (
-                          <SidebarMenuItem>
-                            <SidebarMenuButton onClick={() => navigate("/cs-health")} isActive={isActive("/cs-health")} tooltip={t("nav.health")} className={cn("pl-6", isActive("/cs-health") ? activeItemCls : "hover:bg-sidebar-accent")}>
-                              <Heart className="h-4 w-4" /><span>{t("nav.health")}</span>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        )}
-                        {hasPermission("cs.reports.churn", "view") && (
-                          <SidebarMenuItem>
-                            <SidebarMenuButton onClick={() => navigate("/cs-churn")} isActive={isActive("/cs-churn")} tooltip={t("nav.risk")} className={cn("pl-6", isActive("/cs-churn") ? activeItemCls : "hover:bg-sidebar-accent")}>
-                              <TrendingDown className="h-4 w-4" /><span>{t("nav.risk")}</span>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        )}
-                        {hasPermission("cs.reports.financial", "view") && (
-                          <SidebarMenuItem>
-                            <SidebarMenuButton onClick={() => navigate("/cs-financial")} isActive={isActive("/cs-financial")} tooltip={t("nav.revenue")} className={cn("pl-6", isActive("/cs-financial") ? activeItemCls : "hover:bg-sidebar-accent")}>
-                              <DollarSign className="h-4 w-4" /><span>{t("nav.revenue")}</span>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        )}
-                        {hasPermission("chat.reports", "view") && (
-                          <SidebarMenuItem>
-                            <SidebarMenuButton onClick={() => navigate("/admin/csat")} isActive={isActive("/admin/csat")} tooltip={t("csat.report.title")} className={cn("pl-6", isActive("/admin/csat") ? activeItemCls : "hover:bg-sidebar-accent")}>
-                              <Star className="h-4 w-4" /><span>CSAT</span>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        )}
-                      </SidebarMenu>
-                    </SidebarGroupContent>
-                  </CollapsibleContent>
-                </Collapsible>
-              </SidebarGroup>
-            )}
-
             {/* Cadastros */}
             {showContacts && (
               <SidebarGroup>
