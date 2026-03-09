@@ -3,10 +3,6 @@ import { useSidebarData } from "@/contexts/SidebarDataContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
-  Route,
-  Heart,
-  TrendingDown,
-  DollarSign,
   Users,
   BarChart3,
   Send,
