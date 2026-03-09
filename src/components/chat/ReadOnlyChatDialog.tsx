@@ -32,7 +32,7 @@ interface RoomInfo {
   resolution_status: string | null;
   created_at: string | null;
   closed_at: string | null;
-  tags: { name: string; color: string }[];
+  
 }
 
 export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange, resolutionStatus, onReopen }: ReadOnlyChatDialogProps) {
