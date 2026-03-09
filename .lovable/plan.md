@@ -1,39 +1,51 @@
 
-# Plan: Performance Optimizations + Realtime Counters
 
-## Status: ✅ Fully Implemented
+## Plano: Gradientes para Banners + Deleção CSAT
 
----
+### 1. Deleção de CSAT (Migration SQL)
 
-## 1. Dashboard Load-on-Demand — DONE
-- Removed 30s `setInterval` auto-polling from `useDashboardStats`
-- Added optional Realtime toggle (default: off) with 5s debounce on `chat_rooms` changes
-- Added manual "Atualizar" refresh button to `AdminDashboard` and `AdminDashboardGerencial`
+Limpar `csat_score` e `csat_comment` das 27 salas já identificadas anteriormente:
 
-## 2. Reports: Default to Short Periods — DONE
-- Changed `AdminDashboardGerencial` default period from "month" to "week"
-- Removed "all" option from Gerencial period selector
-- Added warning text in `AdminCSATReport` when "all" period is selected
+```sql
+UPDATE chat_rooms 
+SET csat_score = NULL, csat_comment = NULL, updated_at = now()
+WHERE id IN ('426ced67-...', ... /* 27 IDs */);
+```
 
-## 3. Widget `fetchHistory` N+1 Fix — DONE
-- Replaced `Promise.all` per-room queries with single batch `.in("room_id", roomIds)` query
-- Reduced from N+1 to 2 queries per history page load
+### 2. Gradientes pré-definidos para banners
 
-## 4. Sidebar Active Counts — DONE (v2: COUNT-based trigger)
-- **v1 (replaced)**: Incremental patches via Realtime events — caused drift
-- **v2 (current)**: COUNT-based database trigger `resync_attendant_counter_on_room_change`
-  - Trigger fires AFTER INSERT/UPDATE/DELETE on `chat_rooms`
-  - Recalculates `active_conversations` via real `COUNT(*)` for affected attendants
-  - Composite index `idx_chat_rooms_attendant_status` ensures COUNT < 1ms
-  - Frontend `handleRoomChange` simplified to debounced `resyncCounts()` (1s)
-  - `handleAttendantChange` trusts `active_conversations` from Realtime (now always accurate)
-  - Fallback resync interval reduced from 60s to 30s
+**Constante `GRADIENT_PRESETS`** em `AdminBanners.tsx` — 16 presets organizados em 2 grupos:
 
-## 5. `useAttendantQueues` Efficiency — DONE
-- Uses `active_conversations` from `attendant_profiles` instead of counting rooms
-- Only fetches unassigned rooms + waiting counts (lighter queries)
-- Added 3s debounce to Realtime callbacks to batch rapid changes
+- **Duo-color** (8): Ocean, Sunset, Emerald, Berry, Midnight, Amber, Fuchsia, Teal
+- **Monocromáticos** (8): Blue, Red, Green, Purple, Gray, Pink, Orange, Cyan
 
-## 6. Realtime Publication for `attendant_profiles` — DONE
-- Added `ALTER PUBLICATION supabase_realtime ADD TABLE public.attendant_profiles`
-- Enables live updates for sidebar counters and status changes
+Cada preset é um objeto `{ name, value, group }` onde `value` é a string CSS completa (ex: `linear-gradient(135deg, #3B82F6, #8B5CF6)`).
+
+**Mudanças por arquivo:**
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/pages/AdminBanners.tsx` | Adicionar `GRADIENT_PRESETS`. Na seção Aparência (linhas ~787-800), após o grid de cores sólidas, renderizar 2 sub-seções de gradientes (4×2 swatches retangulares com aspect-ratio 3:1). Ao clicar, seta `form.bg_color` com a string de gradiente. O swatch ativo tem ring. Na preview da cor (linha 784), usar `background` em vez de `backgroundColor` quando for gradiente. Ajustar o swatch de preview do banner na listagem (linha 581) da mesma forma. WCAG badge: esconder quando `bg_color` começa com `linear-gradient` (não faz sentido calcular contraste de gradiente) |
+| `src/components/chat/BannerPreview.tsx` | Linha 99: trocar `style={{ backgroundColor: bgColor }}` por lógica que detecta `bgColor.startsWith('linear-gradient')` e usa `background` ou `backgroundColor` conforme o caso |
+| `public/nps-chat-embed.js` | Linha 92: trocar `"background-color:" + banner.bg_color` por detecção: se começa com `linear-gradient`, usar `"background:"`, senão `"background-color:"` |
+
+**UX do formulário:**
+
+```text
+┌─ Cor de fundo ──────────────────────────┐
+│ [■ preview] [#3B82F6_____________]      │
+│ ■ ■ ■ ■ ■   (cores sólidas 5x2)        │
+│ ■ ■ ■ ■ ■                              │
+│                                          │
+│ Gradientes                               │
+│ ▬▬ ▬▬ ▬▬ ▬▬  (duo-color 4x2)           │
+│ ▬▬ ▬▬ ▬▬ ▬▬                            │
+│                                          │
+│ Monocromáticos                           │
+│ ▬▬ ▬▬ ▬▬ ▬▬  (mono 4x2)               │
+│ ▬▬ ▬▬ ▬▬ ▬▬                            │
+└──────────────────────────────────────────┘
+```
+
+A seleção é mutuamente exclusiva: clicar gradiente desmarca cor sólida e vice-versa (a string armazenada em `bg_color` define qual está ativo).
+
