@@ -90,7 +90,7 @@ const App = () => (
         <Routes>
           {/* Public Landing Page */}
           <Route path="/" element={<LandingPage />} />
-          <Route path="/journey" element={<LandingPage />} />
+          <Route path="/journey" element={<JourneyPage />} />
           
           {/* Chat Widget (public) */}
           <Route path="/widget" element={<ChatWidget />} />
