@@ -45,7 +45,6 @@ export default function HelpArticleEditor() {
   const [loading, setLoading] = useState(!isNew);
   const [changeSummary, setChangeSummary] = useState("");
   const [showPreview, setShowPreview] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     if (!tenantId) return;
