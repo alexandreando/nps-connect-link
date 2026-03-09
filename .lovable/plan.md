@@ -1,47 +1,50 @@
 
 
-## Limpeza de CSAT — 28 salas identificadas
+## Plano: 4 melhorias simultâneas
 
-Encontrei **28 salas** com CSAT para limpar (incluindo "Ana Teste Cliente" que desta vez apareceu com 1 registro).
+### 1. Tags editáveis no ReadOnlyChatDialog (chat fechado)
 
-### Execução
+Adicionar o componente `ChatTagSelector` no painel lateral de chat aberto via histórico.
 
-Uma única operação `UPDATE` via insert tool para nullificar `csat_score` e `csat_comment` nos 28 IDs:
+**Arquivo**: `src/components/chat/ReadOnlyChatDialog.tsx`
+- Substituir a exibição estática de tags (linhas 181-188) pelo componente `ChatTagSelector` já existente, passando `roomId`
+- Manter a exibição compacta com `compact` prop
 
-```sql
-UPDATE chat_rooms 
-SET csat_score = NULL, csat_comment = NULL, updated_at = now()
-WHERE id IN (
-  'e36a58e9-0c39-4e12-88bd-5fafbd09649d',
-  '426ced67-198d-4992-8db2-d6b064f69acf',
-  '6a752775-548e-4a01-9565-2cef54d5ea55',
-  '9a79ecf6-9ab6-4c65-b070-466d23362972',
-  '7ee36768-c702-42d2-b9d2-fc36c93fc05f',
-  '400f9792-b042-4f28-99cd-029086139b81',
-  'ee6c097e-b41c-4cfd-99e6-0c12cf2c6259',
-  '03b2d41f-0801-4e6c-9f28-b9375f99b7cf',
-  '92d61464-4bc7-4b44-aa3c-841d93fefb75',
-  '4974671a-9075-4dfd-ae9c-f965b71a354c',
-  'a4c09bd2-7887-4b0e-b047-e6ff6694aea7',
-  'dae572a9-819c-4a95-8f7c-90d9dc5322b8',
-  '05154e74-80bd-41a3-8f22-9d5e3e4f19dc',
-  '9e6de1ed-5599-4122-8c82-62237c0df994',
-  '5e8bcb8b-cf66-4a9b-830d-dc9aca7509cd',
-  '3878a9a4-c89c-458b-976b-18da19acb690',
-  '4897a58b-51ff-45bd-a9fb-f5b27657d418',
-  'cdd0efbe-10f3-43ba-a82f-0ad84265c7a8',
-  '8b373663-7324-40a2-9578-df41f9af9b3f',
-  'd53d543e-3c9a-4244-b19e-0542ef7ffd27',
-  'b38c1f96-4780-4c3a-9740-002e559c7716',
-  'd13eece8-0aaf-4a19-b40d-4f7bae181acd',
-  '7e386802-1e59-4213-b79a-6d75096f994e',
-  'f4a9620e-2542-4594-ae19-6e06306d3f0e',
-  '7118e045-cc01-44c3-94f2-a5f59483e051',
-  'bacc385a-f778-46d1-8a68-11a6facde71e',
-  'cfeb76be-dac3-4a88-a06a-dc7ec5b85bba',
-  '759c7827-119d-4606-b4c3-a831983e45fc'
-);
-```
+### 2. Filtros multi-seleção com busca em todos os relatórios
 
-Nenhuma mudança de código — apenas limpeza de dados via insert tool.
+Criar um componente reutilizável `SearchableMultiSelect` que combina multi-seleção (checkboxes) + campo de busca interno para listas longas.
+
+**Novo arquivo**: `src/components/ui/searchable-multi-select.tsx`
+- Props: `label`, `options[]`, `selected[]`, `onChange`, `placeholder`
+- UI: Popover com Input de busca no topo + lista de checkboxes filtráveis + botão limpar
+- Badge com contagem de selecionados
+
+**Arquivos a atualizar** (substituir todos os `<Select>` de filtro simples pelo novo componente multi-seleção):
+
+| Página | Filtros afetados |
+|--------|-----------------|
+| `AdminCSATReport.tsx` | Atendente, Time, Tag, Empresa, Contato → todos multi-seleção com busca |
+| `AdminDashboard.tsx` | Atendente, Categoria, Tag, Empresa, Contato → todos multi-seleção com busca |
+| `AdminChatHistory.tsx` | Já usa `MultiSelectFilter` mas SEM busca → adicionar busca interna |
+
+**Hooks afetados** (ajustar tipos de filtro de `string | null` para `string[]`):
+- `useCSATReport.ts` — `attendantId`, `teamId`, `tagId`, `contactId`, `companyContactId` → arrays
+- `useDashboardStats.ts` — `attendantId`, `categoryId`, `tagId`, `contactId`, `companyContactId` → arrays
+
+### 3. Remover Gerencial dos Relatórios
+
+**Arquivos**:
+- `src/components/AppSidebar.tsx` — Remover o item de menu `/admin/gerencial` (linhas 485-491)
+- `src/App.tsx` — Remover a rota `/admin/gerencial`
+- NÃO deletar o arquivo `AdminDashboardGerencial.tsx` (manter para não quebrar imports residuais, ou deletar se não houver referências)
+
+### 4. Corrigir preview de artigo no editor
+
+O `ArticlePreview` usa classes Tailwind de prose genéricas que não correspondem à renderização real em `HelpPublicArticle.tsx`. A correção é alinhar os estilos do preview com os da página pública.
+
+**Arquivo**: `src/components/help/ArticlePreview.tsx`
+- Copiar as classes de prose exatas do `HelpPublicArticle.tsx` (linhas 225-234): tamanhos de heading maiores, estilos de tabela, blockquote, imagens com sombra, etc.
+- Adicionar inline styles para variáveis CSS (`--tw-prose-links`, etc.) com cor primária padrão
+- Usar `max-w-3xl mx-auto` para simular a largura real da publicação
+- Adicionar data de atualização e metadados visuais para fidelidade
 
