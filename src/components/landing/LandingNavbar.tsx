@@ -70,21 +70,20 @@ const LandingNavbar = ({ t, isLoggedIn, onToggleLang, onCtaClick }: LandingNavba
         </div>
 
         {/* Right actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 flex-shrink-0">
           <button
             onClick={onToggleLang}
-            className="text-xs font-medium uppercase tracking-widest px-3 h-8 rounded-lg transition-colors duration-150"
-            style={{ color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)", background: "transparent" }}
+            className="text-[11px] font-semibold uppercase tracking-wider px-2.5 h-7 rounded-md transition-colors duration-150 flex items-center justify-center"
+            style={{ color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.1)", background: "transparent" }}
             onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
             onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.5)")}
           >
             {t.langToggle}
           </button>
-          <span className="hidden sm:inline" style={{ color: "rgba(255,255,255,0.1)", fontSize: 16 }}>|</span>
           <button
             onClick={() => navigate(isLoggedIn ? "/home" : "/auth")}
-            className="hidden sm:inline-flex text-sm px-4 h-9 rounded-lg transition-colors duration-150"
-            style={{ color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.08)", background: "transparent" }}
+            className="hidden sm:inline-flex items-center justify-center text-sm px-4 h-9 rounded-lg transition-colors duration-150 whitespace-nowrap"
+            style={{ color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.12)", background: "transparent" }}
             onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
             onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}
           >
@@ -92,7 +91,7 @@ const LandingNavbar = ({ t, isLoggedIn, onToggleLang, onCtaClick }: LandingNavba
           </button>
           <button
             onClick={onCtaClick}
-            className="hidden sm:inline-flex text-sm px-4 h-9 rounded-lg font-medium transition-opacity duration-150 hover:opacity-90"
+            className="hidden sm:inline-flex items-center justify-center text-sm px-5 h-9 rounded-lg font-medium transition-opacity duration-150 hover:opacity-90 whitespace-nowrap"
             style={{ background: "#FF7A59", color: "#fff" }}
           >
             {t.navCta}
@@ -101,7 +100,7 @@ const LandingNavbar = ({ t, isLoggedIn, onToggleLang, onCtaClick }: LandingNavba
           {/* Hamburger */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="lg:hidden ml-1 p-2 rounded-lg"
+            className="lg:hidden p-2 rounded-lg"
             style={{ color: "rgba(255,255,255,0.6)", background: "transparent" }}
           >
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
