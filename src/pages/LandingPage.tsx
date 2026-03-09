@@ -120,7 +120,8 @@ const texts = {
     footerCompany: "Company",
     footerLegal: "Legal",
     footerProductLinks: [
-      { label: "Support Chat", href: "#chat" },
+      { label: "Chat", href: "#chat" },
+      { label: "CSAT", href: "#csat" },
       { label: "NPS", href: "#nps" },
       { label: "Help Center", href: "#helpcenter" },
       { label: "Complete Platform", href: "/journey" },
