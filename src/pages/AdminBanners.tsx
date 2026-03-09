@@ -255,6 +255,14 @@ const AdminBanners = () => {
     fetchBanners();
   }, [fetchBanners]);
 
+  const fetchFieldRules = useCallback(async (bannerId: string) => {
+    const { data } = await supabase
+      .from("chat_banner_field_rules" as any)
+      .select("id, banner_id, field_key, field_value, field_source, operator")
+      .eq("banner_id", bannerId);
+    setFieldRules(((data as unknown) as FieldRule[]) ?? []);
+  }, []);
+
   const openBannerDialog = (banner?: Banner) => {
     if (banner) {
       setEditingBanner(banner);
@@ -262,7 +270,7 @@ const AdminBanners = () => {
         title: banner.title,
         content: banner.content,
         content_html: banner.content_html ?? "",
-        text_align: (banner.text_align as "left" | "center" | "right") || "left",
+        text_align: (banner.text_align as "left" | "center" | "right") || "center",
         bg_color: banner.bg_color,
         text_color: banner.text_color,
         link_url: banner.link_url ?? "",
@@ -275,10 +283,17 @@ const AdminBanners = () => {
         priority: banner.priority ?? 5,
         target_all: banner.target_all ?? false,
         max_views: banner.max_views ?? null,
+        position: banner.position ?? "top",
+        auto_dismiss_seconds: banner.auto_dismiss_seconds ?? null,
+        display_frequency: banner.display_frequency ?? "always",
+        border_style: banner.border_style ?? "none",
+        shadow_style: banner.shadow_style ?? "soft",
       });
+      fetchFieldRules(banner.id);
     } else {
       setEditingBanner(null);
       setForm({ ...defaultForm });
+      setFieldRules([]);
     }
     setBannerDialog(true);
   };
@@ -289,7 +304,7 @@ const AdminBanners = () => {
       title: banner.title + " (cópia)",
       content: banner.content,
       content_html: banner.content_html ?? "",
-      text_align: (banner.text_align as "left" | "center" | "right") || "left",
+      text_align: (banner.text_align as "left" | "center" | "right") || "center",
       bg_color: banner.bg_color,
       text_color: banner.text_color,
       link_url: banner.link_url ?? "",
@@ -302,13 +317,105 @@ const AdminBanners = () => {
       priority: banner.priority ?? 5,
       target_all: banner.target_all ?? false,
       max_views: banner.max_views ?? null,
+      position: banner.position ?? "top",
+      auto_dismiss_seconds: banner.auto_dismiss_seconds ?? null,
+      display_frequency: banner.display_frequency ?? "always",
+      border_style: banner.border_style ?? "none",
+      shadow_style: banner.shadow_style ?? "soft",
     });
+    setFieldRules([]);
     setBannerDialog(true);
   };
 
-  const saveBanner = async () => {
+  // Check for period conflicts before saving
+  const checkConflicts = async (): Promise<Conflict[]> => {
+    const startsAt = form.starts_at?.toISOString() ?? null;
+    const expiresAt = form.expires_at?.toISOString() ?? null;
+
+    // Get all active banners except the current one being edited
+    const { data: activeBanners } = await supabase
+      .from("chat_banners")
+      .select("id, title, starts_at, expires_at")
+      .eq("is_active", true)
+      .neq("id", editingBanner?.id ?? "00000000-0000-0000-0000-000000000000");
+
+    if (!activeBanners || activeBanners.length === 0) return [];
+
+    // Get target companies for this banner
+    let targetContactIds: string[] = [];
+    if (form.target_all) {
+      const { data: allContacts } = await supabase
+        .from("contacts")
+        .select("id")
+        .eq("is_company", true);
+      targetContactIds = (allContacts ?? []).map((c: any) => c.id);
+    } else if (editingBanner) {
+      const { data: existing } = await supabase
+        .from("chat_banner_assignments")
+        .select("contact_id")
+        .eq("banner_id", editingBanner.id);
+      targetContactIds = (existing ?? []).map((a: any) => a.contact_id);
+    }
+
+    if (targetContactIds.length === 0) return [];
+
+    const foundConflicts: Conflict[] = [];
+
+    for (const other of activeBanners as any[]) {
+      // Check period overlap
+      const otherStart = other.starts_at ? new Date(other.starts_at) : new Date(0);
+      const otherEnd = other.expires_at ? new Date(other.expires_at) : new Date("2099-12-31");
+      const thisStart = startsAt ? new Date(startsAt) : new Date();
+      const thisEnd = expiresAt ? new Date(expiresAt) : new Date("2099-12-31");
+
+      if (thisStart <= otherEnd && thisEnd >= otherStart) {
+        // Overlap detected - check if same companies
+        const { data: otherAssignments } = await supabase
+          .from("chat_banner_assignments")
+          .select("contact_id")
+          .eq("banner_id", other.id)
+          .is("dismissed_at", null);
+
+        const otherContactIds = new Set((otherAssignments ?? []).map((a: any) => a.contact_id));
+        const overlapping = targetContactIds.filter(id => otherContactIds.has(id));
+
+        if (overlapping.length > 0) {
+          // Get company names for first 5
+          const { data: companies } = await supabase
+            .from("contacts")
+            .select("id, name")
+            .in("id", overlapping.slice(0, 5));
+
+          for (const company of (companies ?? []) as any[]) {
+            foundConflicts.push({
+              companyId: company.id,
+              companyName: company.name,
+              existingBannerId: other.id,
+              existingBannerTitle: other.title,
+              overlapStart: (thisStart > otherStart ? thisStart : otherStart).toISOString(),
+              overlapEnd: (thisEnd < otherEnd ? thisEnd : otherEnd).toISOString(),
+            });
+          }
+        }
+      }
+    }
+
+    return foundConflicts;
+  };
+
+  const saveBanner = async (skipConflictCheck = false) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
+
+    // Check conflicts if active and not skipping
+    if (form.is_active && !skipConflictCheck) {
+      const found = await checkConflicts();
+      if (found.length > 0) {
+        setConflicts(found);
+        setConflictDialog(true);
+        return;
+      }
+    }
 
     const payload = {
       title: form.title,
@@ -327,6 +434,11 @@ const AdminBanners = () => {
       priority: form.priority,
       target_all: form.target_all,
       max_views: form.max_views,
+      position: form.position,
+      auto_dismiss_seconds: form.auto_dismiss_seconds,
+      display_frequency: form.display_frequency,
+      border_style: form.border_style,
+      shadow_style: form.shadow_style,
     };
 
     if (editingBanner) {
@@ -336,8 +448,15 @@ const AdminBanners = () => {
     }
 
     setBannerDialog(false);
+    setConflictDialog(false);
     toast({ title: t("common.save") });
     fetchBanners();
+  };
+
+  const handleConflictConfirm = async () => {
+    setSavingWithConflict(true);
+    await saveBanner(true);
+    setSavingWithConflict(false);
   };
 
   const deleteBanner = async (id: string) => {
