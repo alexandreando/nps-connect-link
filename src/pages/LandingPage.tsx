@@ -146,7 +146,7 @@ const texts = {
     navCta: "Quero conhecer",
     langToggle: "EN",
     // Hero
-    heroBadge: "Acesso antecipado · Vagas limitadas",
+    heroBadge: "Atendimento · NPS · Help Center",
     heroH1: "Atendimento, NPS e Help Center em um só lugar",
     heroSub: "Tudo que seu time de CS precisa para reter clientes e escalar suporte.",
     heroSubCta: "Sem cartão de crédito · Setup em minutos",
