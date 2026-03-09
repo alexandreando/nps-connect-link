@@ -73,7 +73,7 @@ const LandingNavbar = ({ t, isLoggedIn, onToggleLang, onCtaClick }: LandingNavba
           </button>
           <button
             onClick={() => navigate(isLoggedIn ? "/home" : "/auth")}
-            className="hidden sm:inline-flex items-center justify-center text-sm px-4 h-9 rounded-lg transition-colors duration-150 whitespace-nowrap"
+            className="hidden lg:inline-flex items-center justify-center text-sm px-4 h-9 rounded-lg transition-colors duration-150 whitespace-nowrap"
             style={{ color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.12)", background: "transparent" }}
             onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
             onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}
@@ -82,7 +82,7 @@ const LandingNavbar = ({ t, isLoggedIn, onToggleLang, onCtaClick }: LandingNavba
           </button>
           <button
             onClick={onCtaClick}
-            className="hidden sm:inline-flex items-center justify-center text-sm px-5 h-9 rounded-lg font-medium transition-opacity duration-150 hover:opacity-90 whitespace-nowrap"
+            className="hidden lg:inline-flex items-center justify-center text-sm px-5 h-9 rounded-lg font-medium transition-opacity duration-150 hover:opacity-90 whitespace-nowrap"
             style={{ background: "#FF7A59", color: "#fff" }}
           >
             {t.navCta}

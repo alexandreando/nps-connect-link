@@ -276,7 +276,7 @@ const LandingPage = () => {
   const formTexts = { fieldName: t.fieldName, fieldEmail: t.fieldEmail, fieldPhone: t.fieldPhone, formCta: t.formCta, successTitle: t.successTitle, successSub: t.successSub };
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "#0F1115", fontFamily: "Manrope, sans-serif" }}>
+    <div className="min-h-screen flex flex-col overflow-x-hidden" style={{ background: "#0F1115", fontFamily: "Manrope, sans-serif" }}>
       <LandingNavbar t={t} isLoggedIn={isLoggedIn} onToggleLang={toggleLang} onCtaClick={scrollToForm} />
       <LandingHero t={t} formTexts={formTexts} />
       <LandingProductSections t={t} />

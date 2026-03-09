@@ -1,40 +1,30 @@
 
+# Plan: Performance Optimizations + Dashboard Load-on-Demand
 
-## Plano: Correções de Responsividade Mobile da Landing Page
+## Status: ✅ Implemented
 
-Após revisar todos os componentes, identifiquei os seguintes problemas e correções necessárias:
+---
 
-### Problemas Encontrados
+## 1. Dashboard Load-on-Demand — DONE
+- Removed 30s `setInterval` auto-polling from `useDashboardStats`
+- Added optional Realtime toggle (default: off) with 5s debounce on `chat_rooms` changes
+- Added manual "Atualizar" refresh button to both `AdminDashboard` and `AdminDashboardGerencial`
 
-1. **LandingPage (root)**: Falta `overflow-x: hidden` no container raiz — elementos com posição absoluta (glows) causam scroll horizontal.
+## 2. Reports: Default to Short Periods — DONE
+- Changed `AdminDashboardGerencial` default period from "month" to "week"
+- Removed "all" option from Gerencial period selector
+- Added warning text in `AdminCSATReport` when "all" period is selected
 
-2. **LandingHero**: O glow decorativo (800px de largura) extrapola a viewport em telas pequenas. Precisa de contenção.
+## 3. Widget `fetchHistory` N+1 Fix — DONE
+- Replaced `Promise.all` with per-room queries with a single batch `.in("room_id", roomIds)` query
+- Reduced from N+1 to 2 queries per history page load
 
-3. **LandingProductSections / ChatWorkspaceMockup**: O mockup do chat usa `flex` com colunas fixas (`w-[140px]` + `w-[130px]`), que não cabem em telas < 400px. Overflow horizontal inevitável.
+## 4. Sidebar Active Counts — DONE
+- Replaced scanning all active rooms with reading `active_conversations` from `attendant_profiles`
+- Unassigned count uses lightweight `head: true` count query
+- Realtime patches update `active_count` from `attendant_profiles` changes
 
-4. **LeadForm (inline layout)**: No Hero, o form usa `flex-col sm:flex-row` — OK no breakpoint, mas em telas entre 640-768px os 3 inputs + botão ficam apertados numa única linha.
-
-5. **LandingNavbar**: Os botões "Sign In" e CTA são `hidden sm:inline-flex`, mas o menu mobile só aparece em `lg:hidden` — entre `sm` e `lg` (768-1024px), os links de navegação somem mas os botões aparecem, criando inconsistência.
-
-6. **LandingSocialProof**: `flex-wrap` com `gap-8` funciona, mas em telas muito pequenas os metrics podem ficar apertados.
-
-7. **LandingFooter**: Grid `grid-cols-2 md:grid-cols-4` está OK, mas a logo+tagline ocupa `col-span-2 md:col-span-1`, o que em mobile faz a tagline ocupar toda a largura — aceitável.
-
-### Correções Planejadas
-
-| # | Arquivo | Correção |
-|---|---------|----------|
-| 1 | `LandingPage.tsx` | Adicionar `overflow-x-hidden` no div raiz |
-| 2 | `LandingHero.tsx` | Limitar glow a `max-w-full` e garantir `overflow-hidden` no container |
-| 3 | `LandingProductSections.tsx` | Esconder sidebar de contexto e sidebar de contatos do ChatWorkspaceMockup em mobile (`hidden sm:block`). Adicionar `overflow-hidden` no mockup wrapper |
-| 4 | `LandingNavbar.tsx` | Mudar botões "Sign In"/"CTA" de `hidden sm:` para `hidden lg:` para consistência com o menu hamburger (que já é `lg:hidden`) |
-| 5 | `LandingCTA.tsx` | Reduzir padding do card form em mobile (`p-5 sm:p-8`) |
-| 6 | `LandingSocialProof.tsx` | Usar `grid grid-cols-2 md:grid-cols-4` em vez de flex-wrap para melhor alinhamento mobile |
-| 7 | `LeadForm.tsx` | Mudar breakpoint do inline de `sm:flex-row` para `md:flex-row` para evitar compressão |
-
-### Detalhes Técnicos
-
-- Nenhuma mudança de backend ou banco de dados necessária
-- Todas as correções são CSS/layout via classes Tailwind e inline styles
-- 7 arquivos serão editados com mudanças pequenas e focadas
-
+## 5. `useAttendantQueues` Efficiency — DONE
+- Uses `active_conversations` from `attendant_profiles` instead of counting rooms
+- Only fetches unassigned rooms + waiting counts (lighter queries)
+- Added 3s debounce to Realtime callbacks to batch rapid changes

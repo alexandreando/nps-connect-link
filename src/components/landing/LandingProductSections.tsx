@@ -34,7 +34,7 @@ const FeatureList = ({ features, color }: { features: string[]; color: string })
 const ChatWorkspaceMockup = () => (
   <div className="rounded-xl overflow-hidden" style={{ background: "#0F1115", border: "1px solid rgba(255,255,255,0.06)" }}>
     <div className="flex" style={{ minHeight: 320 }}>
-      <div className="w-[140px] border-r flex-shrink-0 p-2 space-y-1.5" style={{ borderColor: "rgba(255,255,255,0.06)", background: "#131722" }}>
+      <div className="hidden sm:block w-[140px] border-r flex-shrink-0 p-2 space-y-1.5" style={{ borderColor: "rgba(255,255,255,0.06)", background: "#131722" }}>
         {[
           { name: "João Silva", badge: 2, active: true },
           { name: "Maria Santos", badge: 0, active: false },
@@ -62,7 +62,7 @@ const ChatWorkspaceMockup = () => (
         </div>
         <div className="h-7 rounded-full mt-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }} />
       </div>
-      <div className="w-[130px] border-l flex-shrink-0 p-2.5 space-y-2" style={{ borderColor: "rgba(255,255,255,0.06)", background: "#131722" }}>
+      <div className="hidden sm:block w-[130px] border-l flex-shrink-0 p-2.5 space-y-2" style={{ borderColor: "rgba(255,255,255,0.06)", background: "#131722" }}>
         <div className="text-[9px] uppercase tracking-wider font-medium mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>Context</div>
         {[["Plan", "Pro"], ["MRR", "$2.4k"], ["Health", "72%"], ["NPS", "9"]].map(([k, v]) => (
           <div key={k}>

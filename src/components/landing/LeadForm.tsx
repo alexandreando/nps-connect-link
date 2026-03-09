@@ -109,7 +109,7 @@ const LeadForm = ({ t, layout = "stacked" }: LeadFormProps) => {
     <>
       <form
         onSubmit={handleSubmit}
-        className={layout === "inline" ? "flex flex-col sm:flex-row gap-2 w-full" : "flex flex-col gap-4 w-full"}
+        className={layout === "inline" ? "flex flex-col md:flex-row gap-2 w-full" : "flex flex-col gap-4 w-full"}
       >
         <div className={layout === "inline" ? "flex-1 min-w-0" : ""}>
           <LeadInput placeholder={t.fieldName} value={form.name} onChange={(v) => handleChange("name", v)} variant={variant} />
