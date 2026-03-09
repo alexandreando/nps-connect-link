@@ -188,7 +188,7 @@ const HelpCenterMockup = () => (
       <div className="text-[10px] font-medium text-white mb-1">How to install the chat widget</div>
       <div className="h-2 rounded w-full mb-1" style={{ background: "rgba(255,255,255,0.05)" }} />
       <div className="h-2 rounded w-3/4" style={{ background: "rgba(255,255,255,0.03)" }} />
-      <div className="text-[8px] mt-1.5" style={{ color: "#2ECC71" }}>👍 92% found helpful</div>
+      <div className="text-[8px] mt-1.5" style={{ color: "#2ECC71" }}>92% found helpful</div>
     </div>
   </div>
 );
