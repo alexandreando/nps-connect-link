@@ -12,11 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Save, Send, Loader2, History, RotateCcw } from "lucide-react";
+import { Save, Send, Loader2, History, RotateCcw, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { slugify } from "@/utils/helpSlug";
 import { editorSchemaToHtml } from "@/utils/helpBlocks";
 import { RichTextEditor } from "@/components/help/RichTextEditor";
+import { ArticlePreview } from "@/components/help/ArticlePreview";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { format } from "date-fns";
 
 interface Collection { id: string; name: string; }
