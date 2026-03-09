@@ -602,7 +602,7 @@ const AdminBanners = () => {
                       {/* Type icon + color stripe */}
                       <div
                         className="w-12 h-12 rounded-lg flex-shrink-0 flex items-center justify-center"
-                        style={{ backgroundColor: banner.bg_color }}
+                        style={bgStyle(banner.bg_color)}
                       >
                         <TypeIcon className="h-5 w-5" style={{ color: banner.text_color }} />
                       </div>
