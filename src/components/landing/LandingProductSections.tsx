@@ -34,7 +34,7 @@ const FeatureList = ({ features, color }: { features: string[]; color: string })
 const ChatWorkspaceMockup = () => (
   <div className="rounded-xl overflow-hidden" style={{ background: "#0F1115", border: "1px solid rgba(255,255,255,0.06)" }}>
     <div className="flex" style={{ minHeight: 320 }}>
-      <div className="w-[140px] border-r flex-shrink-0 p-2 space-y-1.5" style={{ borderColor: "rgba(255,255,255,0.06)", background: "#131722" }}>
+      <div className="hidden sm:block w-[140px] border-r flex-shrink-0 p-2 space-y-1.5" style={{ borderColor: "rgba(255,255,255,0.06)", background: "#131722" }}>
         {[
           { name: "João Silva", badge: 2, active: true },
           { name: "Maria Santos", badge: 0, active: false },
