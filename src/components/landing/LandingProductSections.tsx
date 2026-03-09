@@ -1,10 +1,14 @@
-import { MessageSquare, Target, BookOpen, CheckCircle2, Search } from "lucide-react";
+import { MessageSquare, Target, BookOpen, Star, CheckCircle2, Search } from "lucide-react";
 
 type ProductTexts = {
   chatPain: string;
   chatTitle: string;
   chatSub: string;
   chatFeatures: string[];
+  csatPain: string;
+  csatTitle: string;
+  csatSub: string;
+  csatFeatures: string[];
   npsPain: string;
   npsTitle: string;
   npsSub: string;
