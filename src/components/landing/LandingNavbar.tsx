@@ -82,7 +82,7 @@ const LandingNavbar = ({ t, isLoggedIn, onToggleLang, onCtaClick }: LandingNavba
           </button>
           <button
             onClick={onCtaClick}
-            className="hidden sm:inline-flex items-center justify-center text-sm px-5 h-9 rounded-lg font-medium transition-opacity duration-150 hover:opacity-90 whitespace-nowrap"
+            className="hidden lg:inline-flex items-center justify-center text-sm px-5 h-9 rounded-lg font-medium transition-opacity duration-150 hover:opacity-90 whitespace-nowrap"
             style={{ background: "#FF7A59", color: "#fff" }}
           >
             {t.navCta}

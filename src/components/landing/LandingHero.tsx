@@ -24,7 +24,7 @@ const LandingHero = ({ t, formTexts }: { t: HeroTexts; formTexts: LeadFormTexts 
     <section className="relative py-20 lg:py-28 px-4 overflow-hidden" style={{ background: "#0F1115" }}>
       {/* Subtle background glow */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div style={{ position: "absolute", top: "30%", left: "50%", transform: "translate(-50%, -50%)", width: 800, height: 500, background: "radial-gradient(ellipse, rgba(255,122,89,0.06) 0%, transparent 70%)" }} />
+        <div style={{ position: "absolute", top: "30%", left: "50%", transform: "translate(-50%, -50%)", width: "min(800px, 100%)", height: 500, background: "radial-gradient(ellipse, rgba(255,122,89,0.06) 0%, transparent 70%)" }} />
       </div>
 
       <div className="relative z-10 max-w-3xl mx-auto text-center flex flex-col items-center">
