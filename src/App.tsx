@@ -12,37 +12,45 @@ import LandingPage from "./pages/LandingPage";
 import ChatLandingPage from "./pages/ChatLandingPage";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
-import Dashboard from "./pages/Dashboard";
-import Contacts from "./pages/Contacts";
-import Campaigns from "./pages/Campaigns";
-import CampaignDetails from "./pages/CampaignDetails";
-import Settings from "./pages/Settings";
 import NPSResponse from "./pages/NPSResponse";
 import NPSEmbed from "./pages/NPSEmbed";
 import NotFound from "./pages/NotFound";
-import CSDashboard from "./pages/CSDashboard";
-import CSTrailsPage from "./pages/CSTrailsPage";
-import CSHealthPage from "./pages/CSHealthPage";
-import CSChurnPage from "./pages/CSChurnPage";
-import CSFinancialPage from "./pages/CSFinancialPage";
 import ChatWidget from "./pages/ChatWidget";
-import AdminDashboard from "./pages/AdminDashboard";
 import AdminWorkspace from "./pages/AdminWorkspace";
-import AdminAttendants from "./pages/AdminAttendants";
-import AdminCSATReport from "./pages/AdminCSATReport";
-
-import AdminSettings from "./pages/AdminSettings";
-import AdminDashboardGerencial from "./pages/AdminDashboardGerencial";
-import AdminChatHistory from "./pages/AdminChatHistory";
-import AdminBanners from "./pages/AdminBanners";
-import AdminBroadcasts from "./pages/AdminBroadcasts";
 import PendingApproval from "./pages/PendingApproval";
 import UserPortal from "./pages/UserPortal";
-import People from "./pages/People";
-import NPSSettings from "./pages/NPSSettings";
-import MyProfile from "./pages/MyProfile";
-import Backoffice from "./pages/Backoffice";
 import SidebarLayout from "./components/SidebarLayout";
+
+// Lazy loaded pages — CS Module
+const Home = lazy(() => import("./pages/Home"));
+const CSDashboard = lazy(() => import("./pages/CSDashboard"));
+const CSTrailsPage = lazy(() => import("./pages/CSTrailsPage"));
+const CSHealthPage = lazy(() => import("./pages/CSHealthPage"));
+const CSChurnPage = lazy(() => import("./pages/CSChurnPage"));
+const CSFinancialPage = lazy(() => import("./pages/CSFinancialPage"));
+
+// Lazy loaded pages — NPS Module
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Contacts = lazy(() => import("./pages/Contacts"));
+const Campaigns = lazy(() => import("./pages/Campaigns"));
+const CampaignDetails = lazy(() => import("./pages/CampaignDetails"));
+const Settings = lazy(() => import("./pages/Settings"));
+const People = lazy(() => import("./pages/People"));
+const NPSSettings = lazy(() => import("./pages/NPSSettings"));
+
+// Lazy loaded pages — Chat Admin (keep AdminWorkspace eager for realtime)
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const AdminAttendants = lazy(() => import("./pages/AdminAttendants"));
+const AdminCSATReport = lazy(() => import("./pages/AdminCSATReport"));
+const AdminSettings = lazy(() => import("./pages/AdminSettings"));
+const AdminDashboardGerencial = lazy(() => import("./pages/AdminDashboardGerencial"));
+const AdminChatHistory = lazy(() => import("./pages/AdminChatHistory"));
+const AdminBanners = lazy(() => import("./pages/AdminBanners"));
+const AdminBroadcasts = lazy(() => import("./pages/AdminBroadcasts"));
+
+// Lazy loaded pages — Other
+const MyProfile = lazy(() => import("./pages/MyProfile"));
+const Backoffice = lazy(() => import("./pages/Backoffice"));
 
 // Help Center - lazy loaded
 const HelpOverview = lazy(() => import("./pages/HelpOverview"));
