@@ -165,9 +165,9 @@ Deno.serve(async (req) => {
             } else if (autoRule && FLOW_ORDER.includes(autoRule)) {
               chainSystemMsgs.push({ rule: autoRule, created_at: msg.created_at! });
             }
-          } else if (msg.sender_type === "visitor" && !lastVisitorMsg) {
+          } else if (msg.sender_type === "visitor" && !msg.is_internal && !lastVisitorMsg) {
             lastVisitorMsg = { created_at: msg.created_at! };
-          } else if (msg.sender_type === "attendant" && !lastAttendantMsg) {
+          } else if (msg.sender_type === "attendant" && !msg.is_internal && !lastAttendantMsg) {
             lastAttendantMsg = { created_at: msg.created_at! };
           }
         }
