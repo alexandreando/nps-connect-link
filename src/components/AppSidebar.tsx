@@ -164,7 +164,7 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
               }}
               className="flex items-center min-w-0"
             >
-              <img src={logoSrc} alt="Journey" className="h-7 w-auto object-contain max-w-[160px]" />
+              <img src={logoSrc} alt="Journey" className="h-9 w-auto object-contain max-w-[200px]" />
             </button>
             <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors h-7 w-7 shrink-0" />
           </div>
