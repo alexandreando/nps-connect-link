@@ -1,11 +1,15 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageSquare, User } from "lucide-react";
+import { MessageSquare, User, ClipboardList, BookOpen, UserCog } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import PortalChatList from "@/components/portal/PortalChatList";
 import PortalChatView from "@/components/portal/PortalChatView";
+import PortalNPSTab from "@/components/portal/PortalNPSTab";
+import PortalProfileTab from "@/components/portal/PortalProfileTab";
+import PortalHelpTab from "@/components/portal/PortalHelpTab";
 
 interface PortalContact {
   id: string;
