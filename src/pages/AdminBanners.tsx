@@ -944,7 +944,7 @@ const AdminBanners = () => {
 
           <DialogFooter className="px-6 py-4 border-t border-border">
             <Button variant="outline" onClick={() => setBannerDialog(false)}>{t("common.cancel")}</Button>
-            <Button onClick={saveBanner} disabled={!form.title || !form.content}>
+            <Button onClick={() => saveBanner()} disabled={!form.title || !form.content}>
               {editingBanner ? "Salvar Alterações" : "Criar Banner"}
             </Button>
           </DialogFooter>
