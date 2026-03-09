@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
 
         // === ATTENDANT ABSENCE (independent, not part of chain) ===
         if (absenceRule && room.status === "active" && room.attendant_id) {
-          const lastNonSystem = roomMsgs.find((m) => m.sender_type !== "system");
+          const lastNonSystem = roomMsgs.find((m) => m.sender_type !== "system" && !m.is_internal);
           if (lastNonSystem && lastNonSystem.sender_type === "visitor") {
             const elapsed = (now - new Date(lastNonSystem.created_at!).getTime()) / 60000;
             if (elapsed >= absenceRule.trigger_minutes!) {
