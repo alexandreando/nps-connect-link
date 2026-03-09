@@ -155,10 +155,10 @@ const texts = {
     heroBadgeNPS: "NPS",
     heroBadgeHelp: "Help Center",
     // Form
-    fieldName: "Seu Nome *",
-    fieldEmail: "Email Corporativo *",
+    fieldName: "Seu nome *",
+    fieldEmail: "Email corporativo *",
     fieldPhone: "Telefone *",
-    formCta: "Quero Conhecer",
+    formCta: "Quero conhecer",
     successTitle: "Você está na lista!",
     successSub: "Entraremos em contato em breve com seu convite.",
     // Product sections
