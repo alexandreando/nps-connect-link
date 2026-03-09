@@ -179,14 +179,7 @@ export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange, re
                   <Building2 className="h-3 w-3" />{roomInfo.contact_name}<ExternalLink className="h-2.5 w-2.5" />
                 </button>
               )}
-              {roomInfo.tags.length > 0 && (
-                <div className="flex items-center gap-1">
-                  <Tag className="h-3 w-3 text-muted-foreground" />
-                  {roomInfo.tags.map((tag, i) => (
-                    <Badge key={i} variant="outline" className="text-[9px] py-0" style={{ borderColor: tag.color, color: tag.color }}>{tag.name}</Badge>
-                  ))}
-                </div>
-              )}
+              {roomId && <ChatTagSelector roomId={roomId} compact />}
             </div>
           </div>
         )}
