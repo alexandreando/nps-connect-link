@@ -215,7 +215,7 @@ const texts = {
       { value: "-25%", label: "Volume de tickets" },
     ],
     // FAQ
-    faqTitle: "Perguntas Frequentes",
+    faqTitle: "Perguntas frequentes",
     faqItems: [
       { q: "Quanto tempo leva para instalar?", a: "O widget de chat pode ser instalado com uma única linha de JavaScript. A configuração completa incluindo NPS e Help Center leva menos de 30 minutos." },
       { q: "Preciso de cartão de crédito?", a: "Não. O acesso antecipado é gratuito e não exige informações de pagamento." },
