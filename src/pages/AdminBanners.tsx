@@ -814,39 +814,11 @@ const AdminBanners = () => {
                 </Collapsible>
               )}
 
-              {/* Section 1: Type + Title */}
+              {/* Section 1: Title */}
               <div className="rounded-lg bg-muted/30 p-4 space-y-3">
                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                   <Info className="h-4 w-4 text-muted-foreground" />
                   {t("banners.sectionIdentification")}
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">{t("banners.typeLabel")}</Label>
-                  <div className="grid grid-cols-5 gap-1.5">
-                    {BANNER_TYPES.map((bt) => {
-                      const Icon = bt.icon;
-                      const isSelected = form.banner_type === bt.value;
-                      return (
-                        <button
-                          key={bt.value}
-                          type="button"
-                          onClick={() => {
-                            const colors = TYPE_DEFAULT_COLORS[bt.value];
-                            setForm({ ...form, banner_type: bt.value, bg_color: colors.bg, text_color: colors.text });
-                          }}
-                          className={cn(
-                            "flex flex-col items-center gap-1 p-2 rounded-lg border text-xs transition-all",
-                            isSelected
-                              ? cn(bt.bgClass, bt.borderClass, "ring-1 ring-offset-1 ring-offset-background", bt.borderClass.replace("border-", "ring-"))
-                              : "border-border hover:bg-muted/50"
-                          )}
-                        >
-                          <Icon className={cn("h-4 w-4", isSelected ? "opacity-100" : "opacity-50")} style={isSelected ? { color: TYPE_DEFAULT_COLORS[bt.value].bg } : undefined} />
-                          <span className="truncate">{bt.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">{t("banners.titleLabel")} <span className="text-destructive">*</span></Label>
