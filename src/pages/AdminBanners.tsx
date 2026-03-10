@@ -196,10 +196,14 @@ const getBannerStatus = (banner: Banner): { label: string; variant: "default" | 
 // Reverse map variant -> banner_type
 const VARIANT_TO_TYPE: Record<BannerVariant, BannerType> = {
   warning: "warning",
-  destructive: "warning",
+  urgent: "warning",
   success: "success",
   neutral: "info",
-  brand: "promo",
+  premium: "promo",
+  ocean: "info",
+  sunset: "promo",
+  midnight: "info",
+  neon: "update",
   custom: "info",
 };
 
