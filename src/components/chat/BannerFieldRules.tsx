@@ -577,7 +577,7 @@ export function BannerFieldRules({ bannerId, rules, onChanged }: Props) {
                     <div className="space-y-0.5">
                       {previewResult.toAdd.map(c => (
                         <div key={c.id} className="flex items-center gap-2 text-xs py-0.5">
-                          <Badge className="text-[10px] px-1 py-0 bg-emerald-500/15 text-emerald-600 border-transparent shrink-0">Nova</Badge>
+                          <Badge variant="promoter" className="text-[10px] px-1 py-0 shrink-0">Nova</Badge>
                           <span>{c.trade_name || c.name}</span>
                         </div>
                       ))}
