@@ -55,6 +55,16 @@
     update: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>'
   };
 
+  // --- Semantic variant colors (matches BannerPreview.tsx) ---
+  var VARIANT_COLORS = {
+    warning:     { bg: "#FFFBEB", text: "#78350F", border: "#FDE68A" },
+    destructive: { bg: "#FEF2F2", text: "#7F1D1D", border: "#FECACA" },
+    success:     { bg: "#ECFDF5", text: "#064E3B", border: "#A7F3D0" },
+    neutral:     { bg: "#F8FAFC", text: "#0F172A", border: "#E2E8F0" },
+    brand:       { bg: "#EEF2FF", text: "#312E81", border: "#C7D2FE" }
+  };
+  var TYPE_TO_VARIANT = { info: "neutral", warning: "warning", success: "success", promo: "brand", update: "brand" };
+
   // --- Banner Logic ---
   var bannerContainer = null;
 
