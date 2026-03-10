@@ -142,32 +142,12 @@ const GRADIENT_PRESETS = [
 const isGradient = (color: string) => color.startsWith("linear-gradient");
 const bgStyle = (color: string) => isGradient(color) ? { background: color } : { backgroundColor: color };
 
-const BANNER_TYPES: { value: BannerType; label: string; icon: typeof Info; bgClass: string; borderClass: string }[] = [
-  { value: "info", label: "Informação", icon: Info, bgClass: "bg-blue-500/15", borderClass: "border-blue-500/50" },
-  { value: "warning", label: "Alerta", icon: AlertTriangle, bgClass: "bg-amber-500/15", borderClass: "border-amber-500/50" },
-  { value: "success", label: "Sucesso", icon: CheckCircle, bgClass: "bg-emerald-500/15", borderClass: "border-emerald-500/50" },
-  { value: "promo", label: "Promoção", icon: Megaphone, bgClass: "bg-purple-500/15", borderClass: "border-purple-500/50" },
-  { value: "update", label: "Atualização", icon: Sparkles, bgClass: "bg-cyan-500/15", borderClass: "border-cyan-500/50" },
-];
-
-const POSITION_OPTIONS = [
-  { value: "top", label: "Topo" },
-  { value: "bottom", label: "Rodapé" },
-  { value: "float", label: "Flutuante" },
-];
-
-const BORDER_STYLE_OPTIONS = [
-  { value: "none", label: "Nenhuma" },
-  { value: "subtle", label: "Sutil" },
-  { value: "rounded", label: "Arredondada" },
-  { value: "pill", label: "Pill" },
-];
-
-const SHADOW_STYLE_OPTIONS = [
-  { value: "none", label: "Nenhuma" },
-  { value: "soft", label: "Suave" },
-  { value: "medium", label: "Média" },
-  { value: "strong", label: "Forte" },
+const BANNER_TYPES: { value: BannerType; label: string; icon: typeof Info }[] = [
+  { value: "info", label: "Informação", icon: Info },
+  { value: "warning", label: "Alerta", icon: AlertTriangle },
+  { value: "success", label: "Sucesso", icon: CheckCircle },
+  { value: "promo", label: "Promoção", icon: Megaphone },
+  { value: "update", label: "Atualização", icon: Sparkles },
 ];
 
 const FREQUENCY_OPTIONS = [
