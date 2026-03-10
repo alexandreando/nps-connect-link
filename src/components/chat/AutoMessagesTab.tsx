@@ -93,7 +93,7 @@ const AutoMessagesTab = () => {
 
     const { data: rulesData } = await supabase
       .from("chat_auto_rules")
-      .select("id, rule_type, is_enabled, trigger_minutes, message_content")
+      .select("id, rule_type, is_enabled, trigger_minutes, message_content, close_resolution_status")
       .order("created_at");
 
     const existing = rulesData ?? [];
