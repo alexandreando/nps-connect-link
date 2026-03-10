@@ -1143,6 +1143,31 @@ const AdminBanners = () => {
             <DialogTitle>{t("banners.assignments")} — {selectedBanner?.title}</DialogTitle>
           </DialogHeader>
 
+          {/* Summary metrics */}
+          {(() => {
+            const totalViews = assignments.reduce((s, a) => s + a.views_count, 0);
+            const dismissed = assignments.filter(a => a.dismissed_at).length;
+            const voted = assignments.filter(a => a.vote);
+            const upVotes = voted.filter(a => a.vote === "up").length;
+            const favorability = voted.length > 0 ? Math.round((upVotes / voted.length) * 100) : null;
+            return (
+              <div className="grid grid-cols-4 gap-3">
+                {[
+                  { label: "Atribuídos", value: assignments.length },
+                  { label: "Views", value: totalViews },
+                  { label: "Favorabilidade", value: favorability !== null ? `${favorability}%` : "—" },
+                  { label: "Dismissed", value: dismissed },
+                ].map((m) => (
+                  <div key={m.label} className="rounded-lg border bg-muted/20 p-3 text-center">
+                    <p className="text-lg font-bold">{m.value}</p>
+                    <p className="text-[10px] text-muted-foreground">{m.label}</p>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {/* Add companies */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">{t("banners.addClients")}</CardTitle>
@@ -1153,36 +1178,70 @@ const AdminBanners = () => {
                 <Input value={contactSearch} onChange={(e) => setContactSearch(e.target.value)} placeholder={t("banners.searchClient")} className="pl-9" />
               </div>
               <div className="max-h-40 overflow-y-auto border rounded-md">
-                {filteredContacts.map((c) => (
-                  <label key={c.id} className="flex items-center gap-3 px-3 py-2 hover:bg-muted cursor-pointer text-sm">
-                    <input
-                      type="checkbox"
-                      checked={selectedContacts.has(c.id)}
-                      onChange={(e) => {
-                        const next = new Set(selectedContacts);
-                        e.target.checked ? next.add(c.id) : next.delete(c.id);
-                        setSelectedContacts(next);
-                      }}
-                      className="rounded"
-                    />
-                    <span className="font-medium">{c.name}</span>
-                    <span className="text-muted-foreground">{c.email}</span>
-                  </label>
-                ))}
-                {filteredContacts.length === 0 && (
+                {filteredContacts
+                  .filter((c) => !assignments.some((a) => a.contact_id === c.id))
+                  .map((c) => (
+                    <label key={c.id} className="flex items-center gap-3 px-3 py-2 hover:bg-muted cursor-pointer text-sm">
+                      <Checkbox
+                        checked={selectedContacts.has(c.id)}
+                        onCheckedChange={(checked) => {
+                          const next = new Set(selectedContacts);
+                          checked ? next.add(c.id) : next.delete(c.id);
+                          setSelectedContacts(next);
+                        }}
+                      />
+                      <span className="font-medium">{c.name}</span>
+                      <span className="text-muted-foreground text-xs">{c.email}</span>
+                    </label>
+                  ))}
+                {filteredContacts.filter((c) => !assignments.some((a) => a.contact_id === c.id)).length === 0 && (
                   <p className="text-center py-4 text-sm text-muted-foreground">{t("banners.noClients")}</p>
                 )}
               </div>
               <Button size="sm" onClick={assignContacts} disabled={selectedContacts.size === 0}>
                 <Plus className="h-4 w-4 mr-1" />
-                {t("banners.assign")} ({selectedContacts.size})
+                Adicionar {selectedContacts.size} empresa{selectedContacts.size !== 1 ? "s" : ""}
               </Button>
             </CardContent>
           </Card>
 
+          {/* Monitoring table */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">{t("banners.currentAssignments")} ({assignments.length})</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm">{t("banners.currentAssignments")} ({assignments.length})</CardTitle>
+                <button
+                  type="button"
+                  onClick={() => setAssignSortDesc(!assignSortDesc)}
+                  className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Views {assignSortDesc ? "↓" : "↑"}
+                </button>
+              </div>
+              {/* Inline filters */}
+              <div className="flex items-center gap-2 pt-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input value={assignSearch} onChange={(e) => setAssignSearch(e.target.value)} placeholder="Buscar empresa..." className="h-8 text-xs pl-8" />
+                </div>
+                <Select value={assignStatusFilter} onValueChange={(v: any) => setAssignStatusFilter(v)}>
+                  <SelectTrigger className="h-8 w-[110px] text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="active">Ativos</SelectItem>
+                    <SelectItem value="dismissed">Dismissed</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={assignVoteFilter} onValueChange={(v: any) => setAssignVoteFilter(v)}>
+                  <SelectTrigger className="h-8 w-[110px] text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos votos</SelectItem>
+                    <SelectItem value="up">Positivo</SelectItem>
+                    <SelectItem value="down">Negativo</SelectItem>
+                    <SelectItem value="none">Sem voto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </CardHeader>
             <CardContent>
               {assignments.length === 0 ? (
@@ -1193,36 +1252,66 @@ const AdminBanners = () => {
                     <TableRow>
                       <TableHead>{t("banners.client")}</TableHead>
                       <TableHead>Views</TableHead>
-                      <TableHead>{t("banners.vote")}</TableHead>
-                      <TableHead className="w-[60px]" />
+                      <TableHead>Voto</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-[50px]" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {assignments.map((a) => (
-                      <TableRow key={a.id}>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium text-sm">{a.contact_name}</p>
-                            <p className="text-xs text-muted-foreground">{a.contact_email}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>{a.views_count}</TableCell>
-                        <TableCell>
-                          {a.vote === "up" ? (
-                            <ThumbsUp className="h-4 w-4 text-emerald-500" />
-                          ) : a.vote === "down" ? (
-                            <ThumbsDown className="h-4 w-4 text-destructive" />
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeAssignment(a.id)}>
-                            <Trash2 className="h-3 w-3 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {assignments
+                      .filter((a) => {
+                        if (assignSearch && !(a.contact_name ?? "").toLowerCase().includes(assignSearch.toLowerCase())) return false;
+                        if (assignStatusFilter === "active" && a.dismissed_at) return false;
+                        if (assignStatusFilter === "dismissed" && !a.dismissed_at) return false;
+                        if (assignVoteFilter === "up" && a.vote !== "up") return false;
+                        if (assignVoteFilter === "down" && a.vote !== "down") return false;
+                        if (assignVoteFilter === "none" && a.vote) return false;
+                        return true;
+                      })
+                      .sort((a, b) => assignSortDesc ? b.views_count - a.views_count : a.views_count - b.views_count)
+                      .map((a) => (
+                        <TableRow key={a.id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium text-sm">{a.contact_name}</p>
+                              <p className="text-xs text-muted-foreground">{a.contact_email}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <span className="text-sm">{a.views_count}</span>
+                              {selectedBanner?.max_views && (
+                                <Progress value={(a.views_count / selectedBanner.max_views) * 100} className="h-1.5 w-16" />
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {a.vote === "up" ? (
+                              <Badge variant="outline" className="text-emerald-600 border-emerald-300 dark:text-emerald-400 dark:border-emerald-700 text-[10px]">
+                                <ThumbsUp className="h-3 w-3 mr-1" /> Positivo
+                              </Badge>
+                            ) : a.vote === "down" ? (
+                              <Badge variant="outline" className="text-destructive border-destructive/30 text-[10px]">
+                                <ThumbsDown className="h-3 w-3 mr-1" /> Negativo
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {a.dismissed_at ? (
+                              <Badge variant="secondary" className="text-[10px]">Dismissed</Badge>
+                            ) : (
+                              <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 text-[10px]">Ativo</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeAssignment(a.id)}>
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                   </TableBody>
                 </Table>
               )}
