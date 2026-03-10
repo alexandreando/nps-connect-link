@@ -47,6 +47,7 @@ interface AutoRule {
   trigger_minutes: number | null;
   message_content: string | null;
   sort_order?: number;
+  close_resolution_status?: string;
 }
 
 interface AutoMessageTypeConfig {
