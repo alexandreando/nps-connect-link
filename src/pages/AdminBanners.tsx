@@ -1050,7 +1050,7 @@ const AdminBanners = () => {
                   {t("banners.sectionSegmentation")}
                 </div>
                 <div className="flex items-center gap-3">
-                  <Checkbox checked={form.target_all} onCheckedChange={(v) => setForm({ ...form, target_all: !!v })} />
+                  <Checkbox checked={form.target_all} onCheckedChange={(v) => setForm({ ...form, target_all: !!v, auto_assign_by_rules: false })} />
                   <Label className="text-sm">{t("banners.targetAll")}</Label>
                 </div>
                 {editingBanner && (
@@ -1062,6 +1062,20 @@ const AdminBanners = () => {
                 )}
                 {!editingBanner && (
                   <p className="text-xs text-muted-foreground">Salve o banner primeiro para configurar regras de segmentação automática.</p>
+                )}
+                {!form.target_all && (
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={form.auto_assign_by_rules}
+                      onCheckedChange={(v) => setForm({ ...form, auto_assign_by_rules: !!v })}
+                    />
+                    <div>
+                      <Label className="text-sm">Incluir novas empresas automaticamente</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Empresas que atenderem às regras de segmentação verão o banner automaticamente
+                      </p>
+                    </div>
+                  </div>
                 )}
                 <div className="flex items-center gap-3">
                   <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
