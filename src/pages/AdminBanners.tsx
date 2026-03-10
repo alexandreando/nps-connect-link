@@ -343,6 +343,7 @@ const AdminBanners = () => {
       expires_at: null,
       priority: banner.priority ?? 5,
       target_all: banner.target_all ?? false,
+      auto_assign_by_rules: (banner as any).auto_assign_by_rules ?? false,
       max_views: banner.max_views ?? null,
       position: banner.position ?? "top",
       auto_dismiss_seconds: banner.auto_dismiss_seconds ?? null,
