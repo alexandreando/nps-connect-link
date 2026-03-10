@@ -1084,12 +1084,7 @@ const ChatWidget = () => {
       .eq("id", roomId);
 
     postMsg("chat-csat-submitted");
-
-    if (isResolvedVisitor) {
-      await handleBackToHistory();
-    } else {
-      setPhase("closed");
-    }
+    setCsatSubmitted(true);
   };
 
   const formatDate = (dateStr: string) => {
