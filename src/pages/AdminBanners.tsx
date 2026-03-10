@@ -94,22 +94,18 @@ interface Conflict {
   overlapEnd: string | null;
 }
 
-const TYPE_DEFAULT_COLORS: Record<BannerType, { bg: string; text: string }> = {
-  info: { bg: "#3B82F6", text: "#FFFFFF" },
-  warning: { bg: "#F59E0B", text: "#FFFFFF" },
-  success: { bg: "#10B981", text: "#FFFFFF" },
-  promo: { bg: "#8B5CF6", text: "#FFFFFF" },
-  update: { bg: "#06B6D4", text: "#FFFFFF" },
-};
-
-// Variant visual config for selector cards
-const VARIANT_OPTIONS: { value: BannerVariant; label: string; description: string; bgClass: string; borderClass: string; dotColor: string }[] = [
-  { value: "warning", label: "Manutenção", description: "Avisos e alertas", bgClass: "bg-amber-50 dark:bg-amber-950/30", borderClass: "border-amber-200 dark:border-amber-800", dotColor: "bg-amber-500" },
-  { value: "destructive", label: "Urgência", description: "Ações críticas", bgClass: "bg-red-50 dark:bg-red-950/30", borderClass: "border-red-200 dark:border-red-800", dotColor: "bg-red-500" },
-  { value: "success", label: "Novidades", description: "Boas notícias", bgClass: "bg-emerald-50 dark:bg-emerald-950/30", borderClass: "border-emerald-200 dark:border-emerald-800", dotColor: "bg-emerald-500" },
-  { value: "neutral", label: "Sutil", description: "Informações gerais", bgClass: "bg-slate-50 dark:bg-slate-900/30", borderClass: "border-slate-200 dark:border-slate-800", dotColor: "bg-slate-500" },
-  { value: "brand", label: "Premium", description: "Destaque da marca", bgClass: "bg-indigo-50 dark:bg-indigo-950/30", borderClass: "border-indigo-200 dark:border-indigo-800", dotColor: "bg-indigo-500" },
-  { value: "custom", label: "Customizado", description: "Cores manuais", bgClass: "bg-muted/30", borderClass: "border-border", dotColor: "bg-gradient-to-r from-pink-500 to-violet-500" },
+// Variant visual config for selector cards (9 presets + 1 custom)
+const VARIANT_OPTIONS: { value: BannerVariant; label: string; bgPreview: string; borderClass: string }[] = [
+  { value: "warning", label: "Alerta", bgPreview: "bg-amber-100", borderClass: "border-amber-300" },
+  { value: "urgent", label: "Urgente", bgPreview: "bg-red-600", borderClass: "border-red-700" },
+  { value: "success", label: "Sucesso", bgPreview: "bg-emerald-100", borderClass: "border-emerald-300" },
+  { value: "neutral", label: "Neutro", bgPreview: "bg-slate-100", borderClass: "border-slate-300" },
+  { value: "premium", label: "Premium", bgPreview: "bg-indigo-600", borderClass: "border-indigo-700" },
+  { value: "ocean", label: "Oceano", bgPreview: "bg-gradient-to-r from-blue-500 to-violet-500", borderClass: "border-blue-400" },
+  { value: "sunset", label: "Sunset", bgPreview: "bg-gradient-to-r from-orange-500 to-red-500", borderClass: "border-orange-400" },
+  { value: "midnight", label: "Midnight", bgPreview: "bg-slate-900", borderClass: "border-slate-700" },
+  { value: "neon", label: "Neon", bgPreview: "bg-gradient-to-r from-pink-500 to-cyan-500", borderClass: "border-pink-400" },
+  { value: "custom", label: "Custom", bgPreview: "bg-gradient-to-r from-pink-400 via-violet-400 to-cyan-400", borderClass: "border-border" },
 ];
 
 const BG_COLOR_PRESETS = [
@@ -146,32 +142,12 @@ const GRADIENT_PRESETS = [
 const isGradient = (color: string) => color.startsWith("linear-gradient");
 const bgStyle = (color: string) => isGradient(color) ? { background: color } : { backgroundColor: color };
 
-const BANNER_TYPES: { value: BannerType; label: string; icon: typeof Info; bgClass: string; borderClass: string }[] = [
-  { value: "info", label: "Informação", icon: Info, bgClass: "bg-blue-500/15", borderClass: "border-blue-500/50" },
-  { value: "warning", label: "Alerta", icon: AlertTriangle, bgClass: "bg-amber-500/15", borderClass: "border-amber-500/50" },
-  { value: "success", label: "Sucesso", icon: CheckCircle, bgClass: "bg-emerald-500/15", borderClass: "border-emerald-500/50" },
-  { value: "promo", label: "Promoção", icon: Megaphone, bgClass: "bg-purple-500/15", borderClass: "border-purple-500/50" },
-  { value: "update", label: "Atualização", icon: Sparkles, bgClass: "bg-cyan-500/15", borderClass: "border-cyan-500/50" },
-];
-
-const POSITION_OPTIONS = [
-  { value: "top", label: "Topo" },
-  { value: "bottom", label: "Rodapé" },
-  { value: "float", label: "Flutuante" },
-];
-
-const BORDER_STYLE_OPTIONS = [
-  { value: "none", label: "Nenhuma" },
-  { value: "subtle", label: "Sutil" },
-  { value: "rounded", label: "Arredondada" },
-  { value: "pill", label: "Pill" },
-];
-
-const SHADOW_STYLE_OPTIONS = [
-  { value: "none", label: "Nenhuma" },
-  { value: "soft", label: "Suave" },
-  { value: "medium", label: "Média" },
-  { value: "strong", label: "Forte" },
+const BANNER_TYPES: { value: BannerType; label: string; icon: typeof Info }[] = [
+  { value: "info", label: "Informação", icon: Info },
+  { value: "warning", label: "Alerta", icon: AlertTriangle },
+  { value: "success", label: "Sucesso", icon: CheckCircle },
+  { value: "promo", label: "Promoção", icon: Megaphone },
+  { value: "update", label: "Atualização", icon: Sparkles },
 ];
 
 const FREQUENCY_OPTIONS = [
@@ -220,10 +196,14 @@ const getBannerStatus = (banner: Banner): { label: string; variant: "default" | 
 // Reverse map variant -> banner_type
 const VARIANT_TO_TYPE: Record<BannerVariant, BannerType> = {
   warning: "warning",
-  destructive: "warning",
+  urgent: "warning",
   success: "success",
   neutral: "info",
-  brand: "promo",
+  premium: "promo",
+  ocean: "info",
+  sunset: "promo",
+  midnight: "info",
+  neon: "update",
   custom: "info",
 };
 
@@ -624,6 +604,9 @@ const AdminBanners = () => {
   };
 
   const getTypeConfig = (type: string) => BANNER_TYPES.find((t) => t.value === type) ?? BANNER_TYPES[0];
+  const getVariantForBanner = (banner: Banner): BannerVariant => {
+    return (TYPE_TO_VARIANT[banner.banner_type] ? Object.keys(VARIANT_TO_TYPE).find(k => VARIANT_TO_TYPE[k as BannerVariant] === banner.banner_type) as BannerVariant : "neutral") ?? "neutral";
+  };
 
   return (
     <>
@@ -659,22 +642,21 @@ const AdminBanners = () => {
           <div className="space-y-3">
             {banners.map((banner) => {
               const counts = assignmentCounts[banner.id] ?? { total: 0, views: 0, upVotes: 0, downVotes: 0 };
-              const typeConfig = getTypeConfig(banner.banner_type);
-              const TypeIcon = typeConfig.icon;
               const status = getBannerStatus(banner);
               const totalVotes = counts.upVotes + counts.downVotes;
               const favorability = totalVotes > 0 ? Math.round((counts.upVotes / totalVotes) * 100) : null;
+              const variantOpt = VARIANT_OPTIONS.find(v => v.value === (TYPE_TO_VARIANT[banner.banner_type] ?? "neutral")) ?? VARIANT_OPTIONS[3];
 
               return (
                 <Card key={banner.id}>
                   <CardContent className="p-4">
                     <div className="flex items-start gap-4">
-                      {/* Type icon + color stripe */}
+                      {/* Variant color stripe */}
                       <div
-                        className="w-12 h-12 rounded-lg flex-shrink-0 flex items-center justify-center"
-                        style={bgStyle(banner.bg_color)}
+                        className={cn("w-12 h-12 rounded-lg flex-shrink-0 flex items-center justify-center", variantOpt.bgPreview)}
+                        style={banner.bg_color.startsWith("linear-gradient") ? { background: banner.bg_color } : undefined}
                       >
-                        <TypeIcon className="h-5 w-5" style={{ color: banner.text_color }} />
+                        <Palette className="h-5 w-5 text-white/80 drop-shadow-sm" />
                       </div>
 
                       <div className="flex-1 min-w-0">
@@ -684,7 +666,7 @@ const AdminBanners = () => {
                           {banner.target_all && (
                             <Badge variant="outline" className="text-xs">{t("banners.allClients")}</Badge>
                           )}
-                          <Badge variant="outline" className="text-xs capitalize">{typeConfig.label}</Badge>
+                          <Badge variant="outline" className="text-xs">{variantOpt.label}</Badge>
                         </div>
                         <p className="text-sm text-muted-foreground truncate">{banner.content}</p>
                         <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
@@ -853,7 +835,7 @@ const AdminBanners = () => {
                 <ScrollArea className="max-h-[280px] pr-2">
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Estilo visual</Label>
-                  <div className="grid grid-cols-6 gap-1.5">
+                  <div className="grid grid-cols-5 gap-1.5">
                     {VARIANT_OPTIONS.map((v) => {
                       const isSelected = form.variant === v.value;
                       return (
@@ -862,13 +844,13 @@ const AdminBanners = () => {
                           type="button"
                           onClick={() => setForm({ ...form, variant: v.value })}
                           className={cn(
-                            "flex flex-col items-center gap-1 p-2 rounded-lg border text-center transition-all",
+                            "flex flex-col items-center gap-1.5 p-2 rounded-lg border text-center transition-all",
                             isSelected
-                              ? cn(v.bgClass, v.borderClass, "ring-1 ring-offset-1 ring-offset-background shadow-sm")
+                              ? cn(v.borderClass, "ring-1 ring-offset-1 ring-offset-background shadow-sm bg-muted/50")
                               : "border-border hover:bg-muted/50"
                           )}
                         >
-                          <div className={cn("w-3 h-3 rounded-full", v.dotColor)} />
+                          <div className={cn("w-6 h-3 rounded-full", v.bgPreview)} />
                           <span className="text-[10px] font-semibold leading-tight">{v.label}</span>
                         </button>
                       );
@@ -945,28 +927,6 @@ const AdminBanners = () => {
                     <div className="flex items-center gap-3">
                       <Switch checked={form.can_close} onCheckedChange={(v) => setForm({ ...form, can_close: v })} />
                       <Label className="text-sm">Botão fechar</Label>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Borda</Label>
-                      <div className="flex gap-1">
-                        {BORDER_STYLE_OPTIONS.map((o) => (
-                          <button key={o.value} type="button" onClick={() => setForm({ ...form, border_style: o.value })} className={cn("flex-1 text-[10px] py-1.5 rounded-lg border transition-all", form.border_style === o.value ? "bg-accent text-accent-foreground border-accent shadow-sm" : "border-border hover:bg-muted/50")}>
-                            {o.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Sombra</Label>
-                      <div className="flex gap-1">
-                        {SHADOW_STYLE_OPTIONS.map((o) => (
-                          <button key={o.value} type="button" onClick={() => setForm({ ...form, shadow_style: o.value })} className={cn("flex-1 text-[10px] py-1.5 rounded-lg border transition-all", form.shadow_style === o.value ? "bg-accent text-accent-foreground border-accent shadow-sm" : "border-border hover:bg-muted/50")}>
-                            {o.label}
-                          </button>
-                        ))}
-                      </div>
                     </div>
                   </div>
                 </div>

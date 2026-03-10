@@ -1,4 +1,4 @@
-import { ThumbsUp, ThumbsDown, ExternalLink, X, MessageSquare, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles, Hammer, ShieldAlert } from "lucide-react";
+import { ThumbsUp, ThumbsDown, ExternalLink, X, MessageSquare, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles, Hammer, ShieldAlert, Zap, Moon, Flame, Droplets } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -22,39 +22,77 @@ interface BannerPreviewProps {
   canClose?: boolean;
 }
 
-export type BannerVariant = "warning" | "destructive" | "success" | "neutral" | "brand" | "custom";
+export type BannerVariant = "warning" | "urgent" | "success" | "neutral" | "premium" | "ocean" | "sunset" | "midnight" | "neon" | "custom";
 
-const VARIANT_STYLES: Record<Exclude<BannerVariant, "custom">, {bg: string;border: string;text: string;icon: typeof Info;}> = {
+interface VariantStyle {
+  bg: string;
+  border: string;
+  text: string;
+  icon: typeof Info;
+  inlineStyle?: React.CSSProperties;
+}
+
+const VARIANT_STYLES: Record<Exclude<BannerVariant, "custom">, VariantStyle> = {
   warning: {
     bg: "bg-amber-50/70 dark:bg-amber-950/40",
     border: "border-amber-200 dark:border-amber-800",
     text: "text-amber-900 dark:text-amber-100",
-    icon: Hammer
+    icon: Hammer,
   },
-  destructive: {
-    bg: "bg-red-50/70 dark:bg-red-950/40",
-    border: "border-red-200 dark:border-red-800",
-    text: "text-red-900 dark:text-red-100",
-    icon: ShieldAlert
+  urgent: {
+    bg: "",
+    border: "border-red-700",
+    text: "text-white",
+    icon: ShieldAlert,
+    inlineStyle: { backgroundColor: "#DC2626", color: "#FFFFFF" },
   },
   success: {
     bg: "bg-emerald-50/70 dark:bg-emerald-950/40",
     border: "border-emerald-200 dark:border-emerald-800",
     text: "text-emerald-900 dark:text-emerald-100",
-    icon: CheckCircle
+    icon: CheckCircle,
   },
   neutral: {
     bg: "bg-slate-50/70 dark:bg-slate-900/40",
     border: "border-slate-200 dark:border-slate-800",
     text: "text-slate-900 dark:text-slate-100",
-    icon: Info
+    icon: Info,
   },
-  brand: {
-    bg: "bg-indigo-50/70 dark:bg-indigo-950/40",
-    border: "border-indigo-200 dark:border-indigo-800",
-    text: "text-indigo-900 dark:text-indigo-100",
-    icon: Megaphone
-  }
+  premium: {
+    bg: "",
+    border: "border-indigo-700",
+    text: "text-white",
+    icon: Megaphone,
+    inlineStyle: { backgroundColor: "#4F46E5", color: "#FFFFFF" },
+  },
+  ocean: {
+    bg: "",
+    border: "border-transparent",
+    text: "text-white",
+    icon: Droplets,
+    inlineStyle: { background: "linear-gradient(135deg, #3B82F6, #8B5CF6)", color: "#FFFFFF" },
+  },
+  sunset: {
+    bg: "",
+    border: "border-transparent",
+    text: "text-white",
+    icon: Flame,
+    inlineStyle: { background: "linear-gradient(135deg, #F97316, #EF4444)", color: "#FFFFFF" },
+  },
+  midnight: {
+    bg: "",
+    border: "border-slate-700",
+    text: "text-slate-100",
+    icon: Moon,
+    inlineStyle: { backgroundColor: "#0F172A", color: "#F1F5F9" },
+  },
+  neon: {
+    bg: "",
+    border: "border-transparent",
+    text: "text-white",
+    icon: Zap,
+    inlineStyle: { background: "linear-gradient(135deg, #EC4899, #06B6D4)", color: "#FFFFFF" },
+  },
 };
 
 // Map legacy banner_type to variant
@@ -62,8 +100,8 @@ const TYPE_TO_VARIANT: Record<string, BannerVariant> = {
   info: "neutral",
   warning: "warning",
   success: "success",
-  promo: "brand",
-  update: "brand"
+  promo: "premium",
+  update: "premium",
 };
 
 const BANNER_TYPE_ICONS: Record<string, typeof Info> = {
@@ -71,7 +109,7 @@ const BANNER_TYPE_ICONS: Record<string, typeof Info> = {
   warning: AlertTriangle,
   success: CheckCircle,
   promo: Megaphone,
-  update: Sparkles
+  update: Sparkles,
 };
 
 const BannerPreview = ({
@@ -91,7 +129,7 @@ const BannerPreview = ({
   shadowStyle = "none",
   variant,
   isFloating = false,
-  canClose = true
+  canClose = true,
 }: BannerPreviewProps) => {
   const resolvedVariant = variant ?? TYPE_TO_VARIANT[bannerType] ?? "neutral";
   const isCustom = resolvedVariant === "custom";
@@ -105,8 +143,8 @@ const BannerPreview = ({
       return (
         <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 border-current opacity-70", variantStyle?.text)} style={isCustom ? { color: textColor } : undefined}>
           Agendado
-        </Badge>);
-
+        </Badge>
+      );
     }
     if (expiresAt) {
       const diff = Math.ceil((new Date(expiresAt).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
@@ -114,14 +152,22 @@ const BannerPreview = ({
         return (
           <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 border-current opacity-70", variantStyle?.text)} style={isCustom ? { color: textColor } : undefined}>
             Expira em {diff}d
-          </Badge>);
-
+          </Badge>
+        );
       }
     }
     return null;
   };
 
   const floatingMode = isFloating || borderStyle === "pill";
+
+  // Build inline style for variants that need it (solids/gradients)
+  const bannerInlineStyle: React.CSSProperties = isCustom
+    ? {
+        ...(bgColor.startsWith("linear-gradient") ? { background: bgColor } : { backgroundColor: bgColor }),
+        color: textColor,
+      }
+    : variantStyle?.inlineStyle ?? {};
 
   return (
     <div className="w-full max-w-lg mx-auto rounded-xl overflow-hidden shadow-lg border bg-background">
@@ -132,76 +178,73 @@ const BannerPreview = ({
           "font-medium tracking-[0.01em] backdrop-blur-md transition-all",
           floatingMode && "mx-4 mt-2 rounded-2xl",
           !floatingMode && "rounded-none",
-          isCustom ?
-          "border-b shadow-sm" :
-          cn(
-            variantStyle?.bg,
-            "border",
-            variantStyle?.border,
-            variantStyle?.text,
-            "shadow-sm"
-          )
+          isCustom
+            ? "border-b shadow-sm"
+            : cn(
+                variantStyle?.bg,
+                "border",
+                variantStyle?.border,
+                variantStyle?.text,
+                "shadow-sm"
+              )
         )}
-        style={isCustom ? {
-          ...(bgColor.startsWith("linear-gradient") ? { background: bgColor } : { backgroundColor: bgColor }),
-          color: textColor
-        } : undefined}>
-        
+        style={bannerInlineStyle}
+      >
         {/* Close button */}
-        {canClose &&
-        <button
-          className={cn(
-            "absolute top-2.5 right-3 p-1 rounded-full opacity-60 hover:opacity-100 transition-opacity",
-            variantStyle?.text
-          )}
-          style={isCustom ? { color: textColor } : undefined}>
-          
+        {canClose && (
+          <button
+            className={cn(
+              "absolute top-2.5 right-3 p-1 rounded-full opacity-60 hover:opacity-100 transition-opacity",
+              variantStyle?.text
+            )}
+            style={isCustom || variantStyle?.inlineStyle ? { color: variantStyle?.inlineStyle?.color as string ?? textColor } : undefined}
+          >
             <X className="h-3.5 w-3.5" />
           </button>
-        }
+        )}
 
         {/* Main content */}
         <div className="flex items-center justify-center gap-3 w-full pr-8" style={{ textAlign: textAlign as any }}>
           <TypeIcon className="h-4 w-4 flex-shrink-0 opacity-80" />
-          {contentHtml ?
-          <span
-            dangerouslySetInnerHTML={{ __html: contentHtml }}
-            className="flex-1 min-w-0 overflow-hidden line-clamp-3 [&_a]:break-all"
-            style={{ lineHeight: "1.5", wordBreak: "break-word", overflowWrap: "break-word" }} /> :
-
-
-          <span className="flex-1 min-w-0 overflow-hidden">{content || "Texto do banner aqui..."}</span>
-          }
+          {contentHtml ? (
+            <span
+              dangerouslySetInnerHTML={{ __html: contentHtml }}
+              className="flex-1 min-w-0 overflow-hidden line-clamp-3 [&_a]:break-all"
+              style={{ lineHeight: "1.5", wordBreak: "break-word", overflowWrap: "break-word" }}
+            />
+          ) : (
+            <span className="flex-1 min-w-0 overflow-hidden">{content || "Texto do banner aqui..."}</span>
+          )}
           {getScheduleBadge()}
         </div>
 
         {/* Actions */}
-        {(linkUrl || hasVoting) &&
-        <div className="flex items-center justify-center gap-3">
-            {linkUrl &&
-          <span
-            className={cn(
-              "inline-flex items-center gap-1 text-xs font-semibold underline underline-offset-2 opacity-90 hover:opacity-70 cursor-pointer transition-opacity",
-              variantStyle?.text
-            )}
-            style={isCustom ? { color: textColor } : undefined}>
-            
+        {(linkUrl || hasVoting) && (
+          <div className="flex items-center justify-center gap-3">
+            {linkUrl && (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 text-xs font-semibold underline underline-offset-2 opacity-90 hover:opacity-70 cursor-pointer transition-opacity",
+                  variantStyle?.text
+                )}
+                style={isCustom || variantStyle?.inlineStyle ? { color: variantStyle?.inlineStyle?.color as string ?? textColor } : undefined}
+              >
                 {linkLabel || "Saiba mais"}
                 <ExternalLink className="h-3 w-3" />
               </span>
-          }
-            {hasVoting &&
-          <div className="flex items-center gap-1">
-                <span className={cn("p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer", variantStyle?.text)} style={isCustom ? { color: textColor } : undefined}>
+            )}
+            {hasVoting && (
+              <div className="flex items-center gap-1">
+                <span className={cn("p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer", variantStyle?.text)} style={isCustom || variantStyle?.inlineStyle ? { color: variantStyle?.inlineStyle?.color as string ?? textColor } : undefined}>
                   <ThumbsUp className="h-3.5 w-3.5" />
                 </span>
-                <span className={cn("p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer", variantStyle?.text)} style={isCustom ? { color: textColor } : undefined}>
+                <span className={cn("p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer", variantStyle?.text)} style={isCustom || variantStyle?.inlineStyle ? { color: variantStyle?.inlineStyle?.color as string ?? textColor } : undefined}>
                   <ThumbsDown className="h-3.5 w-3.5" />
                 </span>
               </div>
-          }
+            )}
           </div>
-        }
+        )}
       </div>
 
       {/* Mock navbar */}
@@ -216,31 +259,14 @@ const BannerPreview = ({
       </div>
 
       {/* Mock page content */}
-      
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      
-    </div>);
-
+      <div className="p-4 space-y-3 bg-background">
+        <div className="h-4 w-3/4 bg-muted-foreground/10 rounded" />
+        <div className="h-3 w-full bg-muted-foreground/8 rounded" />
+        <div className="h-3 w-5/6 bg-muted-foreground/8 rounded" />
+        <div className="h-20 w-full bg-muted/40 rounded-lg border border-border/30 mt-2" />
+      </div>
+    </div>
+  );
 };
 
 export default BannerPreview;
