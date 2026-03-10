@@ -826,15 +826,18 @@ const ChatWidget = () => {
   };
 
   const [viewTranscriptResolutionStatus, setViewTranscriptResolutionStatus] = useState<string | null>(null);
+  const [viewTranscriptCsatScore, setViewTranscriptCsatScore] = useState<number | null>(null);
+  const [csatSubmitted, setCsatSubmitted] = useState(false);
 
   const handleViewTranscript = async (rId: string) => {
-    // Fetch resolution_status for this room
+    // Fetch resolution_status and csat_score for this room
     const { data: roomData } = await supabase
       .from("chat_rooms")
-      .select("resolution_status")
+      .select("resolution_status, csat_score")
       .eq("id", rId)
       .maybeSingle();
     setViewTranscriptResolutionStatus(roomData?.resolution_status ?? null);
+    setViewTranscriptCsatScore(roomData?.csat_score ?? null);
     setRoomId(rId);
     setPhase("viewTranscript");
   };
