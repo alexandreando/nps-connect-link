@@ -24,13 +24,11 @@
   var visitorProps = {};
   var chatIframe = null;
 
-  // Update queue: accumulate updates until resolver is ready
   var resolverReady = false;
   var pendingUpdates = [];
 
   var RESERVED_KEYS = ["name", "email", "phone", "company_id", "company_name", "user_id"];
 
-  // --- camelCase to snake_case normalizer ---
   function camelToSnake(str) {
     return str.replace(/([A-Z])/g, function (match) { return "_" + match.toLowerCase(); });
   }
@@ -55,15 +53,19 @@
     update: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>'
   };
 
-  // --- Semantic variant colors (matches BannerPreview.tsx) ---
+  // --- Semantic variant colors (expanded 9 presets + custom) ---
   var VARIANT_COLORS = {
-    warning:     { bg: "#FFFBEB", text: "#78350F", border: "#FDE68A" },
-    destructive: { bg: "#FEF2F2", text: "#7F1D1D", border: "#FECACA" },
-    success:     { bg: "#ECFDF5", text: "#064E3B", border: "#A7F3D0" },
-    neutral:     { bg: "#F8FAFC", text: "#0F172A", border: "#E2E8F0" },
-    brand:       { bg: "#EEF2FF", text: "#312E81", border: "#C7D2FE" }
+    warning:  { bg: "#FFFBEB", text: "#78350F", border: "#FDE68A" },
+    urgent:   { bg: "#DC2626", text: "#FFFFFF", border: "#DC2626" },
+    success:  { bg: "#ECFDF5", text: "#064E3B", border: "#A7F3D0" },
+    neutral:  { bg: "#F8FAFC", text: "#0F172A", border: "#E2E8F0" },
+    premium:  { bg: "#4F46E5", text: "#FFFFFF", border: "#4F46E5" },
+    ocean:    { bg: "linear-gradient(135deg, #3B82F6, #8B5CF6)", text: "#FFFFFF", border: "transparent" },
+    sunset:   { bg: "linear-gradient(135deg, #F97316, #EF4444)", text: "#FFFFFF", border: "transparent" },
+    midnight: { bg: "#0F172A", text: "#F1F5F9", border: "#334155" },
+    neon:     { bg: "linear-gradient(135deg, #EC4899, #06B6D4)", text: "#FFFFFF", border: "transparent" }
   };
-  var TYPE_TO_VARIANT = { info: "neutral", warning: "warning", success: "success", promo: "brand", update: "brand" };
+  var TYPE_TO_VARIANT = { info: "neutral", warning: "warning", success: "success", promo: "premium", update: "premium" };
 
   // --- Banner Logic ---
   var bannerContainer = null;
@@ -101,7 +103,7 @@
     var vc = variantKey ? VARIANT_COLORS[variantKey] : null;
     var useBg = vc ? vc.bg : banner.bg_color;
     var useText = vc ? vc.text : banner.text_color;
-    var useBorder = vc ? "1px solid " + vc.border : "";
+    var useBorder = vc ? (vc.border !== "transparent" ? "1px solid " + vc.border : "") : "";
 
     div.style.cssText =
       "padding:12px 48px 12px 20px;font-size:14px;font-weight:500;letter-spacing:0.01em;line-height:1.5;" +
@@ -115,7 +117,7 @@
     // Animate in
     setTimeout(function() { div.style.transform = "translateY(0)"; }, 10);
 
-    // Close button - absolute top right
+    // Close button
     var closeBtn = document.createElement("button");
     closeBtn.innerHTML = "✕";
     closeBtn.style.cssText =
@@ -133,11 +135,10 @@
     };
     div.appendChild(closeBtn);
 
-    // Content row - centered
+    // Content row
     var contentDiv = document.createElement("div");
     contentDiv.style.cssText = "display:flex;align-items:center;justify-content:center;gap:10px;text-align:center;width:100%;max-width:100%;overflow:hidden;min-width:0;";
 
-    // Type icon
     var iconHtml = BANNER_ICONS[banner.banner_type || "info"] || BANNER_ICONS.info;
     var iconSpan = document.createElement("span");
     iconSpan.innerHTML = iconHtml;
@@ -148,7 +149,6 @@
     text.style.cssText = "display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;line-height:1.5;word-break:break-word;overflow-wrap:break-word;min-width:0;";
     if (banner.content_html) {
       text.innerHTML = banner.content_html;
-      // Sanitize long links
       var links = text.querySelectorAll("a");
       for (var li = 0; li < links.length; li++) {
         links[li].style.wordBreak = "break-all";
@@ -159,7 +159,7 @@
     contentDiv.appendChild(text);
     div.appendChild(contentDiv);
 
-    // Actions row - centered below content
+    // Actions row
     var hasActions = banner.link_url || banner.has_voting;
     if (hasActions) {
       var actions = document.createElement("div");
@@ -266,7 +266,7 @@
           createBannerContainer();
           var shown = 0;
           data.banners.forEach(function (banner) {
-            if (shown >= 2) return; // Limit to 2 simultaneous banners
+            if (shown >= 2) return;
             var el = renderBanner(banner);
             if (el) {
               bannerContainer.appendChild(el);
@@ -307,7 +307,6 @@
     var payload = { api_key: apiKey, external_id: externalId };
     var customData = {};
 
-    // Normalize all keys to snake_case first
     var normalized = normalizeKeys(props);
 
     for (var key in normalized) {
@@ -323,7 +322,6 @@
       payload.custom_data = customData;
     }
 
-    // Include visitor_token for fallback identification
     if (resolvedToken) {
       payload.visitor_token = resolvedToken;
     } else {
@@ -334,7 +332,6 @@
     return payload;
   }
 
-  // --- Send resolver POST (used by update and pending queue) ---
   function sendResolverUpdate(props) {
     if (!apiKey) return;
     var payload = buildResolverPayload(props);
@@ -347,17 +344,12 @@
     });
   }
 
-  // --- Process pending updates after resolver is ready ---
   function processPendingUpdates() {
     if (pendingUpdates.length === 0) return;
-
-    // Merge all pending updates into visitorProps (already done in update())
-    // Just send one resolver call with the merged visitorProps
     pendingUpdates = [];
     sendResolverUpdate(visitorProps);
   }
 
-  // --- Resolve visitor via api_key + external_id ---
   function resolveVisitor(callback) {
     if (!apiKey) { resolverReady = true; callback(); return; }
 
@@ -374,7 +366,6 @@
           resolvedToken = data.visitor_token;
           resolvedName = data.visitor_name || "";
           resolvedEmail = data.visitor_email || "";
-          // Persist resolved identity for future update() calls
           if (resolvedName && !visitorProps.name) visitorProps.name = resolvedName;
           if (resolvedEmail && !visitorProps.email) visitorProps.email = resolvedEmail;
           resolvedOwnerUserId = data.user_id || resolvedOwnerUserId;
@@ -390,10 +381,8 @@
           resolvedAutoStart = !!data.auto_start;
         }
 
-        // Mark resolver as ready and process queued updates
         resolverReady = true;
         processPendingUpdates();
-
         callback();
       })
       .catch(function () {
@@ -474,14 +463,12 @@
     update: function (props) {
       if (!props || typeof props !== "object") return;
 
-      // Always merge into visitorProps
       for (var key in props) {
         if (props.hasOwnProperty(key)) {
           visitorProps[key] = props[key];
         }
       }
 
-      // Always forward to iframe for immediate UI update
       if (chatIframe && chatIframe.contentWindow) {
         chatIframe.contentWindow.postMessage(
           { type: "nps-chat-update", props: visitorProps },
@@ -489,13 +476,11 @@
         );
       }
 
-      // Queue resolver call if not ready yet
       if (!resolverReady) {
         pendingUpdates.push(props);
         return;
       }
 
-      // Resolver is ready — send immediately
       sendResolverUpdate(visitorProps);
     },
   };
