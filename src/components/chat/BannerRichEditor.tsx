@@ -1,7 +1,10 @@
-import { useRef, useEffect, useCallback } from "react";
-import { Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Paintbrush } from "lucide-react";
+import { useRef, useEffect, useCallback, useState } from "react";
+import { Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Paintbrush, Link2 } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 
 interface BannerRichEditorProps {
   initialHtml?: string;
@@ -25,6 +28,8 @@ const BannerRichEditor = ({
 }: BannerRichEditorProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkOpen, setLinkOpen] = useState(false);
 
   useEffect(() => {
     if (editorRef.current && !initialized.current) {
@@ -56,35 +61,27 @@ const BannerRichEditor = ({
     handleInput();
   };
 
+  const insertLink = () => {
+    if (!linkUrl) return;
+    const url = linkUrl.startsWith("http") ? linkUrl : `https://${linkUrl}`;
+    editorRef.current?.focus();
+    document.execCommand("createLink", false, url);
+    handleInput();
+    setLinkUrl("");
+    setLinkOpen(false);
+  };
+
   return (
     <div className="space-y-1.5">
       {/* Toolbar */}
       <div className="flex items-center gap-0.5 flex-wrap border rounded-md p-1 bg-muted/30">
-        <Toggle
-          size="sm"
-          className="h-7 w-7 p-0"
-          pressed={false}
-          onPressedChange={() => execCmd("bold")}
-          aria-label="Bold"
-        >
+        <Toggle size="sm" className="h-7 w-7 p-0" pressed={false} onPressedChange={() => execCmd("bold")} aria-label="Bold">
           <Bold className="h-3.5 w-3.5" />
         </Toggle>
-        <Toggle
-          size="sm"
-          className="h-7 w-7 p-0"
-          pressed={false}
-          onPressedChange={() => execCmd("italic")}
-          aria-label="Italic"
-        >
+        <Toggle size="sm" className="h-7 w-7 p-0" pressed={false} onPressedChange={() => execCmd("italic")} aria-label="Italic">
           <Italic className="h-3.5 w-3.5" />
         </Toggle>
-        <Toggle
-          size="sm"
-          className="h-7 w-7 p-0"
-          pressed={false}
-          onPressedChange={() => execCmd("underline")}
-          aria-label="Underline"
-        >
+        <Toggle size="sm" className="h-7 w-7 p-0" pressed={false} onPressedChange={() => execCmd("underline")} aria-label="Underline">
           <Underline className="h-3.5 w-3.5" />
         </Toggle>
 
@@ -93,11 +90,7 @@ const BannerRichEditor = ({
         {/* Text color */}
         <Popover>
           <PopoverTrigger asChild>
-            <button
-              type="button"
-              className="inline-flex items-center justify-center rounded-md h-7 w-7 text-sm hover:bg-muted"
-              aria-label="Text color"
-            >
+            <button type="button" className="inline-flex items-center justify-center rounded-md h-7 w-7 text-sm hover:bg-muted" aria-label="Text color">
               <Paintbrush className="h-3.5 w-3.5" />
             </button>
           </PopoverTrigger>
@@ -116,34 +109,38 @@ const BannerRichEditor = ({
           </PopoverContent>
         </Popover>
 
+        {/* Insert link */}
+        <Popover open={linkOpen} onOpenChange={setLinkOpen}>
+          <PopoverTrigger asChild>
+            <button type="button" className="inline-flex items-center justify-center rounded-md h-7 w-7 text-sm hover:bg-muted" aria-label="Insert link">
+              <Link2 className="h-3.5 w-3.5" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-3 space-y-2" side="bottom" align="start">
+            <Label className="text-xs">URL do link</Label>
+            <Input
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              placeholder="https://exemplo.com"
+              className="h-8 text-xs"
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); insertLink(); } }}
+            />
+            <Button size="sm" className="w-full h-7 text-xs" onClick={insertLink} disabled={!linkUrl}>
+              Inserir
+            </Button>
+          </PopoverContent>
+        </Popover>
+
         <div className="w-px h-5 bg-border mx-1" />
 
         {/* Alignment */}
-        <Toggle
-          size="sm"
-          className="h-7 w-7 p-0"
-          pressed={textAlign === "left"}
-          onPressedChange={() => onChangeAlign("left")}
-          aria-label="Align left"
-        >
+        <Toggle size="sm" className="h-7 w-7 p-0" pressed={textAlign === "left"} onPressedChange={() => onChangeAlign("left")} aria-label="Align left">
           <AlignLeft className="h-3.5 w-3.5" />
         </Toggle>
-        <Toggle
-          size="sm"
-          className="h-7 w-7 p-0"
-          pressed={textAlign === "center"}
-          onPressedChange={() => onChangeAlign("center")}
-          aria-label="Align center"
-        >
+        <Toggle size="sm" className="h-7 w-7 p-0" pressed={textAlign === "center"} onPressedChange={() => onChangeAlign("center")} aria-label="Align center">
           <AlignCenter className="h-3.5 w-3.5" />
         </Toggle>
-        <Toggle
-          size="sm"
-          className="h-7 w-7 p-0"
-          pressed={textAlign === "right"}
-          onPressedChange={() => onChangeAlign("right")}
-          aria-label="Align right"
-        >
+        <Toggle size="sm" className="h-7 w-7 p-0" pressed={textAlign === "right"} onPressedChange={() => onChangeAlign("right")} aria-label="Align right">
           <AlignRight className="h-3.5 w-3.5" />
         </Toggle>
       </div>
