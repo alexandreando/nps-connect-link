@@ -731,7 +731,6 @@ const AdminBanners = () => {
                             <Users className="h-4 w-4" />
                           </Button>
                         )}
-                        )}
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => duplicateBanner(banner)} title={t("banners.duplicate")}>
                           <Copy className="h-4 w-4" />
                         </Button>
