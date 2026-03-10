@@ -1872,6 +1872,14 @@ const ChatWidget = () => {
 
       {phase === "viewTranscript" && (
         <div className="border-t p-3 space-y-2">
+          {viewTranscriptCsatScore != null && (
+            <div className="flex items-center justify-center gap-1 py-1">
+              <span className="text-xs text-muted-foreground mr-1">Avaliação:</span>
+              {[1, 2, 3, 4, 5].map((v) => (
+                <Star key={v} className={`h-4 w-4 ${v <= viewTranscriptCsatScore ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30"}`} />
+              ))}
+            </div>
+          )}
           {viewTranscriptResolutionStatus === "pending" && (
             <Button
               className="w-full gap-2 rounded-xl active:scale-95 text-white"
