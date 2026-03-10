@@ -544,9 +544,12 @@ const AdminBanners = () => {
   const openAssignDialog = async (banner: Banner) => {
     setSelectedBanner(banner);
 
+    const contactQuery = supabase.from("contacts").select("id, name, email").eq("is_company", true).order("name");
+    if (tenantId) contactQuery.eq("tenant_id", tenantId);
+
     const [{ data: assignData }, { data: contactsData }] = await Promise.all([
       supabase.from("chat_banner_assignments").select("*").eq("banner_id", banner.id),
-      supabase.from("contacts").select("id, name, email").eq("is_company", true).order("name"),
+      contactQuery,
     ]);
 
     const enriched = (assignData ?? []).map((a: any) => {
