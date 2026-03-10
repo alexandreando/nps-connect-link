@@ -258,9 +258,16 @@ const AdminBanners = () => {
     display_frequency: "always",
     border_style: "none",
     shadow_style: "soft",
+    variant: "neutral" as BannerVariant,
+    is_floating: false,
+    can_close: true,
   };
 
   const [form, setForm] = useState(defaultForm);
+  const [assignSearch, setAssignSearch] = useState("");
+  const [assignStatusFilter, setAssignStatusFilter] = useState<"all" | "active" | "dismissed">("all");
+  const [assignVoteFilter, setAssignVoteFilter] = useState<"all" | "up" | "down" | "none">("all");
+  const [assignSortDesc, setAssignSortDesc] = useState(true);
 
   const fetchBanners = useCallback(async () => {
     const { data } = await supabase
