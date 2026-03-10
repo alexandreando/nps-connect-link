@@ -1118,35 +1118,33 @@ const AdminBanners = () => {
                 </div>
               </div>
             </div>
-
-            {/* Preview column — sticky, desktop only */}
-            {!isMobile && (
-              <div className="hidden md:block border-l border-border bg-muted/10 px-4 py-4 overflow-y-auto">
-                <div className="sticky top-0 space-y-3">
-                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">Preview</Label>
-                  <BannerPreview
-                    content={form.content}
-                    contentHtml={form.content_html || undefined}
-                    textAlign={form.text_align}
-                    bgColor={form.bg_color}
-                    textColor={form.text_color}
-                    linkUrl={form.link_url || undefined}
-                    linkLabel={form.link_label || undefined}
-                    hasVoting={form.has_voting}
-                    bannerType={form.banner_type}
-                    startsAt={form.starts_at?.toISOString()}
-                    expiresAt={form.expires_at?.toISOString()}
-                    position={form.position}
-                    borderStyle={form.border_style}
-                    shadowStyle={form.shadow_style}
-                    variant={form.variant}
-                    isFloating={form.is_floating}
-                    canClose={form.can_close}
-                  />
-                </div>
-              </div>
-            )}
           </div>
+
+          {/* Preview panel — sticky bottom */}
+          {!isMobile && (
+            <div className="border-t border-border bg-muted/20 px-6 py-3">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider mb-2 block">Preview</Label>
+              <BannerPreview
+                content={form.content}
+                contentHtml={form.content_html || undefined}
+                textAlign={form.text_align}
+                bgColor={form.bg_color}
+                textColor={form.text_color}
+                linkUrl={form.link_url || undefined}
+                linkLabel={form.link_label || undefined}
+                hasVoting={form.has_voting}
+                bannerType={VARIANT_TO_TYPE[form.variant] ?? "info"}
+                startsAt={form.starts_at?.toISOString()}
+                expiresAt={form.expires_at?.toISOString()}
+                position={form.position}
+                borderStyle={form.border_style}
+                shadowStyle={form.shadow_style}
+                variant={form.variant}
+                isFloating={form.is_floating}
+                canClose={form.can_close}
+              />
+            </div>
+          )}
 
           <DialogFooter className="px-6 py-4 border-t border-border">
             <Button variant="outline" onClick={() => setBannerDialog(false)}>{t("common.cancel")}</Button>
