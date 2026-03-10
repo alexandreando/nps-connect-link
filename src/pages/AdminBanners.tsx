@@ -773,9 +773,9 @@ const AdminBanners = () => {
             <DialogTitle>{editingBanner ? t("banners.edit") : t("banners.create")}</DialogTitle>
           </DialogHeader>
 
-          <div className="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-[1fr,320px] gap-0">
+          <div className="flex-1 overflow-hidden">
             {/* Form column — scrollable */}
-            <div className="overflow-y-auto px-6 py-4 space-y-4">
+            <div className="overflow-y-auto px-6 py-4 space-y-4 max-h-[50vh]">
 
               {/* Mobile preview collapsible */}
               {isMobile && (
