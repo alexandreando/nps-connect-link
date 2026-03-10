@@ -826,139 +826,124 @@ const AdminBanners = () => {
                 </div>
               </div>
 
-              {/* Section 3: Appearance — Color Palettes */}
+              {/* Section 3: Appearance — Variant Selector */}
               <div className="rounded-lg bg-muted/30 p-4 space-y-3">
                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                   <Palette className="h-4 w-4 text-muted-foreground" />
                   {t("banners.sectionAppearance")}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">{t("banners.bgColor")}</Label>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-8 h-8 rounded-md border border-border flex-shrink-0" style={bgStyle(form.bg_color)} />
-                      <Input value={form.bg_color} onChange={(e) => setForm({ ...form, bg_color: e.target.value })} className="flex-1 h-8 text-xs font-mono" />
-                    </div>
-                    <div className="grid grid-cols-5 gap-1">
-                      {BG_COLOR_PRESETS.map((color) => (
-                        <button
-                          key={color}
-                          type="button"
-                          className={cn(
-                            "w-full aspect-square rounded-md border-2 transition-transform hover:scale-110",
-                            !isGradient(form.bg_color) && form.bg_color.toLowerCase() === color.toLowerCase() ? "border-foreground ring-1 ring-foreground scale-110" : "border-transparent"
-                          )}
-                          style={{ backgroundColor: color }}
-                          onClick={() => setForm({ ...form, bg_color: color })}
-                        />
-                      ))}
-                    </div>
 
-                    {/* Gradient Presets - Duo */}
-                    <Label className="text-xs text-muted-foreground mt-2">Gradientes</Label>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {GRADIENT_PRESETS.filter(g => g.group === "duo").map((g) => (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Estilo visual</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {VARIANT_OPTIONS.map((v) => {
+                      const isSelected = form.variant === v.value;
+                      return (
                         <button
-                          key={g.name}
+                          key={v.value}
                           type="button"
-                          title={g.name}
+                          onClick={() => setForm({ ...form, variant: v.value })}
                           className={cn(
-                            "w-full rounded-md border-2 transition-transform hover:scale-105",
-                            form.bg_color === g.value ? "border-foreground ring-1 ring-foreground scale-105" : "border-transparent"
+                            "flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all",
+                            isSelected
+                              ? cn(v.bgClass, v.borderClass, "ring-1 ring-offset-1 ring-offset-background shadow-sm")
+                              : "border-border hover:bg-muted/50"
                           )}
-                          style={{ background: g.value, aspectRatio: "3/1" }}
-                          onClick={() => setForm({ ...form, bg_color: g.value })}
-                        />
-                      ))}
-                    </div>
-
-                    {/* Gradient Presets - Mono */}
-                    <Label className="text-xs text-muted-foreground mt-1">Monocromáticos</Label>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {GRADIENT_PRESETS.filter(g => g.group === "mono").map((g) => (
-                        <button
-                          key={g.name}
-                          type="button"
-                          title={g.name}
-                          className={cn(
-                            "w-full rounded-md border-2 transition-transform hover:scale-105",
-                            form.bg_color === g.value ? "border-foreground ring-1 ring-foreground scale-105" : "border-transparent"
-                          )}
-                          style={{ background: g.value, aspectRatio: "3/1" }}
-                          onClick={() => setForm({ ...form, bg_color: g.value })}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">{t("banners.textColor")}</Label>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-8 h-8 rounded-md border border-border flex-shrink-0" style={{ backgroundColor: form.text_color }} />
-                      <Input value={form.text_color} onChange={(e) => setForm({ ...form, text_color: e.target.value })} className="flex-1 h-8 text-xs font-mono" />
-                    </div>
-                    <div className="grid grid-cols-5 gap-1">
-                      {TEXT_COLOR_PRESETS.map((color) => (
-                        <button
-                          key={color}
-                          type="button"
-                          className={cn(
-                            "w-full aspect-square rounded-md border-2 transition-transform hover:scale-110",
-                            form.text_color.toLowerCase() === color.toLowerCase() ? "border-foreground ring-1 ring-foreground scale-110" : "border-transparent"
-                          )}
-                          style={{ backgroundColor: color }}
-                          onClick={() => setForm({ ...form, text_color: color })}
-                        />
-                      ))}
-                    </div>
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className={cn("w-2.5 h-2.5 rounded-full", v.dotColor)} />
+                            <span className="text-xs font-semibold">{v.label}</span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground leading-tight">{v.description}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                {/* WCAG Contrast Badge */}
-                {!isGradient(form.bg_color) && (() => {
-                  const badge = getContrastBadge(form.bg_color, form.text_color);
-                  return (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">Contraste WCAG:</span>
-                      <Badge className={cn("text-xs", badge.className)}>{badge.label}</Badge>
-                      <span className="text-xs text-muted-foreground">({getContrastRatio(form.bg_color, form.text_color).toFixed(1)}:1)</span>
+                {form.variant === "custom" && (
+                  <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border/50">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">{t("banners.bgColor")}</Label>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 rounded-md border border-border flex-shrink-0" style={bgStyle(form.bg_color)} />
+                        <Input value={form.bg_color} onChange={(e) => setForm({ ...form, bg_color: e.target.value })} className="flex-1 h-8 text-xs font-mono" />
+                      </div>
+                      <div className="grid grid-cols-5 gap-1">
+                        {BG_COLOR_PRESETS.map((color) => (
+                          <button key={color} type="button" className={cn("w-full aspect-square rounded-md border-2 transition-transform hover:scale-110", !isGradient(form.bg_color) && form.bg_color.toLowerCase() === color.toLowerCase() ? "border-foreground ring-1 ring-foreground scale-110" : "border-transparent")} style={{ backgroundColor: color }} onClick={() => setForm({ ...form, bg_color: color })} />
+                        ))}
+                      </div>
+                      <Label className="text-xs text-muted-foreground mt-2">Gradientes</Label>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {GRADIENT_PRESETS.filter(g => g.group === "duo").map((g) => (
+                          <button key={g.name} type="button" title={g.name} className={cn("w-full rounded-md border-2 transition-transform hover:scale-105", form.bg_color === g.value ? "border-foreground ring-1 ring-foreground scale-105" : "border-transparent")} style={{ background: g.value, aspectRatio: "3/1" }} onClick={() => setForm({ ...form, bg_color: g.value })} />
+                        ))}
+                      </div>
+                      <Label className="text-xs text-muted-foreground mt-1">Monocromáticos</Label>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {GRADIENT_PRESETS.filter(g => g.group === "mono").map((g) => (
+                          <button key={g.name} type="button" title={g.name} className={cn("w-full rounded-md border-2 transition-transform hover:scale-105", form.bg_color === g.value ? "border-foreground ring-1 ring-foreground scale-105" : "border-transparent")} style={{ background: g.value, aspectRatio: "3/1" }} onClick={() => setForm({ ...form, bg_color: g.value })} />
+                        ))}
+                      </div>
                     </div>
-                  );
-                })()}
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">{t("banners.textColor")}</Label>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 rounded-md border border-border flex-shrink-0" style={{ backgroundColor: form.text_color }} />
+                        <Input value={form.text_color} onChange={(e) => setForm({ ...form, text_color: e.target.value })} className="flex-1 h-8 text-xs font-mono" />
+                      </div>
+                      <div className="grid grid-cols-5 gap-1">
+                        {TEXT_COLOR_PRESETS.map((color) => (
+                          <button key={color} type="button" className={cn("w-full aspect-square rounded-md border-2 transition-transform hover:scale-110", form.text_color.toLowerCase() === color.toLowerCase() ? "border-foreground ring-1 ring-foreground scale-110" : "border-transparent")} style={{ backgroundColor: color }} onClick={() => setForm({ ...form, text_color: color })} />
+                        ))}
+                      </div>
+                    </div>
+                    {!isGradient(form.bg_color) && (() => {
+                      const badge = getContrastBadge(form.bg_color, form.text_color);
+                      return (
+                        <div className="col-span-2 flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">Contraste WCAG:</span>
+                          <Badge className={cn("text-xs", badge.className)}>{badge.label}</Badge>
+                          <span className="text-xs text-muted-foreground">({getContrastRatio(form.bg_color, form.text_color).toFixed(1)}:1)</span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
 
-                {/* Position, Border, Shadow */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Posição</Label>
-                    <Select value={form.position} onValueChange={(v) => setForm({ ...form, position: v })}>
-                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {POSITION_OPTIONS.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                <div className="space-y-3 pt-2 border-t border-border/50">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center gap-3">
+                      <Switch checked={form.is_floating} onCheckedChange={(v) => setForm({ ...form, is_floating: v, position: v ? "float" : "top", border_style: v ? "pill" : "none" })} />
+                      <Label className="text-sm">Flutuante</Label>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Switch checked={form.can_close} onCheckedChange={(v) => setForm({ ...form, can_close: v })} />
+                      <Label className="text-sm">Botão fechar</Label>
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Borda</Label>
-                    <Select value={form.border_style} onValueChange={(v) => setForm({ ...form, border_style: v })}>
-                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                      <SelectContent>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Borda</Label>
+                      <div className="flex gap-1">
                         {BORDER_STYLE_OPTIONS.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                          <button key={o.value} type="button" onClick={() => setForm({ ...form, border_style: o.value })} className={cn("flex-1 text-[10px] py-1.5 rounded-lg border transition-all", form.border_style === o.value ? "bg-accent text-accent-foreground border-accent shadow-sm" : "border-border hover:bg-muted/50")}>
+                            {o.label}
+                          </button>
                         ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Sombra</Label>
-                    <Select value={form.shadow_style} onValueChange={(v) => setForm({ ...form, shadow_style: v })}>
-                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                      <SelectContent>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Sombra</Label>
+                      <div className="flex gap-1">
                         {SHADOW_STYLE_OPTIONS.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                          <button key={o.value} type="button" onClick={() => setForm({ ...form, shadow_style: o.value })} className={cn("flex-1 text-[10px] py-1.5 rounded-lg border transition-all", form.shadow_style === o.value ? "bg-accent text-accent-foreground border-accent shadow-sm" : "border-border hover:bg-muted/50")}>
+                            {o.label}
+                          </button>
                         ))}
-                      </SelectContent>
-                    </Select>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
