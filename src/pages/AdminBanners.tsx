@@ -833,7 +833,7 @@ const AdminBanners = () => {
                 <ScrollArea className="max-h-[280px] pr-2">
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Estilo visual</Label>
-                  <div className="grid grid-cols-6 gap-1.5">
+                  <div className="grid grid-cols-5 gap-1.5">
                     {VARIANT_OPTIONS.map((v) => {
                       const isSelected = form.variant === v.value;
                       return (
@@ -842,13 +842,13 @@ const AdminBanners = () => {
                           type="button"
                           onClick={() => setForm({ ...form, variant: v.value })}
                           className={cn(
-                            "flex flex-col items-center gap-1 p-2 rounded-lg border text-center transition-all",
+                            "flex flex-col items-center gap-1.5 p-2 rounded-lg border text-center transition-all",
                             isSelected
-                              ? cn(v.bgClass, v.borderClass, "ring-1 ring-offset-1 ring-offset-background shadow-sm")
+                              ? cn(v.borderClass, "ring-1 ring-offset-1 ring-offset-background shadow-sm bg-muted/50")
                               : "border-border hover:bg-muted/50"
                           )}
                         >
-                          <div className={cn("w-3 h-3 rounded-full", v.dotColor)} />
+                          <div className={cn("w-6 h-3 rounded-full", v.bgPreview)} />
                           <span className="text-[10px] font-semibold leading-tight">{v.label}</span>
                         </button>
                       );
