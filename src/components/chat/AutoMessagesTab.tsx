@@ -340,6 +340,29 @@ const AutoMessagesTab = () => {
                 rows={3}
               />
             </div>
+            {cfg.rule_type === "auto_close" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Status ao encerrar automaticamente</Label>
+                <Select
+                  value={(() => {
+                    const edit = localEdits[rule.id];
+                    if (edit && edit.close_resolution_status !== undefined) return edit.close_resolution_status;
+                    return rule.close_resolution_status ?? "archived";
+                  })()}
+                  onValueChange={(v) => setLocalEdit(rule.id, "close_resolution_status", v)}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pendente</SelectItem>
+                    <SelectItem value="resolved">Resolvida</SelectItem>
+                    <SelectItem value="archived">Arquivada</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">Define o status da conversa quando encerrada automaticamente.</p>
+              </div>
+            )}
             {hasUnsavedChanges(rule.id) && (
               <Button
                 size="sm"

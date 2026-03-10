@@ -248,12 +248,13 @@ Deno.serve(async (req) => {
             })
             .eq("id", room.id);
         } else if (nextStep === "auto_close") {
-          // Close + archive
+          const targetResolution = stepRule.close_resolution_status ?? "archived";
+          // Close with configured resolution status
           await supabase
             .from("chat_rooms")
             .update({
               status: "closed",
-              resolution_status: "archived",
+              resolution_status: targetResolution,
               closed_at: new Date().toISOString(),
             })
             .eq("id", room.id);
