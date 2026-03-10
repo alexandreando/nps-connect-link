@@ -607,6 +607,22 @@ const AdminBanners = () => {
       (c.email ?? "").toLowerCase().includes(contactSearch.toLowerCase())
   );
 
+  const openMetricsDialog = async (banner: Banner) => {
+    setMetricsBanner(banner);
+    const contactQuery = supabase.from("contacts").select("id, name, email").eq("is_company", true);
+    if (tenantId) contactQuery.eq("tenant_id", tenantId);
+    const [{ data: assignData }, { data: contactsData }] = await Promise.all([
+      supabase.from("chat_banner_assignments").select("*").eq("banner_id", banner.id),
+      contactQuery,
+    ]);
+    const enriched = (assignData ?? []).map((a: any) => {
+      const contact = (contactsData ?? []).find((c: any) => c.id === a.contact_id);
+      return { ...a, contact_name: contact?.name ?? "—", contact_email: contact?.email ?? "—" };
+    });
+    setMetricsAssignments(enriched);
+    setMetricsDialog(true);
+  };
+
   const getTypeConfig = (type: string) => BANNER_TYPES.find((t) => t.value === type) ?? BANNER_TYPES[0];
 
   return (
