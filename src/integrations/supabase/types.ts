@@ -450,6 +450,7 @@ export type Database = {
       }
       chat_auto_rules: {
         Row: {
+          close_resolution_status: string
           created_at: string | null
           id: string
           is_enabled: boolean | null
@@ -462,6 +463,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          close_resolution_status?: string
           created_at?: string | null
           id?: string
           is_enabled?: boolean | null
@@ -474,6 +476,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          close_resolution_status?: string
           created_at?: string | null
           id?: string
           is_enabled?: boolean | null
