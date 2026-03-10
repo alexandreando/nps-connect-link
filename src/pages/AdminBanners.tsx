@@ -1347,6 +1347,95 @@ const AdminBanners = () => {
         onCancel={() => setConflictDialog(false)}
         isLoading={savingWithConflict}
       />
+
+      {/* Metrics Dialog */}
+      <Dialog open={metricsDialog} onOpenChange={setMetricsDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Métricas — {metricsBanner?.title}</DialogTitle>
+          </DialogHeader>
+
+          {(() => {
+            const totalViews = metricsAssignments.reduce((s, a) => s + a.views_count, 0);
+            const dismissed = metricsAssignments.filter(a => a.dismissed_at).length;
+            const voted = metricsAssignments.filter(a => a.vote);
+            const upVotes = voted.filter(a => a.vote === "up").length;
+            const favorability = voted.length > 0 ? Math.round((upVotes / voted.length) * 100) : null;
+            return (
+              <div className="grid grid-cols-4 gap-3">
+                {[
+                  { label: "Atribuídos", value: metricsAssignments.length },
+                  { label: "Views", value: totalViews },
+                  { label: "Favorabilidade", value: favorability !== null ? `${favorability}%` : "—" },
+                  { label: "Dismissed", value: dismissed },
+                ].map((m) => (
+                  <div key={m.label} className="rounded-lg border bg-muted/20 p-3 text-center">
+                    <p className="text-lg font-bold">{m.value}</p>
+                    <p className="text-[10px] text-muted-foreground">{m.label}</p>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {metricsAssignments.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Nenhuma atribuição encontrada.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Empresa</TableHead>
+                  <TableHead>Views</TableHead>
+                  <TableHead>Voto</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {metricsAssignments
+                  .sort((a, b) => b.views_count - a.views_count)
+                  .map((a) => (
+                    <TableRow key={a.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium text-sm">{a.contact_name}</p>
+                          <p className="text-xs text-muted-foreground">{a.contact_email}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <span className="text-sm">{a.views_count}</span>
+                          {metricsBanner?.max_views && (
+                            <Progress value={(a.views_count / metricsBanner.max_views) * 100} className="h-1.5 w-16" />
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {a.vote === "up" ? (
+                          <Badge variant="outline" className="text-emerald-600 border-emerald-300 dark:text-emerald-400 dark:border-emerald-700 text-[10px]">
+                            <ThumbsUp className="h-3 w-3 mr-1" /> Positivo
+                          </Badge>
+                        ) : a.vote === "down" ? (
+                          <Badge variant="outline" className="text-destructive border-destructive/30 text-[10px]">
+                            <ThumbsDown className="h-3 w-3 mr-1" /> Negativo
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {a.dismissed_at ? (
+                          <Badge variant="secondary" className="text-[10px]">Dismissed</Badge>
+                        ) : (
+                          <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 text-[10px]">Ativo</Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
