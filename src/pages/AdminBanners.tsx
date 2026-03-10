@@ -604,6 +604,9 @@ const AdminBanners = () => {
   };
 
   const getTypeConfig = (type: string) => BANNER_TYPES.find((t) => t.value === type) ?? BANNER_TYPES[0];
+  const getVariantForBanner = (banner: Banner): BannerVariant => {
+    return (TYPE_TO_VARIANT[banner.banner_type] ? Object.keys(VARIANT_TO_TYPE).find(k => VARIANT_TO_TYPE[k as BannerVariant] === banner.banner_type) as BannerVariant : "neutral") ?? "neutral";
+  };
 
   return (
     <>
