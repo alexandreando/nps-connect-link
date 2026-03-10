@@ -143,6 +143,7 @@ const AutoMessagesTab = () => {
     const updates: Record<string, any> = {};
     if (edits.message_content !== undefined) updates.message_content = edits.message_content;
     if (edits.trigger_minutes !== undefined) updates.trigger_minutes = Math.max(5, edits.trigger_minutes ?? 5);
+    if (edits.close_resolution_status !== undefined) updates.close_resolution_status = edits.close_resolution_status;
 
     await supabase.from("chat_auto_rules").update(updates).eq("id", rule.id);
     setRules((prev) => prev.map((r) => r.id === rule.id ? { ...r, ...updates } : r));
