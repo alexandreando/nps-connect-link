@@ -461,6 +461,7 @@ const AdminBanners = () => {
       expires_at: form.expires_at?.toISOString() ?? null,
       priority: form.priority,
       target_all: form.target_all,
+      auto_assign_by_rules: form.auto_assign_by_rules,
       max_views: form.max_views,
       position: form.position,
       auto_dismiss_seconds: form.auto_dismiss_seconds,
