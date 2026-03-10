@@ -16,11 +16,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Plus, Edit, Trash2, Users, Eye, ThumbsUp, ThumbsDown, Search, Copy, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles, CalendarIcon, Bell, Palette, Link2, Calendar as CalendarSectionIcon, Target, ChevronDown, Timer, Repeat } from "lucide-react";
+import { useAuthContext } from "@/contexts/AuthContext";
+import { Plus, Edit, Trash2, Users, Eye, ThumbsUp, ThumbsDown, Search, Copy, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles, CalendarIcon, Bell, Palette, Link2, Calendar as CalendarSectionIcon, Target, ChevronDown, Timer, Repeat, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import BannerPreview, { BannerVariant, VARIANT_STYLES, TYPE_TO_VARIANT } from "@/components/chat/BannerPreview";
@@ -215,10 +217,24 @@ const getBannerStatus = (banner: Banner): { label: string; variant: "default" | 
   return { label: "Ativo", variant: "default" };
 };
 
+// Reverse map variant -> banner_type
+const VARIANT_TO_TYPE: Record<BannerVariant, BannerType> = {
+  warning: "warning",
+  destructive: "warning",
+  success: "success",
+  neutral: "info",
+  brand: "promo",
+  custom: "info",
+};
+
 const AdminBanners = () => {
   const { t } = useLanguage();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const { tenantId } = useAuthContext();
+  const [metricsDialog, setMetricsDialog] = useState(false);
+  const [metricsBanner, setMetricsBanner] = useState<Banner | null>(null);
+  const [metricsAssignments, setMetricsAssignments] = useState<Assignment[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [bannerDialog, setBannerDialog] = useState(false);
@@ -270,16 +286,19 @@ const AdminBanners = () => {
   const [assignSortDesc, setAssignSortDesc] = useState(true);
 
   const fetchBanners = useCallback(async () => {
+    if (!tenantId) return;
     const { data } = await supabase
       .from("chat_banners")
       .select("*")
+      .eq("tenant_id", tenantId)
       .order("priority", { ascending: false });
     setBanners((data as any) ?? []);
 
     if (data && data.length > 0) {
       const { data: allAssignments } = await supabase
         .from("chat_banner_assignments")
-        .select("banner_id, views_count, vote");
+        .select("banner_id, views_count, vote")
+        .eq("tenant_id", tenantId);
 
       const counts: Record<string, { total: number; views: number; upVotes: number; downVotes: number }> = {};
       (allAssignments ?? []).forEach((a: any) => {
@@ -293,7 +312,7 @@ const AdminBanners = () => {
     }
 
     setLoading(false);
-  }, []);
+  }, [tenantId]);
 
   useEffect(() => {
     fetchBanners();
@@ -471,6 +490,7 @@ const AdminBanners = () => {
       }
     }
 
+    const derivedType = VARIANT_TO_TYPE[form.variant] ?? "info";
     const payload = {
       title: form.title,
       content: form.content,
@@ -482,7 +502,7 @@ const AdminBanners = () => {
       link_label: form.link_label || null,
       has_voting: form.has_voting,
       is_active: form.is_active,
-      banner_type: form.banner_type,
+      banner_type: derivedType,
       starts_at: form.starts_at?.toISOString() ?? null,
       expires_at: form.expires_at?.toISOString() ?? null,
       priority: form.priority,
@@ -499,7 +519,7 @@ const AdminBanners = () => {
     if (editingBanner) {
       await supabase.from("chat_banners").update(payload as any).eq("id", editingBanner.id);
     } else {
-      await supabase.from("chat_banners").insert({ ...payload, user_id: session.user.id } as any);
+      await supabase.from("chat_banners").insert({ ...payload, user_id: session.user.id, tenant_id: tenantId } as any);
     }
 
     setBannerDialog(false);
@@ -524,9 +544,12 @@ const AdminBanners = () => {
   const openAssignDialog = async (banner: Banner) => {
     setSelectedBanner(banner);
 
+    const contactQuery = supabase.from("contacts").select("id, name, email").eq("is_company", true).order("name");
+    if (tenantId) contactQuery.eq("tenant_id", tenantId);
+
     const [{ data: assignData }, { data: contactsData }] = await Promise.all([
       supabase.from("chat_banner_assignments").select("*").eq("banner_id", banner.id),
-      supabase.from("contacts").select("id, name, email").eq("is_company", true).order("name"),
+      contactQuery,
     ]);
 
     const enriched = (assignData ?? []).map((a: any) => {
@@ -583,6 +606,22 @@ const AdminBanners = () => {
       c.name.toLowerCase().includes(contactSearch.toLowerCase()) ||
       (c.email ?? "").toLowerCase().includes(contactSearch.toLowerCase())
   );
+
+  const openMetricsDialog = async (banner: Banner) => {
+    setMetricsBanner(banner);
+    const contactQuery = supabase.from("contacts").select("id, name, email").eq("is_company", true);
+    if (tenantId) contactQuery.eq("tenant_id", tenantId);
+    const [{ data: assignData }, { data: contactsData }] = await Promise.all([
+      supabase.from("chat_banner_assignments").select("*").eq("banner_id", banner.id),
+      contactQuery,
+    ]);
+    const enriched = (assignData ?? []).map((a: any) => {
+      const contact = (contactsData ?? []).find((c: any) => c.id === a.contact_id);
+      return { ...a, contact_name: contact?.name ?? "—", contact_email: contact?.email ?? "—" };
+    });
+    setMetricsAssignments(enriched);
+    setMetricsDialog(true);
+  };
 
   const getTypeConfig = (type: string) => BANNER_TYPES.find((t) => t.value === type) ?? BANNER_TYPES[0];
 
@@ -684,6 +723,9 @@ const AdminBanners = () => {
                       </div>
 
                       <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openMetricsDialog(banner)} title="Métricas">
+                          <BarChart3 className="h-4 w-4" />
+                        </Button>
                         {!banner.target_all && (
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openAssignDialog(banner)} title={t("banners.assignments")}>
                             <Users className="h-4 w-4" />
@@ -731,9 +773,9 @@ const AdminBanners = () => {
             <DialogTitle>{editingBanner ? t("banners.edit") : t("banners.create")}</DialogTitle>
           </DialogHeader>
 
-          <div className="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-[1fr,320px] gap-0">
+          <div className="flex-1 overflow-hidden">
             {/* Form column — scrollable */}
-            <div className="overflow-y-auto px-6 py-4 space-y-4">
+            <div className="overflow-y-auto px-6 py-4 space-y-4 max-h-[50vh]">
 
               {/* Mobile preview collapsible */}
               {isMobile && (
@@ -771,39 +813,11 @@ const AdminBanners = () => {
                 </Collapsible>
               )}
 
-              {/* Section 1: Type + Title */}
+              {/* Section 1: Title */}
               <div className="rounded-lg bg-muted/30 p-4 space-y-3">
                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                   <Info className="h-4 w-4 text-muted-foreground" />
                   {t("banners.sectionIdentification")}
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">{t("banners.typeLabel")}</Label>
-                  <div className="grid grid-cols-5 gap-1.5">
-                    {BANNER_TYPES.map((bt) => {
-                      const Icon = bt.icon;
-                      const isSelected = form.banner_type === bt.value;
-                      return (
-                        <button
-                          key={bt.value}
-                          type="button"
-                          onClick={() => {
-                            const colors = TYPE_DEFAULT_COLORS[bt.value];
-                            setForm({ ...form, banner_type: bt.value, bg_color: colors.bg, text_color: colors.text });
-                          }}
-                          className={cn(
-                            "flex flex-col items-center gap-1 p-2 rounded-lg border text-xs transition-all",
-                            isSelected
-                              ? cn(bt.bgClass, bt.borderClass, "ring-1 ring-offset-1 ring-offset-background", bt.borderClass.replace("border-", "ring-"))
-                              : "border-border hover:bg-muted/50"
-                          )}
-                        >
-                          <Icon className={cn("h-4 w-4", isSelected ? "opacity-100" : "opacity-50")} style={isSelected ? { color: TYPE_DEFAULT_COLORS[bt.value].bg } : undefined} />
-                          <span className="truncate">{bt.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">{t("banners.titleLabel")} <span className="text-destructive">*</span></Label>
@@ -836,9 +850,10 @@ const AdminBanners = () => {
                   {t("banners.sectionAppearance")}
                 </div>
 
+                <ScrollArea className="max-h-[280px] pr-2">
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Estilo visual</Label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-6 gap-1.5">
                     {VARIANT_OPTIONS.map((v) => {
                       const isSelected = form.variant === v.value;
                       return (
@@ -847,17 +862,14 @@ const AdminBanners = () => {
                           type="button"
                           onClick={() => setForm({ ...form, variant: v.value })}
                           className={cn(
-                            "flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all",
+                            "flex flex-col items-center gap-1 p-2 rounded-lg border text-center transition-all",
                             isSelected
                               ? cn(v.bgClass, v.borderClass, "ring-1 ring-offset-1 ring-offset-background shadow-sm")
                               : "border-border hover:bg-muted/50"
                           )}
                         >
-                          <div className="flex items-center gap-2">
-                            <div className={cn("w-2.5 h-2.5 rounded-full", v.dotColor)} />
-                            <span className="text-xs font-semibold">{v.label}</span>
-                          </div>
-                          <span className="text-[10px] text-muted-foreground leading-tight">{v.description}</span>
+                          <div className={cn("w-3 h-3 rounded-full", v.dotColor)} />
+                          <span className="text-[10px] font-semibold leading-tight">{v.label}</span>
                         </button>
                       );
                     })}
@@ -877,18 +889,26 @@ const AdminBanners = () => {
                           <button key={color} type="button" className={cn("w-full aspect-square rounded-md border-2 transition-transform hover:scale-110", !isGradient(form.bg_color) && form.bg_color.toLowerCase() === color.toLowerCase() ? "border-foreground ring-1 ring-foreground scale-110" : "border-transparent")} style={{ backgroundColor: color }} onClick={() => setForm({ ...form, bg_color: color })} />
                         ))}
                       </div>
-                      <Label className="text-xs text-muted-foreground mt-2">Gradientes</Label>
-                      <div className="grid grid-cols-4 gap-1.5">
-                        {GRADIENT_PRESETS.filter(g => g.group === "duo").map((g) => (
-                          <button key={g.name} type="button" title={g.name} className={cn("w-full rounded-md border-2 transition-transform hover:scale-105", form.bg_color === g.value ? "border-foreground ring-1 ring-foreground scale-105" : "border-transparent")} style={{ background: g.value, aspectRatio: "3/1" }} onClick={() => setForm({ ...form, bg_color: g.value })} />
-                        ))}
-                      </div>
-                      <Label className="text-xs text-muted-foreground mt-1">Monocromáticos</Label>
-                      <div className="grid grid-cols-4 gap-1.5">
-                        {GRADIENT_PRESETS.filter(g => g.group === "mono").map((g) => (
-                          <button key={g.name} type="button" title={g.name} className={cn("w-full rounded-md border-2 transition-transform hover:scale-105", form.bg_color === g.value ? "border-foreground ring-1 ring-foreground scale-105" : "border-transparent")} style={{ background: g.value, aspectRatio: "3/1" }} onClick={() => setForm({ ...form, bg_color: g.value })} />
-                        ))}
-                      </div>
+                      <Collapsible>
+                        <CollapsibleTrigger asChild>
+                          <button type="button" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 mt-1">
+                            <ChevronDown className="h-3 w-3" /> Gradientes
+                          </button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="space-y-2 pt-1">
+                          <div className="grid grid-cols-4 gap-1.5">
+                            {GRADIENT_PRESETS.filter(g => g.group === "duo").map((g) => (
+                              <button key={g.name} type="button" title={g.name} className={cn("w-full rounded-md border-2 transition-transform hover:scale-105", form.bg_color === g.value ? "border-foreground ring-1 ring-foreground scale-105" : "border-transparent")} style={{ background: g.value, aspectRatio: "3/1" }} onClick={() => setForm({ ...form, bg_color: g.value })} />
+                            ))}
+                          </div>
+                          <Label className="text-xs text-muted-foreground mt-1">Monocromáticos</Label>
+                          <div className="grid grid-cols-4 gap-1.5">
+                            {GRADIENT_PRESETS.filter(g => g.group === "mono").map((g) => (
+                              <button key={g.name} type="button" title={g.name} className={cn("w-full rounded-md border-2 transition-transform hover:scale-105", form.bg_color === g.value ? "border-foreground ring-1 ring-foreground scale-105" : "border-transparent")} style={{ background: g.value, aspectRatio: "3/1" }} onClick={() => setForm({ ...form, bg_color: g.value })} />
+                            ))}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs text-muted-foreground">{t("banners.textColor")}</Label>
@@ -914,6 +934,7 @@ const AdminBanners = () => {
                     })()}
                   </div>
                 )}
+                </ScrollArea>
 
                 <div className="space-y-3 pt-2 border-t border-border/50">
                   <div className="grid grid-cols-2 gap-3">
@@ -1097,35 +1118,33 @@ const AdminBanners = () => {
                 </div>
               </div>
             </div>
-
-            {/* Preview column — sticky, desktop only */}
-            {!isMobile && (
-              <div className="hidden md:block border-l border-border bg-muted/10 px-4 py-4 overflow-y-auto">
-                <div className="sticky top-0 space-y-3">
-                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">Preview</Label>
-                  <BannerPreview
-                    content={form.content}
-                    contentHtml={form.content_html || undefined}
-                    textAlign={form.text_align}
-                    bgColor={form.bg_color}
-                    textColor={form.text_color}
-                    linkUrl={form.link_url || undefined}
-                    linkLabel={form.link_label || undefined}
-                    hasVoting={form.has_voting}
-                    bannerType={form.banner_type}
-                    startsAt={form.starts_at?.toISOString()}
-                    expiresAt={form.expires_at?.toISOString()}
-                    position={form.position}
-                    borderStyle={form.border_style}
-                    shadowStyle={form.shadow_style}
-                    variant={form.variant}
-                    isFloating={form.is_floating}
-                    canClose={form.can_close}
-                  />
-                </div>
-              </div>
-            )}
           </div>
+
+          {/* Preview panel — sticky bottom */}
+          {!isMobile && (
+            <div className="border-t border-border bg-muted/20 px-6 py-3">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider mb-2 block">Preview</Label>
+              <BannerPreview
+                content={form.content}
+                contentHtml={form.content_html || undefined}
+                textAlign={form.text_align}
+                bgColor={form.bg_color}
+                textColor={form.text_color}
+                linkUrl={form.link_url || undefined}
+                linkLabel={form.link_label || undefined}
+                hasVoting={form.has_voting}
+                bannerType={VARIANT_TO_TYPE[form.variant] ?? "info"}
+                startsAt={form.starts_at?.toISOString()}
+                expiresAt={form.expires_at?.toISOString()}
+                position={form.position}
+                borderStyle={form.border_style}
+                shadowStyle={form.shadow_style}
+                variant={form.variant}
+                isFloating={form.is_floating}
+                canClose={form.can_close}
+              />
+            </div>
+          )}
 
           <DialogFooter className="px-6 py-4 border-t border-border">
             <Button variant="outline" onClick={() => setBannerDialog(false)}>{t("common.cancel")}</Button>
@@ -1328,6 +1347,95 @@ const AdminBanners = () => {
         onCancel={() => setConflictDialog(false)}
         isLoading={savingWithConflict}
       />
+
+      {/* Metrics Dialog */}
+      <Dialog open={metricsDialog} onOpenChange={setMetricsDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Métricas — {metricsBanner?.title}</DialogTitle>
+          </DialogHeader>
+
+          {(() => {
+            const totalViews = metricsAssignments.reduce((s, a) => s + a.views_count, 0);
+            const dismissed = metricsAssignments.filter(a => a.dismissed_at).length;
+            const voted = metricsAssignments.filter(a => a.vote);
+            const upVotes = voted.filter(a => a.vote === "up").length;
+            const favorability = voted.length > 0 ? Math.round((upVotes / voted.length) * 100) : null;
+            return (
+              <div className="grid grid-cols-4 gap-3">
+                {[
+                  { label: "Atribuídos", value: metricsAssignments.length },
+                  { label: "Views", value: totalViews },
+                  { label: "Favorabilidade", value: favorability !== null ? `${favorability}%` : "—" },
+                  { label: "Dismissed", value: dismissed },
+                ].map((m) => (
+                  <div key={m.label} className="rounded-lg border bg-muted/20 p-3 text-center">
+                    <p className="text-lg font-bold">{m.value}</p>
+                    <p className="text-[10px] text-muted-foreground">{m.label}</p>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {metricsAssignments.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Nenhuma atribuição encontrada.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Empresa</TableHead>
+                  <TableHead>Views</TableHead>
+                  <TableHead>Voto</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {metricsAssignments
+                  .sort((a, b) => b.views_count - a.views_count)
+                  .map((a) => (
+                    <TableRow key={a.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium text-sm">{a.contact_name}</p>
+                          <p className="text-xs text-muted-foreground">{a.contact_email}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <span className="text-sm">{a.views_count}</span>
+                          {metricsBanner?.max_views && (
+                            <Progress value={(a.views_count / metricsBanner.max_views) * 100} className="h-1.5 w-16" />
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {a.vote === "up" ? (
+                          <Badge variant="outline" className="text-emerald-600 border-emerald-300 dark:text-emerald-400 dark:border-emerald-700 text-[10px]">
+                            <ThumbsUp className="h-3 w-3 mr-1" /> Positivo
+                          </Badge>
+                        ) : a.vote === "down" ? (
+                          <Badge variant="outline" className="text-destructive border-destructive/30 text-[10px]">
+                            <ThumbsDown className="h-3 w-3 mr-1" /> Negativo
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {a.dismissed_at ? (
+                          <Badge variant="secondary" className="text-[10px]">Dismissed</Badge>
+                        ) : (
+                          <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 text-[10px]">Ativo</Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
