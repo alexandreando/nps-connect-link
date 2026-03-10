@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { ArrowLeft, Send, MessageSquare, Loader2, Paperclip, FileText, Download, X } from "lucide-react";
+import { ArrowLeft, Send, MessageSquare, Loader2, Paperclip, FileText, Download, X, Star } from "lucide-react";
 import { renderTextWithLinks } from "@/utils/chatUtils";
 import { format } from "date-fns";
 import { toast } from "sonner";
