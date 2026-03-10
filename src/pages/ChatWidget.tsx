@@ -1292,7 +1292,7 @@ const ChatWidget = () => {
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-sm leading-tight">{phase === "chat" && attendantName ? attendantName : companyName}</p>
           <p className="text-xs opacity-80 animate-fade-in truncate" key={phase + (attendantName || "")}>
-            {phase === "chat" ? (attendantName ? `Você está falando com ${attendantName}` : "Você está sendo atendido") : phase === "waiting" ? "Aguardando..." : phase === "history" ? "Suas conversas" : phase === "viewTranscript" ? "Histórico" : "Suporte"}
+            {phase === "chat" ? (attendantName ? `Você está falando com ${attendantName}` : "Você está sendo atendido") : phase === "waiting" ? "Aguardando..." : phase === "history" ? "Suas conversas" : phase === "viewTranscript" ? "Histórico" : phase === "csat" ? "Avaliação" : "Suporte"}
           </p>
         </div>
 
