@@ -54,6 +54,7 @@ function formatFileSize(bytes?: number) {
 const PortalChatView = ({ roomId, visitorId, contactName, onBack, widgetConfig, allBusy, outsideHours }: PortalChatViewProps) => {
   const { t } = useLanguage();
   const [phase, setPhase] = useState<ChatPhase>("waiting");
+  const [roomCsatScore, setRoomCsatScore] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
