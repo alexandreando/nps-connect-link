@@ -117,7 +117,7 @@
 
     // Content row - centered
     var contentDiv = document.createElement("div");
-    contentDiv.style.cssText = "display:flex;align-items:center;justify-content:center;gap:10px;text-align:center;width:100%;";
+    contentDiv.style.cssText = "display:flex;align-items:center;justify-content:center;gap:10px;text-align:center;width:100%;max-width:100%;overflow:hidden;min-width:0;";
 
     // Type icon
     var iconHtml = BANNER_ICONS[banner.banner_type || "info"] || BANNER_ICONS.info;
