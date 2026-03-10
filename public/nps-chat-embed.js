@@ -127,9 +127,14 @@
     contentDiv.appendChild(iconSpan);
 
     var text = document.createElement("span");
-    text.style.cssText = "max-height:3em;overflow:hidden;display:block;line-height:1.5;word-break:break-word;";
+    text.style.cssText = "display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;line-height:1.5;word-break:break-word;overflow-wrap:break-word;min-width:0;";
     if (banner.content_html) {
       text.innerHTML = banner.content_html;
+      // Sanitize long links
+      var links = text.querySelectorAll("a");
+      for (var li = 0; li < links.length; li++) {
+        links[li].style.wordBreak = "break-all";
+      }
     } else {
       text.textContent = banner.content;
     }

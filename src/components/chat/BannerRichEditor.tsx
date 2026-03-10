@@ -35,9 +35,19 @@ const BannerRichEditor = ({
     }
   }, [initialHtml]);
 
+  const sanitizeLinks = (html: string): string => {
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    div.querySelectorAll("a").forEach((a) => {
+      a.style.wordBreak = "break-all";
+    });
+    return div.innerHTML;
+  };
+
   const handleInput = useCallback(() => {
     if (!editorRef.current) return;
-    onChange(editorRef.current.innerHTML, editorRef.current.textContent ?? "");
+    const sanitized = sanitizeLinks(editorRef.current.innerHTML);
+    onChange(sanitized, editorRef.current.textContent ?? "");
   }, [onChange]);
 
   const execCmd = (cmd: string, value?: string) => {
