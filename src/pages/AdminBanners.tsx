@@ -642,22 +642,21 @@ const AdminBanners = () => {
           <div className="space-y-3">
             {banners.map((banner) => {
               const counts = assignmentCounts[banner.id] ?? { total: 0, views: 0, upVotes: 0, downVotes: 0 };
-              const typeConfig = getTypeConfig(banner.banner_type);
-              const TypeIcon = typeConfig.icon;
               const status = getBannerStatus(banner);
               const totalVotes = counts.upVotes + counts.downVotes;
               const favorability = totalVotes > 0 ? Math.round((counts.upVotes / totalVotes) * 100) : null;
+              const variantOpt = VARIANT_OPTIONS.find(v => v.value === (TYPE_TO_VARIANT[banner.banner_type] ?? "neutral")) ?? VARIANT_OPTIONS[3];
 
               return (
                 <Card key={banner.id}>
                   <CardContent className="p-4">
                     <div className="flex items-start gap-4">
-                      {/* Type icon + color stripe */}
+                      {/* Variant color stripe */}
                       <div
-                        className="w-12 h-12 rounded-lg flex-shrink-0 flex items-center justify-center"
-                        style={bgStyle(banner.bg_color)}
+                        className={cn("w-12 h-12 rounded-lg flex-shrink-0 flex items-center justify-center", variantOpt.bgPreview)}
+                        style={banner.bg_color.startsWith("linear-gradient") ? { background: banner.bg_color } : undefined}
                       >
-                        <TypeIcon className="h-5 w-5" style={{ color: banner.text_color }} />
+                        <Palette className="h-5 w-5 text-white/80 drop-shadow-sm" />
                       </div>
 
                       <div className="flex-1 min-w-0">
@@ -667,7 +666,7 @@ const AdminBanners = () => {
                           {banner.target_all && (
                             <Badge variant="outline" className="text-xs">{t("banners.allClients")}</Badge>
                           )}
-                          <Badge variant="outline" className="text-xs capitalize">{typeConfig.label}</Badge>
+                          <Badge variant="outline" className="text-xs">{variantOpt.label}</Badge>
                         </div>
                         <p className="text-sm text-muted-foreground truncate">{banner.content}</p>
                         <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
