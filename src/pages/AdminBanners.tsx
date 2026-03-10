@@ -100,6 +100,16 @@ const TYPE_DEFAULT_COLORS: Record<BannerType, { bg: string; text: string }> = {
   update: { bg: "#06B6D4", text: "#FFFFFF" },
 };
 
+// Variant visual config for selector cards
+const VARIANT_OPTIONS: { value: BannerVariant; label: string; description: string; bgClass: string; borderClass: string; dotColor: string }[] = [
+  { value: "warning", label: "Manutenção", description: "Avisos e alertas", bgClass: "bg-amber-50 dark:bg-amber-950/30", borderClass: "border-amber-200 dark:border-amber-800", dotColor: "bg-amber-500" },
+  { value: "destructive", label: "Urgência", description: "Ações críticas", bgClass: "bg-red-50 dark:bg-red-950/30", borderClass: "border-red-200 dark:border-red-800", dotColor: "bg-red-500" },
+  { value: "success", label: "Novidades", description: "Boas notícias", bgClass: "bg-emerald-50 dark:bg-emerald-950/30", borderClass: "border-emerald-200 dark:border-emerald-800", dotColor: "bg-emerald-500" },
+  { value: "neutral", label: "Sutil", description: "Informações gerais", bgClass: "bg-slate-50 dark:bg-slate-900/30", borderClass: "border-slate-200 dark:border-slate-800", dotColor: "bg-slate-500" },
+  { value: "brand", label: "Premium", description: "Destaque da marca", bgClass: "bg-indigo-50 dark:bg-indigo-950/30", borderClass: "border-indigo-200 dark:border-indigo-800", dotColor: "bg-indigo-500" },
+  { value: "custom", label: "Customizado", description: "Cores manuais", bgClass: "bg-muted/30", borderClass: "border-border", dotColor: "bg-gradient-to-r from-pink-500 to-violet-500" },
+];
+
 const BG_COLOR_PRESETS = [
   "#3B82F6", "#F59E0B", "#10B981", "#8B5CF6", "#06B6D4",
   "#EF4444", "#EC4899", "#F97316", "#1E293B", "#6B7280",
