@@ -240,6 +240,7 @@ const AdminBanners = () => {
     expires_at: null as Date | null,
     priority: 5,
     target_all: false,
+    auto_assign_by_rules: false,
     max_views: null as number | null,
     position: "top",
     auto_dismiss_seconds: null as number | null,
