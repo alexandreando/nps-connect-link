@@ -413,8 +413,15 @@ const PortalChatView = ({ roomId, visitorId, contactName, onBack, widgetConfig, 
         )}
 
         {phase === "closed" && (
-          <div className="mt-6 text-center text-sm text-muted-foreground py-4">
+          <div className="mt-6 text-center text-sm text-muted-foreground py-4 space-y-2">
             <p>{t("chat.portal.thanks")}</p>
+            {roomCsatScore != null && (
+              <div className="flex items-center justify-center gap-1">
+                {[1, 2, 3, 4, 5].map((v) => (
+                  <Star key={v} className={`h-4 w-4 ${v <= roomCsatScore ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30"}`} />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
