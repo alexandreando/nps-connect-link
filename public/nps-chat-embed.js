@@ -171,7 +171,7 @@
         link.target = "_blank";
         link.rel = "noopener noreferrer";
         link.textContent = banner.link_label || "Saiba mais";
-        link.style.cssText = "color:" + banner.text_color + ";text-decoration:underline;font-size:13px;opacity:0.9;";
+        link.style.cssText = "color:" + useText + ";text-decoration:underline;font-size:13px;font-weight:600;opacity:0.9;";
         actions.appendChild(link);
       }
 
