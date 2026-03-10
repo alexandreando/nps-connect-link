@@ -927,28 +927,6 @@ const AdminBanners = () => {
                       <Label className="text-sm">Botão fechar</Label>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Borda</Label>
-                      <div className="flex gap-1">
-                        {BORDER_STYLE_OPTIONS.map((o) => (
-                          <button key={o.value} type="button" onClick={() => setForm({ ...form, border_style: o.value })} className={cn("flex-1 text-[10px] py-1.5 rounded-lg border transition-all", form.border_style === o.value ? "bg-accent text-accent-foreground border-accent shadow-sm" : "border-border hover:bg-muted/50")}>
-                            {o.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Sombra</Label>
-                      <div className="flex gap-1">
-                        {SHADOW_STYLE_OPTIONS.map((o) => (
-                          <button key={o.value} type="button" onClick={() => setForm({ ...form, shadow_style: o.value })} className={cn("flex-1 text-[10px] py-1.5 rounded-lg border transition-all", form.shadow_style === o.value ? "bg-accent text-accent-foreground border-accent shadow-sm" : "border-border hover:bg-muted/50")}>
-                            {o.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
 
