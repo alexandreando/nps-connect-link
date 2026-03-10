@@ -1257,7 +1257,7 @@ const ChatWidget = () => {
         className="p-4 flex items-center gap-3 rounded-t-2xl relative overflow-hidden"
         style={{ background: `linear-gradient(135deg, ${primaryColor}, ${primaryDark})`, color: "#fff" }}
       >
-        {(phase === "viewTranscript" || phase === "chat" || phase === "waiting") && (
+        {(phase === "viewTranscript" || phase === "chat" || phase === "waiting" || phase === "csat") && (
           <button
             onClick={() => {
               if (phase === "chat" || phase === "waiting") {
