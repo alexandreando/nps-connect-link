@@ -1705,7 +1705,7 @@ const ChatWidget = () => {
       </div>
 
       {/* ===== CSAT PHASE ===== */}
-      {phase === "csat" && (widgetConfig?.show_csat ?? true) && (
+      {phase === "csat" && (widgetConfig?.show_csat ?? true) && !csatSubmitted && (
         <div className="p-5 space-y-4 border-t animate-fade-in">
           <p className="text-sm font-medium text-center">Avalie o atendimento</p>
           <div className="flex justify-center gap-3">
@@ -1732,26 +1732,37 @@ const ChatWidget = () => {
           {csatComment.length > 0 && (
             <p className="text-[10px] text-muted-foreground text-right">{csatComment.length}/500</p>
           )}
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="flex-1 rounded-xl active:scale-95"
-              onClick={() => {
-                if (isResolvedVisitor) handleBackToHistory();
-                else setPhase("closed");
-              }}
-            >
-              Pular
-            </Button>
-            <button
-              className="flex-1 h-10 rounded-xl text-sm font-medium text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-40"
-              onClick={handleSubmitCsat}
-              disabled={csatScore === 0}
-              style={{ background: `linear-gradient(135deg, ${primaryColor}, ${primaryDark})` }}
-            >
-              Enviar Avaliação
-            </button>
+          <button
+            className="w-full h-10 rounded-xl text-sm font-medium text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-40"
+            onClick={handleSubmitCsat}
+            disabled={csatScore === 0}
+            style={{ background: `linear-gradient(135deg, ${primaryColor}, ${primaryDark})` }}
+          >
+            Enviar Avaliação
+          </button>
+        </div>
+      )}
+
+      {/* CSAT Thank You Screen */}
+      {phase === "csat" && (widgetConfig?.show_csat ?? true) && csatSubmitted && (
+        <div className="p-6 flex flex-col items-center justify-center text-center border-t animate-fade-in gap-3">
+          <div className="h-14 w-14 rounded-full flex items-center justify-center" style={{ backgroundColor: `${primaryColor}15` }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={primaryColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 13l4 4L19 7" strokeDasharray="24" className="animate-check-draw" />
+            </svg>
           </div>
+          <p className="text-sm font-medium">Obrigado pelo seu feedback!</p>
+          <p className="text-xs text-muted-foreground">Sua avaliação nos ajuda a melhorar nosso atendimento.</p>
+          <button
+            className="mt-2 w-full h-10 rounded-xl text-sm font-medium text-white transition-all hover:opacity-90 active:scale-[0.98]"
+            onClick={() => {
+              setCsatSubmitted(false);
+              handleBackToHistory();
+            }}
+            style={{ background: `linear-gradient(135deg, ${primaryColor}, ${primaryDark})` }}
+          >
+            Ver conversas
+          </button>
         </div>
       )}
 
