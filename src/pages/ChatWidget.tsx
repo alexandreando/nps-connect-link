@@ -1264,6 +1264,7 @@ const ChatWidget = () => {
                 setPhase("history");
                 setHistoryFetched(false); // trigger lazy re-fetch
               } else {
+                setCsatSubmitted(false);
                 handleBackToHistory();
               }
             }}
