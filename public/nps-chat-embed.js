@@ -89,6 +89,7 @@
     div.style.cssText =
       "padding:18px 48px 18px 20px;font-size:14px;font-weight:500;letter-spacing:0.01em;line-height:1.5;" +
       "position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;" +
+      "overflow:hidden;box-sizing:border-box;max-width:100vw;" +
       (banner.bg_color && banner.bg_color.indexOf("linear-gradient") === 0 ? "background:" : "background-color:") + banner.bg_color + ";color:" + banner.text_color + ";" +
       "transform:translateY(-100%);transition:transform 0.3s ease;" +
       borderCss + shadowCss;
@@ -116,7 +117,7 @@
 
     // Content row - centered
     var contentDiv = document.createElement("div");
-    contentDiv.style.cssText = "display:flex;align-items:center;justify-content:center;gap:10px;text-align:center;width:100%;";
+    contentDiv.style.cssText = "display:flex;align-items:center;justify-content:center;gap:10px;text-align:center;width:100%;max-width:100%;overflow:hidden;min-width:0;";
 
     // Type icon
     var iconHtml = BANNER_ICONS[banner.banner_type || "info"] || BANNER_ICONS.info;
@@ -126,9 +127,14 @@
     contentDiv.appendChild(iconSpan);
 
     var text = document.createElement("span");
-    text.style.cssText = "max-height:3em;overflow:hidden;display:block;line-height:1.5;word-break:break-word;";
+    text.style.cssText = "display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;line-height:1.5;word-break:break-word;overflow-wrap:break-word;min-width:0;";
     if (banner.content_html) {
       text.innerHTML = banner.content_html;
+      // Sanitize long links
+      var links = text.querySelectorAll("a");
+      for (var li = 0; li < links.length; li++) {
+        links[li].style.wordBreak = "break-all";
+      }
     } else {
       text.textContent = banner.content;
     }
