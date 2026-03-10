@@ -119,8 +119,8 @@
     var closeBtn = document.createElement("button");
     closeBtn.innerHTML = "✕";
     closeBtn.style.cssText =
-      "position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;color:" + banner.text_color +
-      ";font-size:16px;padding:4px 6px;border-radius:4px;opacity:0.7;";
+      "position:absolute;top:10px;right:12px;background:none;border:none;cursor:pointer;color:" + useText +
+      ";font-size:14px;padding:4px 6px;border-radius:50%;opacity:0.6;";
     closeBtn.onmouseover = function () { closeBtn.style.opacity = "1"; };
     closeBtn.onmouseout = function () { closeBtn.style.opacity = "0.7"; };
     closeBtn.onclick = function () {
