@@ -34,6 +34,45 @@ async function validateApiKey(supabase: any, apiKey: string) {
   return apiKeyData;
 }
 
+function matchRule(rule: any, contact: any): boolean {
+  const cf = (contact?.custom_fields as Record<string, any>) || {};
+  const rawVal = rule.field_source === "native" ? contact?.[rule.field_key] : cf[rule.field_key];
+  if (rawVal === undefined || rawVal === null) return false;
+  if (rule.operator === "equals") return String(rawVal).toLowerCase() === rule.field_value.toLowerCase();
+  const numA = Number(rawVal);
+  const numB = Number(rule.field_value);
+  if (isNaN(numA) || isNaN(numB)) return false;
+  switch (rule.operator) {
+    case "greater_than": return numA > numB;
+    case "less_than": return numA < numB;
+    case "greater_or_equal": return numA >= numB;
+    case "less_or_equal": return numA <= numB;
+    default: return false;
+  }
+}
+
+function buildBannerResult(banner: any, assignment: any) {
+  return {
+    assignment_id: assignment.id,
+    content: banner.content,
+    content_html: banner.content_html ?? null,
+    text_align: banner.text_align ?? "center",
+    bg_color: banner.bg_color ?? "#3B82F6",
+    text_color: banner.text_color ?? "#FFFFFF",
+    link_url: banner.link_url,
+    link_label: banner.link_label,
+    has_voting: banner.has_voting ?? false,
+    banner_type: banner.banner_type ?? "info",
+    priority: banner.priority ?? 5,
+    vote: assignment.vote,
+    position: banner.position ?? "top",
+    auto_dismiss_seconds: banner.auto_dismiss_seconds ?? null,
+    display_frequency: banner.display_frequency ?? "always",
+    border_style: banner.border_style ?? "none",
+    shadow_style: banner.shadow_style ?? "none",
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -61,7 +100,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Get tenant_id from user
       const { data: profile } = await supabase
         .from("user_profiles")
         .select("tenant_id")
@@ -99,13 +137,12 @@ Deno.serve(async (req) => {
     // Build banner query with date/active filters
     let bannerQuery = supabase
       .from("chat_banners")
-      .select("id, content, content_html, text_align, bg_color, text_color, link_url, link_label, has_voting, banner_type, priority, max_views, target_all, position, auto_dismiss_seconds, display_frequency, border_style, shadow_style")
+      .select("id, content, content_html, text_align, bg_color, text_color, link_url, link_label, has_voting, banner_type, priority, max_views, target_all, auto_assign_by_rules, position, auto_dismiss_seconds, display_frequency, border_style, shadow_style")
       .eq("is_active", true)
       .or(`starts_at.is.null,starts_at.lte.${now}`)
       .or(`expires_at.is.null,expires_at.gt.${now}`)
       .order("priority", { ascending: false });
 
-    // If we have a tenant, filter by it
     if (tenantId) {
       bannerQuery = bannerQuery.eq("tenant_id", tenantId);
     }
@@ -117,7 +154,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Load field rules for banners that have them
+    // Load field rules for all banners
     const bannerIds = allBanners.map((b: any) => b.id);
     const { data: allRules } = await supabase
       .from("chat_banner_field_rules")
@@ -141,134 +178,121 @@ Deno.serve(async (req) => {
       contactData = data;
     }
 
-    // Rule evaluation helper
-    function matchRule(rule: any, contact: any): boolean {
-      const cf = (contact?.custom_fields as Record<string, any>) || {};
-      const rawVal = rule.field_source === "native" ? contact?.[rule.field_key] : cf[rule.field_key];
-      if (rawVal === undefined || rawVal === null) return false;
-      if (rule.operator === "equals") return String(rawVal).toLowerCase() === rule.field_value.toLowerCase();
-      const numA = Number(rawVal);
-      const numB = Number(rule.field_value);
-      if (isNaN(numA) || isNaN(numB)) return false;
-      switch (rule.operator) {
-        case "greater_than": return numA > numB;
-        case "less_than": return numA < numB;
-        case "greater_or_equal": return numA >= numB;
-        case "less_or_equal": return numA <= numB;
-        default: return false;
-      }
-    }
-
     // Filter banners by rules (AND logic)
     const filteredBanners = allBanners.filter((b: any) => {
       const rules = rulesByBanner[b.id];
-      if (!rules || rules.length === 0) return true; // No rules = pass
-      if (!contactData) return false; // Has rules but no contact data = fail
+      if (!rules || rules.length === 0) return true;
+      if (!contactData) return false;
       return rules.every((r: any) => matchRule(r, contactData));
     });
 
-    // Separate target_all banners from individually assigned
-    const targetAllBanners = filteredBanners.filter((b: any) => b.target_all);
-    const individualBanners = filteredBanners.filter((b: any) => !b.target_all);
+    // Separate into auto-assign (target_all OR auto_assign_by_rules with passing rules) vs individual
+    const autoAssignBanners = filteredBanners.filter((b: any) => {
+      if (b.target_all) return true;
+      if (b.auto_assign_by_rules) {
+        const rules = rulesByBanner[b.id];
+        // Only auto-assign if there are rules defined (otherwise it would be like target_all without intent)
+        return rules && rules.length > 0;
+      }
+      return false;
+    });
+    const individualBanners = filteredBanners.filter((b: any) => !autoAssignBanners.includes(b));
 
     const result: any[] = [];
 
-    // Process target_all banners — create/find assignments on the fly
-    if (contactId && targetAllBanners.length > 0) {
-      for (const banner of targetAllBanners) {
-        // Check if assignment exists
-        let { data: existing } = await supabase
-          .from("chat_banner_assignments")
-          .select("id, vote, views_count, dismissed_at")
-          .eq("banner_id", banner.id)
-          .eq("contact_id", contactId)
-          .maybeSingle();
+    // Process auto-assign banners in batch (O(3) queries instead of O(n×3))
+    if (contactId && autoAssignBanners.length > 0) {
+      const autoAssignIds = autoAssignBanners.map((b: any) => b.id);
 
-        if (existing?.dismissed_at) continue; // permanently dismissed
+      // 1. Batch fetch existing assignments
+      const { data: existingAssignments } = await supabase
+        .from("chat_banner_assignments")
+        .select("id, banner_id, vote, views_count, dismissed_at")
+        .eq("contact_id", contactId)
+        .in("banner_id", autoAssignIds);
+
+      const existingByBanner: Record<string, any> = {};
+      (existingAssignments ?? []).forEach((a: any) => {
+        existingByBanner[a.banner_id] = a;
+      });
+
+      // 2. Determine which assignments need to be created
+      const toCreate: any[] = [];
+      const validBanners: any[] = [];
+
+      for (const banner of autoAssignBanners) {
+        const existing = existingByBanner[banner.id];
+        if (existing?.dismissed_at) continue;
         if (banner.max_views && existing && existing.views_count >= banner.max_views) continue;
 
+        validBanners.push(banner);
         if (!existing) {
-          // Auto-create assignment
-          const { data: created } = await supabase
-            .from("chat_banner_assignments")
-            .insert({ banner_id: banner.id, contact_id: contactId, tenant_id: tenantId })
-            .select("id, vote, views_count")
-            .single();
-          existing = created;
+          toCreate.push({ banner_id: banner.id, contact_id: contactId, tenant_id: tenantId });
         }
+      }
 
-        if (existing) {
-          result.push({
-            assignment_id: existing.id,
-            content: banner.content,
-            content_html: banner.content_html ?? null,
-            text_align: banner.text_align ?? "center",
-            bg_color: banner.bg_color ?? "#3B82F6",
-            text_color: banner.text_color ?? "#FFFFFF",
-            link_url: banner.link_url,
-            link_label: banner.link_label,
-            has_voting: banner.has_voting ?? false,
-            banner_type: banner.banner_type ?? "info",
-            priority: banner.priority ?? 5,
-            vote: existing.vote,
-            position: banner.position ?? "top",
-            auto_dismiss_seconds: banner.auto_dismiss_seconds ?? null,
-            display_frequency: banner.display_frequency ?? "always",
-            border_style: banner.border_style ?? "none",
-            shadow_style: banner.shadow_style ?? "none",
-          });
+      // 3. Batch insert missing assignments
+      if (toCreate.length > 0) {
+        const { data: created } = await supabase
+          .from("chat_banner_assignments")
+          .insert(toCreate)
+          .select("id, banner_id, vote, views_count");
 
-          // Increment views
-          await supabase
-            .from("chat_banner_assignments")
-            .update({ views_count: (existing.views_count ?? 0) + 1 })
-            .eq("id", existing.id);
-        }
+        (created ?? []).forEach((a: any) => {
+          existingByBanner[a.banner_id] = a;
+        });
+      }
+
+      // 4. Build results and collect IDs for batch view update
+      const viewUpdateIds: { id: string; newCount: number }[] = [];
+
+      for (const banner of validBanners) {
+        const assignment = existingByBanner[banner.id];
+        if (!assignment) continue;
+
+        result.push(buildBannerResult(banner, assignment));
+        viewUpdateIds.push({ id: assignment.id, newCount: (assignment.views_count ?? 0) + 1 });
+      }
+
+      // 5. Batch update views (parallel individual updates — Supabase doesn't support batch update with different values)
+      if (viewUpdateIds.length > 0) {
+        await Promise.all(
+          viewUpdateIds.map(({ id, newCount }) =>
+            supabase.from("chat_banner_assignments").update({ views_count: newCount }).eq("id", id)
+          )
+        );
       }
     }
 
-    // Process individually assigned banners
+    // Process individually assigned banners (unchanged logic, already batch)
     if (contactId && individualBanners.length > 0) {
-      const bannerIds = individualBanners.map((b: any) => b.id);
+      const indivIds = individualBanners.map((b: any) => b.id);
       const { data: assignments } = await supabase
         .from("chat_banner_assignments")
         .select("id, vote, banner_id, views_count, dismissed_at")
         .eq("contact_id", contactId)
         .eq("is_active", true)
         .is("dismissed_at", null)
-        .in("banner_id", bannerIds);
+        .in("banner_id", indivIds);
 
       if (assignments) {
+        const viewUpdates: { id: string; newCount: number }[] = [];
+
         for (const assignment of assignments) {
           const banner = individualBanners.find((b: any) => b.id === assignment.banner_id);
           if (!banner) continue;
           if (banner.max_views && assignment.views_count >= banner.max_views) continue;
 
-          result.push({
-            assignment_id: assignment.id,
-            content: banner.content,
-            content_html: banner.content_html ?? null,
-            text_align: banner.text_align ?? "center",
-            bg_color: banner.bg_color ?? "#3B82F6",
-            text_color: banner.text_color ?? "#FFFFFF",
-            link_url: banner.link_url,
-            link_label: banner.link_label,
-            has_voting: banner.has_voting ?? false,
-            banner_type: banner.banner_type ?? "info",
-            priority: banner.priority ?? 5,
-            vote: assignment.vote,
-            position: banner.position ?? "top",
-            auto_dismiss_seconds: banner.auto_dismiss_seconds ?? null,
-            display_frequency: banner.display_frequency ?? "always",
-            border_style: banner.border_style ?? "none",
-            shadow_style: banner.shadow_style ?? "none",
-          });
+          result.push(buildBannerResult(banner, assignment));
+          viewUpdates.push({ id: assignment.id, newCount: (assignment.views_count ?? 0) + 1 });
+        }
 
-          // Increment views
-          await supabase
-            .from("chat_banner_assignments")
-            .update({ views_count: (assignment.views_count ?? 0) + 1 })
-            .eq("id", assignment.id);
+        if (viewUpdates.length > 0) {
+          await Promise.all(
+            viewUpdates.map(({ id, newCount }) =>
+              supabase.from("chat_banner_assignments").update({ views_count: newCount }).eq("id", id)
+            )
+          );
         }
       }
     }

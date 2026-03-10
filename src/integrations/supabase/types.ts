@@ -606,6 +606,7 @@ export type Database = {
       }
       chat_banners: {
         Row: {
+          auto_assign_by_rules: boolean
           auto_dismiss_seconds: number | null
           banner_type: string
           bg_color: string | null
@@ -634,6 +635,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          auto_assign_by_rules?: boolean
           auto_dismiss_seconds?: number | null
           banner_type?: string
           bg_color?: string | null
@@ -662,6 +664,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          auto_assign_by_rules?: boolean
           auto_dismiss_seconds?: number | null
           banner_type?: string
           bg_color?: string | null

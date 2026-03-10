@@ -47,6 +47,7 @@ interface Banner {
   expires_at: string | null;
   priority: number;
   target_all: boolean;
+  auto_assign_by_rules: boolean;
   max_views: number | null;
   position: string;
   auto_dismiss_seconds: number | null;
@@ -239,6 +240,7 @@ const AdminBanners = () => {
     expires_at: null as Date | null,
     priority: 5,
     target_all: false,
+    auto_assign_by_rules: false,
     max_views: null as number | null,
     position: "top",
     auto_dismiss_seconds: null as number | null,
@@ -306,6 +308,7 @@ const AdminBanners = () => {
         expires_at: banner.expires_at ? new Date(banner.expires_at) : null,
         priority: banner.priority ?? 5,
         target_all: banner.target_all ?? false,
+        auto_assign_by_rules: (banner as any).auto_assign_by_rules ?? false,
         max_views: banner.max_views ?? null,
         position: banner.position ?? "top",
         auto_dismiss_seconds: banner.auto_dismiss_seconds ?? null,
@@ -340,6 +343,7 @@ const AdminBanners = () => {
       expires_at: null,
       priority: banner.priority ?? 5,
       target_all: banner.target_all ?? false,
+      auto_assign_by_rules: (banner as any).auto_assign_by_rules ?? false,
       max_views: banner.max_views ?? null,
       position: banner.position ?? "top",
       auto_dismiss_seconds: banner.auto_dismiss_seconds ?? null,
@@ -457,6 +461,7 @@ const AdminBanners = () => {
       expires_at: form.expires_at?.toISOString() ?? null,
       priority: form.priority,
       target_all: form.target_all,
+      auto_assign_by_rules: form.auto_assign_by_rules,
       max_views: form.max_views,
       position: form.position,
       auto_dismiss_seconds: form.auto_dismiss_seconds,
@@ -1045,7 +1050,7 @@ const AdminBanners = () => {
                   {t("banners.sectionSegmentation")}
                 </div>
                 <div className="flex items-center gap-3">
-                  <Checkbox checked={form.target_all} onCheckedChange={(v) => setForm({ ...form, target_all: !!v })} />
+                  <Checkbox checked={form.target_all} onCheckedChange={(v) => setForm({ ...form, target_all: !!v, auto_assign_by_rules: false })} />
                   <Label className="text-sm">{t("banners.targetAll")}</Label>
                 </div>
                 {editingBanner && (
@@ -1057,6 +1062,20 @@ const AdminBanners = () => {
                 )}
                 {!editingBanner && (
                   <p className="text-xs text-muted-foreground">Salve o banner primeiro para configurar regras de segmentação automática.</p>
+                )}
+                {!form.target_all && (
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={form.auto_assign_by_rules}
+                      onCheckedChange={(v) => setForm({ ...form, auto_assign_by_rules: !!v })}
+                    />
+                    <div>
+                      <Label className="text-sm">Incluir novas empresas automaticamente</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Empresas que atenderem às regras de segmentação verão o banner automaticamente
+                      </p>
+                    </div>
+                  </div>
                 )}
                 <div className="flex items-center gap-3">
                   <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
