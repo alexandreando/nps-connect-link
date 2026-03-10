@@ -490,6 +490,7 @@ const AdminBanners = () => {
       }
     }
 
+    const derivedType = VARIANT_TO_TYPE[form.variant] ?? "info";
     const payload = {
       title: form.title,
       content: form.content,
@@ -501,7 +502,7 @@ const AdminBanners = () => {
       link_label: form.link_label || null,
       has_voting: form.has_voting,
       is_active: form.is_active,
-      banner_type: form.banner_type,
+      banner_type: derivedType,
       starts_at: form.starts_at?.toISOString() ?? null,
       expires_at: form.expires_at?.toISOString() ?? null,
       priority: form.priority,
@@ -518,7 +519,7 @@ const AdminBanners = () => {
     if (editingBanner) {
       await supabase.from("chat_banners").update(payload as any).eq("id", editingBanner.id);
     } else {
-      await supabase.from("chat_banners").insert({ ...payload, user_id: session.user.id } as any);
+      await supabase.from("chat_banners").insert({ ...payload, user_id: session.user.id, tenant_id: tenantId } as any);
     }
 
     setBannerDialog(false);
