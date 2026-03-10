@@ -94,22 +94,18 @@ interface Conflict {
   overlapEnd: string | null;
 }
 
-const TYPE_DEFAULT_COLORS: Record<BannerType, { bg: string; text: string }> = {
-  info: { bg: "#3B82F6", text: "#FFFFFF" },
-  warning: { bg: "#F59E0B", text: "#FFFFFF" },
-  success: { bg: "#10B981", text: "#FFFFFF" },
-  promo: { bg: "#8B5CF6", text: "#FFFFFF" },
-  update: { bg: "#06B6D4", text: "#FFFFFF" },
-};
-
-// Variant visual config for selector cards
-const VARIANT_OPTIONS: { value: BannerVariant; label: string; description: string; bgClass: string; borderClass: string; dotColor: string }[] = [
-  { value: "warning", label: "Manutenção", description: "Avisos e alertas", bgClass: "bg-amber-50 dark:bg-amber-950/30", borderClass: "border-amber-200 dark:border-amber-800", dotColor: "bg-amber-500" },
-  { value: "destructive", label: "Urgência", description: "Ações críticas", bgClass: "bg-red-50 dark:bg-red-950/30", borderClass: "border-red-200 dark:border-red-800", dotColor: "bg-red-500" },
-  { value: "success", label: "Novidades", description: "Boas notícias", bgClass: "bg-emerald-50 dark:bg-emerald-950/30", borderClass: "border-emerald-200 dark:border-emerald-800", dotColor: "bg-emerald-500" },
-  { value: "neutral", label: "Sutil", description: "Informações gerais", bgClass: "bg-slate-50 dark:bg-slate-900/30", borderClass: "border-slate-200 dark:border-slate-800", dotColor: "bg-slate-500" },
-  { value: "brand", label: "Premium", description: "Destaque da marca", bgClass: "bg-indigo-50 dark:bg-indigo-950/30", borderClass: "border-indigo-200 dark:border-indigo-800", dotColor: "bg-indigo-500" },
-  { value: "custom", label: "Customizado", description: "Cores manuais", bgClass: "bg-muted/30", borderClass: "border-border", dotColor: "bg-gradient-to-r from-pink-500 to-violet-500" },
+// Variant visual config for selector cards (9 presets + 1 custom)
+const VARIANT_OPTIONS: { value: BannerVariant; label: string; bgPreview: string; borderClass: string }[] = [
+  { value: "warning", label: "Alerta", bgPreview: "bg-amber-100", borderClass: "border-amber-300" },
+  { value: "urgent", label: "Urgente", bgPreview: "bg-red-600", borderClass: "border-red-700" },
+  { value: "success", label: "Sucesso", bgPreview: "bg-emerald-100", borderClass: "border-emerald-300" },
+  { value: "neutral", label: "Neutro", bgPreview: "bg-slate-100", borderClass: "border-slate-300" },
+  { value: "premium", label: "Premium", bgPreview: "bg-indigo-600", borderClass: "border-indigo-700" },
+  { value: "ocean", label: "Oceano", bgPreview: "bg-gradient-to-r from-blue-500 to-violet-500", borderClass: "border-blue-400" },
+  { value: "sunset", label: "Sunset", bgPreview: "bg-gradient-to-r from-orange-500 to-red-500", borderClass: "border-orange-400" },
+  { value: "midnight", label: "Midnight", bgPreview: "bg-slate-900", borderClass: "border-slate-700" },
+  { value: "neon", label: "Neon", bgPreview: "bg-gradient-to-r from-pink-500 to-cyan-500", borderClass: "border-pink-400" },
+  { value: "custom", label: "Custom", bgPreview: "bg-gradient-to-r from-pink-400 via-violet-400 to-cyan-400", borderClass: "border-border" },
 ];
 
 const BG_COLOR_PRESETS = [
