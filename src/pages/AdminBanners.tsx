@@ -310,6 +310,7 @@ const AdminBanners = () => {
   const openBannerDialog = (banner?: Banner) => {
     if (banner) {
       setEditingBanner(banner);
+      const resolvedVariant = (TYPE_TO_VARIANT[banner.banner_type] ?? "neutral") as BannerVariant;
       setForm({
         title: banner.title,
         content: banner.content,
@@ -333,6 +334,9 @@ const AdminBanners = () => {
         display_frequency: banner.display_frequency ?? "always",
         border_style: banner.border_style ?? "none",
         shadow_style: banner.shadow_style ?? "soft",
+        variant: resolvedVariant,
+        is_floating: banner.position === "float" || banner.border_style === "pill",
+        can_close: true,
       });
       fetchFieldRules(banner.id);
     } else {
