@@ -111,6 +111,7 @@ const PortalChatView = ({ roomId, visitorId, contactName, onBack, widgetConfig, 
 
       if (room) {
         if (room.status === "closed") {
+          setRoomCsatScore(room.csat_score ?? null);
           setPhase(room.csat_score != null ? "closed" : "csat");
         } else if (room.status === "active") {
           setPhase("chat");
