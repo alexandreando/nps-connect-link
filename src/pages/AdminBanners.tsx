@@ -217,10 +217,24 @@ const getBannerStatus = (banner: Banner): { label: string; variant: "default" | 
   return { label: "Ativo", variant: "default" };
 };
 
+// Reverse map variant -> banner_type
+const VARIANT_TO_TYPE: Record<BannerVariant, BannerType> = {
+  warning: "warning",
+  destructive: "warning",
+  success: "success",
+  neutral: "info",
+  brand: "promo",
+  custom: "info",
+};
+
 const AdminBanners = () => {
   const { t } = useLanguage();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const { tenantId } = useAuthContext();
+  const [metricsDialog, setMetricsDialog] = useState(false);
+  const [metricsBanner, setMetricsBanner] = useState<Banner | null>(null);
+  const [metricsAssignments, setMetricsAssignments] = useState<Assignment[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [bannerDialog, setBannerDialog] = useState(false);
