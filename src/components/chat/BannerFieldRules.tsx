@@ -559,7 +559,7 @@ export function BannerFieldRules({ bannerId, rules, onChanged }: Props) {
                       </Badge>
                     )}
                     {previewResult.toAdd.length > 0 && (
-                      <Badge className="gap-1 bg-emerald-500/15 text-emerald-600 border-transparent">
+                      <Badge variant="promoter" className="gap-1">
                         <ArrowRight className="h-3 w-3" />
                         {previewResult.toAdd.length} será(ão) adicionada(s)
                       </Badge>
