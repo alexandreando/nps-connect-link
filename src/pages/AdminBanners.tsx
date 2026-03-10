@@ -763,6 +763,9 @@ const AdminBanners = () => {
                       position={form.position}
                       borderStyle={form.border_style}
                       shadowStyle={form.shadow_style}
+                      variant={form.variant}
+                      isFloating={form.is_floating}
+                      canClose={form.can_close}
                     />
                   </CollapsibleContent>
                 </Collapsible>
