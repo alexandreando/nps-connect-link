@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { ArrowLeft, Send, MessageSquare, Loader2, Paperclip, FileText, Download, X } from "lucide-react";
+import { ArrowLeft, Send, MessageSquare, Loader2, Paperclip, FileText, Download, X, Star } from "lucide-react";
 import { renderTextWithLinks } from "@/utils/chatUtils";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -54,6 +54,7 @@ function formatFileSize(bytes?: number) {
 const PortalChatView = ({ roomId, visitorId, contactName, onBack, widgetConfig, allBusy, outsideHours }: PortalChatViewProps) => {
   const { t } = useLanguage();
   const [phase, setPhase] = useState<ChatPhase>("waiting");
+  const [roomCsatScore, setRoomCsatScore] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -110,6 +111,7 @@ const PortalChatView = ({ roomId, visitorId, contactName, onBack, widgetConfig, 
 
       if (room) {
         if (room.status === "closed") {
+          setRoomCsatScore(room.csat_score ?? null);
           setPhase(room.csat_score != null ? "closed" : "csat");
         } else if (room.status === "active") {
           setPhase("chat");
@@ -411,8 +413,15 @@ const PortalChatView = ({ roomId, visitorId, contactName, onBack, widgetConfig, 
         )}
 
         {phase === "closed" && (
-          <div className="mt-6 text-center text-sm text-muted-foreground py-4">
+          <div className="mt-6 text-center text-sm text-muted-foreground py-4 space-y-2">
             <p>{t("chat.portal.thanks")}</p>
+            {roomCsatScore != null && (
+              <div className="flex items-center justify-center gap-1">
+                {[1, 2, 3, 4, 5].map((v) => (
+                  <Star key={v} className={`h-4 w-4 ${v <= roomCsatScore ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30"}`} />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

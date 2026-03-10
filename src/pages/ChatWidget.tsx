@@ -826,15 +826,18 @@ const ChatWidget = () => {
   };
 
   const [viewTranscriptResolutionStatus, setViewTranscriptResolutionStatus] = useState<string | null>(null);
+  const [viewTranscriptCsatScore, setViewTranscriptCsatScore] = useState<number | null>(null);
+  const [csatSubmitted, setCsatSubmitted] = useState(false);
 
   const handleViewTranscript = async (rId: string) => {
-    // Fetch resolution_status for this room
+    // Fetch resolution_status and csat_score for this room
     const { data: roomData } = await supabase
       .from("chat_rooms")
-      .select("resolution_status")
+      .select("resolution_status, csat_score")
       .eq("id", rId)
       .maybeSingle();
     setViewTranscriptResolutionStatus(roomData?.resolution_status ?? null);
+    setViewTranscriptCsatScore(roomData?.csat_score ?? null);
     setRoomId(rId);
     setPhase("viewTranscript");
   };
@@ -1081,12 +1084,7 @@ const ChatWidget = () => {
       .eq("id", roomId);
 
     postMsg("chat-csat-submitted");
-
-    if (isResolvedVisitor) {
-      await handleBackToHistory();
-    } else {
-      setPhase("closed");
-    }
+    setCsatSubmitted(true);
   };
 
   const formatDate = (dateStr: string) => {
@@ -1259,13 +1257,14 @@ const ChatWidget = () => {
         className="p-4 flex items-center gap-3 rounded-t-2xl relative overflow-hidden"
         style={{ background: `linear-gradient(135deg, ${primaryColor}, ${primaryDark})`, color: "#fff" }}
       >
-        {(phase === "viewTranscript" || phase === "chat" || phase === "waiting") && (
+        {(phase === "viewTranscript" || phase === "chat" || phase === "waiting" || phase === "csat") && (
           <button
             onClick={() => {
               if (phase === "chat" || phase === "waiting") {
                 setPhase("history");
                 setHistoryFetched(false); // trigger lazy re-fetch
               } else {
+                setCsatSubmitted(false);
                 handleBackToHistory();
               }
             }}
@@ -1293,7 +1292,7 @@ const ChatWidget = () => {
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-sm leading-tight">{phase === "chat" && attendantName ? attendantName : companyName}</p>
           <p className="text-xs opacity-80 animate-fade-in truncate" key={phase + (attendantName || "")}>
-            {phase === "chat" ? (attendantName ? `Você está falando com ${attendantName}` : "Você está sendo atendido") : phase === "waiting" ? "Aguardando..." : phase === "history" ? "Suas conversas" : phase === "viewTranscript" ? "Histórico" : "Suporte"}
+            {phase === "chat" ? (attendantName ? `Você está falando com ${attendantName}` : "Você está sendo atendido") : phase === "waiting" ? "Aguardando..." : phase === "history" ? "Suas conversas" : phase === "viewTranscript" ? "Histórico" : phase === "csat" ? "Avaliação" : "Suporte"}
           </p>
         </div>
 
@@ -1706,7 +1705,7 @@ const ChatWidget = () => {
       </div>
 
       {/* ===== CSAT PHASE ===== */}
-      {phase === "csat" && (widgetConfig?.show_csat ?? true) && (
+      {phase === "csat" && (widgetConfig?.show_csat ?? true) && !csatSubmitted && (
         <div className="p-5 space-y-4 border-t animate-fade-in">
           <p className="text-sm font-medium text-center">Avalie o atendimento</p>
           <div className="flex justify-center gap-3">
@@ -1733,26 +1732,37 @@ const ChatWidget = () => {
           {csatComment.length > 0 && (
             <p className="text-[10px] text-muted-foreground text-right">{csatComment.length}/500</p>
           )}
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="flex-1 rounded-xl active:scale-95"
-              onClick={() => {
-                if (isResolvedVisitor) handleBackToHistory();
-                else setPhase("closed");
-              }}
-            >
-              Pular
-            </Button>
-            <button
-              className="flex-1 h-10 rounded-xl text-sm font-medium text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-40"
-              onClick={handleSubmitCsat}
-              disabled={csatScore === 0}
-              style={{ background: `linear-gradient(135deg, ${primaryColor}, ${primaryDark})` }}
-            >
-              Enviar Avaliação
-            </button>
+          <button
+            className="w-full h-10 rounded-xl text-sm font-medium text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-40"
+            onClick={handleSubmitCsat}
+            disabled={csatScore === 0}
+            style={{ background: `linear-gradient(135deg, ${primaryColor}, ${primaryDark})` }}
+          >
+            Enviar Avaliação
+          </button>
+        </div>
+      )}
+
+      {/* CSAT Thank You Screen */}
+      {phase === "csat" && (widgetConfig?.show_csat ?? true) && csatSubmitted && (
+        <div className="p-6 flex flex-col items-center justify-center text-center border-t animate-fade-in gap-3">
+          <div className="h-14 w-14 rounded-full flex items-center justify-center" style={{ backgroundColor: `${primaryColor}15` }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={primaryColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 13l4 4L19 7" strokeDasharray="24" className="animate-check-draw" />
+            </svg>
           </div>
+          <p className="text-sm font-medium">Obrigado pelo seu feedback!</p>
+          <p className="text-xs text-muted-foreground">Sua avaliação nos ajuda a melhorar nosso atendimento.</p>
+          <button
+            className="mt-2 w-full h-10 rounded-xl text-sm font-medium text-white transition-all hover:opacity-90 active:scale-[0.98]"
+            onClick={() => {
+              setCsatSubmitted(false);
+              handleBackToHistory();
+            }}
+            style={{ background: `linear-gradient(135deg, ${primaryColor}, ${primaryDark})` }}
+          >
+            Ver conversas
+          </button>
         </div>
       )}
 
@@ -1862,6 +1872,14 @@ const ChatWidget = () => {
 
       {phase === "viewTranscript" && (
         <div className="border-t p-3 space-y-2">
+          {viewTranscriptCsatScore != null && (
+            <div className="flex items-center justify-center gap-1 py-1">
+              <span className="text-xs text-muted-foreground mr-1">Avaliação:</span>
+              {[1, 2, 3, 4, 5].map((v) => (
+                <Star key={v} className={`h-4 w-4 ${v <= viewTranscriptCsatScore ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30"}`} />
+              ))}
+            </div>
+          )}
           {viewTranscriptResolutionStatus === "pending" && (
             <Button
               className="w-full gap-2 rounded-xl active:scale-95 text-white"

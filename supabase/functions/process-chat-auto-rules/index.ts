@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
     // Fetch active time-based rules (chain + attendant_absence + welcome_message)
     const { data: rules, error: rulesErr } = await supabase
       .from("chat_auto_rules")
-      .select("id, rule_type, trigger_minutes, message_content, tenant_id")
+      .select("id, rule_type, trigger_minutes, message_content, tenant_id, close_resolution_status")
       .in("rule_type", ["inactivity_warning", "inactivity_warning_2", "auto_close", "attendant_absence"])
       .eq("is_enabled", true);
 
@@ -248,12 +248,13 @@ Deno.serve(async (req) => {
             })
             .eq("id", room.id);
         } else if (nextStep === "auto_close") {
-          // Close + archive
+          const targetResolution = stepRule.close_resolution_status ?? "archived";
+          // Close with configured resolution status
           await supabase
             .from("chat_rooms")
             .update({
               status: "closed",
-              resolution_status: "archived",
+              resolution_status: targetResolution,
               closed_at: new Date().toISOString(),
             })
             .eq("id", room.id);

@@ -7,6 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Accordion,
   AccordionContent,
   AccordionItem,
@@ -40,6 +47,7 @@ interface AutoRule {
   trigger_minutes: number | null;
   message_content: string | null;
   sort_order?: number;
+  close_resolution_status?: string;
 }
 
 interface AutoMessageTypeConfig {
@@ -74,7 +82,7 @@ const AutoMessagesTab = () => {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [rules, setRules] = useState<AutoRule[]>([]);
-  const [localEdits, setLocalEdits] = useState<Record<string, { message_content?: string; trigger_minutes?: number | null }>>({});
+  const [localEdits, setLocalEdits] = useState<Record<string, { message_content?: string; trigger_minutes?: number | null; close_resolution_status?: string }>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savingAll, setSavingAll] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -85,7 +93,7 @@ const AutoMessagesTab = () => {
 
     const { data: rulesData } = await supabase
       .from("chat_auto_rules")
-      .select("id, rule_type, is_enabled, trigger_minutes, message_content")
+      .select("id, rule_type, is_enabled, trigger_minutes, message_content, close_resolution_status")
       .order("created_at");
 
     const existing = rulesData ?? [];
@@ -135,6 +143,7 @@ const AutoMessagesTab = () => {
     const updates: Record<string, any> = {};
     if (edits.message_content !== undefined) updates.message_content = edits.message_content;
     if (edits.trigger_minutes !== undefined) updates.trigger_minutes = Math.max(5, edits.trigger_minutes ?? 5);
+    if (edits.close_resolution_status !== undefined) updates.close_resolution_status = edits.close_resolution_status;
 
     await supabase.from("chat_auto_rules").update(updates).eq("id", rule.id);
     setRules((prev) => prev.map((r) => r.id === rule.id ? { ...r, ...updates } : r));
@@ -154,6 +163,7 @@ const AutoMessagesTab = () => {
       const updates: Record<string, any> = {};
       if (edits.message_content !== undefined) updates.message_content = edits.message_content;
       if (edits.trigger_minutes !== undefined) updates.trigger_minutes = Math.max(5, edits.trigger_minutes ?? 5);
+      if (edits.close_resolution_status !== undefined) updates.close_resolution_status = edits.close_resolution_status;
       await supabase.from("chat_auto_rules").update(updates).eq("id", ruleId);
       setRules((prev) => prev.map((r) => r.id === ruleId ? { ...r, ...updates } : r));
     }
@@ -330,6 +340,29 @@ const AutoMessagesTab = () => {
                 rows={3}
               />
             </div>
+            {cfg.rule_type === "auto_close" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Status ao encerrar automaticamente</Label>
+                <Select
+                  value={(() => {
+                    const edit = localEdits[rule.id];
+                    if (edit && edit.close_resolution_status !== undefined) return edit.close_resolution_status;
+                    return rule.close_resolution_status ?? "archived";
+                  })()}
+                  onValueChange={(v) => setLocalEdit(rule.id, "close_resolution_status", v)}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pendente</SelectItem>
+                    <SelectItem value="resolved">Resolvida</SelectItem>
+                    <SelectItem value="archived">Arquivada</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">Define o status da conversa quando encerrada automaticamente.</p>
+              </div>
+            )}
             {hasUnsavedChanges(rule.id) && (
               <Button
                 size="sm"
