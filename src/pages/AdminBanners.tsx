@@ -286,16 +286,19 @@ const AdminBanners = () => {
   const [assignSortDesc, setAssignSortDesc] = useState(true);
 
   const fetchBanners = useCallback(async () => {
+    if (!tenantId) return;
     const { data } = await supabase
       .from("chat_banners")
       .select("*")
+      .eq("tenant_id", tenantId)
       .order("priority", { ascending: false });
     setBanners((data as any) ?? []);
 
     if (data && data.length > 0) {
       const { data: allAssignments } = await supabase
         .from("chat_banner_assignments")
-        .select("banner_id, views_count, vote");
+        .select("banner_id, views_count, vote")
+        .eq("tenant_id", tenantId);
 
       const counts: Record<string, { total: number; views: number; upVotes: number; downVotes: number }> = {};
       (allAssignments ?? []).forEach((a: any) => {
@@ -309,7 +312,7 @@ const AdminBanners = () => {
     }
 
     setLoading(false);
-  }, []);
+  }, [tenantId]);
 
   useEffect(() => {
     fetchBanners();
