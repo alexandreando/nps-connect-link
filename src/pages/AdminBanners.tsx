@@ -22,7 +22,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Plus, Edit, Trash2, Users, Eye, ThumbsUp, ThumbsDown, Search, Copy, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles, CalendarIcon, Bell, Palette, Link2, Calendar as CalendarSectionIcon, Target, ChevronDown, Timer, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
-import BannerPreview from "@/components/chat/BannerPreview";
+import { Progress } from "@/components/ui/progress";
+import BannerPreview, { BannerVariant, VARIANT_STYLES, TYPE_TO_VARIANT } from "@/components/chat/BannerPreview";
 import BannerRichEditor from "@/components/chat/BannerRichEditor";
 import BannerFieldRules from "@/components/chat/BannerFieldRules";
 import BannerConflictDialog from "@/components/chat/BannerConflictDialog";
@@ -98,6 +99,16 @@ const TYPE_DEFAULT_COLORS: Record<BannerType, { bg: string; text: string }> = {
   promo: { bg: "#8B5CF6", text: "#FFFFFF" },
   update: { bg: "#06B6D4", text: "#FFFFFF" },
 };
+
+// Variant visual config for selector cards
+const VARIANT_OPTIONS: { value: BannerVariant; label: string; description: string; bgClass: string; borderClass: string; dotColor: string }[] = [
+  { value: "warning", label: "Manutenção", description: "Avisos e alertas", bgClass: "bg-amber-50 dark:bg-amber-950/30", borderClass: "border-amber-200 dark:border-amber-800", dotColor: "bg-amber-500" },
+  { value: "destructive", label: "Urgência", description: "Ações críticas", bgClass: "bg-red-50 dark:bg-red-950/30", borderClass: "border-red-200 dark:border-red-800", dotColor: "bg-red-500" },
+  { value: "success", label: "Novidades", description: "Boas notícias", bgClass: "bg-emerald-50 dark:bg-emerald-950/30", borderClass: "border-emerald-200 dark:border-emerald-800", dotColor: "bg-emerald-500" },
+  { value: "neutral", label: "Sutil", description: "Informações gerais", bgClass: "bg-slate-50 dark:bg-slate-900/30", borderClass: "border-slate-200 dark:border-slate-800", dotColor: "bg-slate-500" },
+  { value: "brand", label: "Premium", description: "Destaque da marca", bgClass: "bg-indigo-50 dark:bg-indigo-950/30", borderClass: "border-indigo-200 dark:border-indigo-800", dotColor: "bg-indigo-500" },
+  { value: "custom", label: "Customizado", description: "Cores manuais", bgClass: "bg-muted/30", borderClass: "border-border", dotColor: "bg-gradient-to-r from-pink-500 to-violet-500" },
+];
 
 const BG_COLOR_PRESETS = [
   "#3B82F6", "#F59E0B", "#10B981", "#8B5CF6", "#06B6D4",
@@ -247,9 +258,16 @@ const AdminBanners = () => {
     display_frequency: "always",
     border_style: "none",
     shadow_style: "soft",
+    variant: "neutral" as BannerVariant,
+    is_floating: false,
+    can_close: true,
   };
 
   const [form, setForm] = useState(defaultForm);
+  const [assignSearch, setAssignSearch] = useState("");
+  const [assignStatusFilter, setAssignStatusFilter] = useState<"all" | "active" | "dismissed">("all");
+  const [assignVoteFilter, setAssignVoteFilter] = useState<"all" | "up" | "down" | "none">("all");
+  const [assignSortDesc, setAssignSortDesc] = useState(true);
 
   const fetchBanners = useCallback(async () => {
     const { data } = await supabase
@@ -292,6 +310,7 @@ const AdminBanners = () => {
   const openBannerDialog = (banner?: Banner) => {
     if (banner) {
       setEditingBanner(banner);
+      const resolvedVariant = (TYPE_TO_VARIANT[banner.banner_type] ?? "neutral") as BannerVariant;
       setForm({
         title: banner.title,
         content: banner.content,
@@ -315,6 +334,9 @@ const AdminBanners = () => {
         display_frequency: banner.display_frequency ?? "always",
         border_style: banner.border_style ?? "none",
         shadow_style: banner.shadow_style ?? "soft",
+        variant: resolvedVariant,
+        is_floating: banner.position === "float" || banner.border_style === "pill",
+        can_close: true,
       });
       fetchFieldRules(banner.id);
     } else {
@@ -327,6 +349,7 @@ const AdminBanners = () => {
 
   const duplicateBanner = (banner: Banner) => {
     setEditingBanner(null);
+    const resolvedVariant = (TYPE_TO_VARIANT[banner.banner_type] ?? "neutral") as BannerVariant;
     setForm({
       title: banner.title + " (cópia)",
       content: banner.content,
@@ -350,6 +373,9 @@ const AdminBanners = () => {
       display_frequency: banner.display_frequency ?? "always",
       border_style: banner.border_style ?? "none",
       shadow_style: banner.shadow_style ?? "soft",
+      variant: resolvedVariant,
+      is_floating: banner.position === "float" || banner.border_style === "pill",
+      can_close: true,
     });
     setFieldRules([]);
     setBannerDialog(true);
@@ -737,6 +763,9 @@ const AdminBanners = () => {
                       position={form.position}
                       borderStyle={form.border_style}
                       shadowStyle={form.shadow_style}
+                      variant={form.variant}
+                      isFloating={form.is_floating}
+                      canClose={form.can_close}
                     />
                   </CollapsibleContent>
                 </Collapsible>
@@ -800,139 +829,124 @@ const AdminBanners = () => {
                 </div>
               </div>
 
-              {/* Section 3: Appearance — Color Palettes */}
+              {/* Section 3: Appearance — Variant Selector */}
               <div className="rounded-lg bg-muted/30 p-4 space-y-3">
                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                   <Palette className="h-4 w-4 text-muted-foreground" />
                   {t("banners.sectionAppearance")}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">{t("banners.bgColor")}</Label>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-8 h-8 rounded-md border border-border flex-shrink-0" style={bgStyle(form.bg_color)} />
-                      <Input value={form.bg_color} onChange={(e) => setForm({ ...form, bg_color: e.target.value })} className="flex-1 h-8 text-xs font-mono" />
-                    </div>
-                    <div className="grid grid-cols-5 gap-1">
-                      {BG_COLOR_PRESETS.map((color) => (
-                        <button
-                          key={color}
-                          type="button"
-                          className={cn(
-                            "w-full aspect-square rounded-md border-2 transition-transform hover:scale-110",
-                            !isGradient(form.bg_color) && form.bg_color.toLowerCase() === color.toLowerCase() ? "border-foreground ring-1 ring-foreground scale-110" : "border-transparent"
-                          )}
-                          style={{ backgroundColor: color }}
-                          onClick={() => setForm({ ...form, bg_color: color })}
-                        />
-                      ))}
-                    </div>
 
-                    {/* Gradient Presets - Duo */}
-                    <Label className="text-xs text-muted-foreground mt-2">Gradientes</Label>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {GRADIENT_PRESETS.filter(g => g.group === "duo").map((g) => (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Estilo visual</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {VARIANT_OPTIONS.map((v) => {
+                      const isSelected = form.variant === v.value;
+                      return (
                         <button
-                          key={g.name}
+                          key={v.value}
                           type="button"
-                          title={g.name}
+                          onClick={() => setForm({ ...form, variant: v.value })}
                           className={cn(
-                            "w-full rounded-md border-2 transition-transform hover:scale-105",
-                            form.bg_color === g.value ? "border-foreground ring-1 ring-foreground scale-105" : "border-transparent"
+                            "flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all",
+                            isSelected
+                              ? cn(v.bgClass, v.borderClass, "ring-1 ring-offset-1 ring-offset-background shadow-sm")
+                              : "border-border hover:bg-muted/50"
                           )}
-                          style={{ background: g.value, aspectRatio: "3/1" }}
-                          onClick={() => setForm({ ...form, bg_color: g.value })}
-                        />
-                      ))}
-                    </div>
-
-                    {/* Gradient Presets - Mono */}
-                    <Label className="text-xs text-muted-foreground mt-1">Monocromáticos</Label>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {GRADIENT_PRESETS.filter(g => g.group === "mono").map((g) => (
-                        <button
-                          key={g.name}
-                          type="button"
-                          title={g.name}
-                          className={cn(
-                            "w-full rounded-md border-2 transition-transform hover:scale-105",
-                            form.bg_color === g.value ? "border-foreground ring-1 ring-foreground scale-105" : "border-transparent"
-                          )}
-                          style={{ background: g.value, aspectRatio: "3/1" }}
-                          onClick={() => setForm({ ...form, bg_color: g.value })}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">{t("banners.textColor")}</Label>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-8 h-8 rounded-md border border-border flex-shrink-0" style={{ backgroundColor: form.text_color }} />
-                      <Input value={form.text_color} onChange={(e) => setForm({ ...form, text_color: e.target.value })} className="flex-1 h-8 text-xs font-mono" />
-                    </div>
-                    <div className="grid grid-cols-5 gap-1">
-                      {TEXT_COLOR_PRESETS.map((color) => (
-                        <button
-                          key={color}
-                          type="button"
-                          className={cn(
-                            "w-full aspect-square rounded-md border-2 transition-transform hover:scale-110",
-                            form.text_color.toLowerCase() === color.toLowerCase() ? "border-foreground ring-1 ring-foreground scale-110" : "border-transparent"
-                          )}
-                          style={{ backgroundColor: color }}
-                          onClick={() => setForm({ ...form, text_color: color })}
-                        />
-                      ))}
-                    </div>
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className={cn("w-2.5 h-2.5 rounded-full", v.dotColor)} />
+                            <span className="text-xs font-semibold">{v.label}</span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground leading-tight">{v.description}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                {/* WCAG Contrast Badge */}
-                {!isGradient(form.bg_color) && (() => {
-                  const badge = getContrastBadge(form.bg_color, form.text_color);
-                  return (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">Contraste WCAG:</span>
-                      <Badge className={cn("text-xs", badge.className)}>{badge.label}</Badge>
-                      <span className="text-xs text-muted-foreground">({getContrastRatio(form.bg_color, form.text_color).toFixed(1)}:1)</span>
+                {form.variant === "custom" && (
+                  <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border/50">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">{t("banners.bgColor")}</Label>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 rounded-md border border-border flex-shrink-0" style={bgStyle(form.bg_color)} />
+                        <Input value={form.bg_color} onChange={(e) => setForm({ ...form, bg_color: e.target.value })} className="flex-1 h-8 text-xs font-mono" />
+                      </div>
+                      <div className="grid grid-cols-5 gap-1">
+                        {BG_COLOR_PRESETS.map((color) => (
+                          <button key={color} type="button" className={cn("w-full aspect-square rounded-md border-2 transition-transform hover:scale-110", !isGradient(form.bg_color) && form.bg_color.toLowerCase() === color.toLowerCase() ? "border-foreground ring-1 ring-foreground scale-110" : "border-transparent")} style={{ backgroundColor: color }} onClick={() => setForm({ ...form, bg_color: color })} />
+                        ))}
+                      </div>
+                      <Label className="text-xs text-muted-foreground mt-2">Gradientes</Label>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {GRADIENT_PRESETS.filter(g => g.group === "duo").map((g) => (
+                          <button key={g.name} type="button" title={g.name} className={cn("w-full rounded-md border-2 transition-transform hover:scale-105", form.bg_color === g.value ? "border-foreground ring-1 ring-foreground scale-105" : "border-transparent")} style={{ background: g.value, aspectRatio: "3/1" }} onClick={() => setForm({ ...form, bg_color: g.value })} />
+                        ))}
+                      </div>
+                      <Label className="text-xs text-muted-foreground mt-1">Monocromáticos</Label>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {GRADIENT_PRESETS.filter(g => g.group === "mono").map((g) => (
+                          <button key={g.name} type="button" title={g.name} className={cn("w-full rounded-md border-2 transition-transform hover:scale-105", form.bg_color === g.value ? "border-foreground ring-1 ring-foreground scale-105" : "border-transparent")} style={{ background: g.value, aspectRatio: "3/1" }} onClick={() => setForm({ ...form, bg_color: g.value })} />
+                        ))}
+                      </div>
                     </div>
-                  );
-                })()}
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">{t("banners.textColor")}</Label>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 rounded-md border border-border flex-shrink-0" style={{ backgroundColor: form.text_color }} />
+                        <Input value={form.text_color} onChange={(e) => setForm({ ...form, text_color: e.target.value })} className="flex-1 h-8 text-xs font-mono" />
+                      </div>
+                      <div className="grid grid-cols-5 gap-1">
+                        {TEXT_COLOR_PRESETS.map((color) => (
+                          <button key={color} type="button" className={cn("w-full aspect-square rounded-md border-2 transition-transform hover:scale-110", form.text_color.toLowerCase() === color.toLowerCase() ? "border-foreground ring-1 ring-foreground scale-110" : "border-transparent")} style={{ backgroundColor: color }} onClick={() => setForm({ ...form, text_color: color })} />
+                        ))}
+                      </div>
+                    </div>
+                    {!isGradient(form.bg_color) && (() => {
+                      const badge = getContrastBadge(form.bg_color, form.text_color);
+                      return (
+                        <div className="col-span-2 flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">Contraste WCAG:</span>
+                          <Badge className={cn("text-xs", badge.className)}>{badge.label}</Badge>
+                          <span className="text-xs text-muted-foreground">({getContrastRatio(form.bg_color, form.text_color).toFixed(1)}:1)</span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
 
-                {/* Position, Border, Shadow */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Posição</Label>
-                    <Select value={form.position} onValueChange={(v) => setForm({ ...form, position: v })}>
-                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {POSITION_OPTIONS.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                <div className="space-y-3 pt-2 border-t border-border/50">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center gap-3">
+                      <Switch checked={form.is_floating} onCheckedChange={(v) => setForm({ ...form, is_floating: v, position: v ? "float" : "top", border_style: v ? "pill" : "none" })} />
+                      <Label className="text-sm">Flutuante</Label>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Switch checked={form.can_close} onCheckedChange={(v) => setForm({ ...form, can_close: v })} />
+                      <Label className="text-sm">Botão fechar</Label>
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Borda</Label>
-                    <Select value={form.border_style} onValueChange={(v) => setForm({ ...form, border_style: v })}>
-                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                      <SelectContent>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Borda</Label>
+                      <div className="flex gap-1">
                         {BORDER_STYLE_OPTIONS.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                          <button key={o.value} type="button" onClick={() => setForm({ ...form, border_style: o.value })} className={cn("flex-1 text-[10px] py-1.5 rounded-lg border transition-all", form.border_style === o.value ? "bg-accent text-accent-foreground border-accent shadow-sm" : "border-border hover:bg-muted/50")}>
+                            {o.label}
+                          </button>
                         ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Sombra</Label>
-                    <Select value={form.shadow_style} onValueChange={(v) => setForm({ ...form, shadow_style: v })}>
-                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                      <SelectContent>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Sombra</Label>
+                      <div className="flex gap-1">
                         {SHADOW_STYLE_OPTIONS.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                          <button key={o.value} type="button" onClick={() => setForm({ ...form, shadow_style: o.value })} className={cn("flex-1 text-[10px] py-1.5 rounded-lg border transition-all", form.shadow_style === o.value ? "bg-accent text-accent-foreground border-accent shadow-sm" : "border-border hover:bg-muted/50")}>
+                            {o.label}
+                          </button>
                         ))}
-                      </SelectContent>
-                    </Select>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1104,6 +1118,9 @@ const AdminBanners = () => {
                     position={form.position}
                     borderStyle={form.border_style}
                     shadowStyle={form.shadow_style}
+                    variant={form.variant}
+                    isFloating={form.is_floating}
+                    canClose={form.can_close}
                   />
                 </div>
               </div>
@@ -1126,6 +1143,31 @@ const AdminBanners = () => {
             <DialogTitle>{t("banners.assignments")} — {selectedBanner?.title}</DialogTitle>
           </DialogHeader>
 
+          {/* Summary metrics */}
+          {(() => {
+            const totalViews = assignments.reduce((s, a) => s + a.views_count, 0);
+            const dismissed = assignments.filter(a => a.dismissed_at).length;
+            const voted = assignments.filter(a => a.vote);
+            const upVotes = voted.filter(a => a.vote === "up").length;
+            const favorability = voted.length > 0 ? Math.round((upVotes / voted.length) * 100) : null;
+            return (
+              <div className="grid grid-cols-4 gap-3">
+                {[
+                  { label: "Atribuídos", value: assignments.length },
+                  { label: "Views", value: totalViews },
+                  { label: "Favorabilidade", value: favorability !== null ? `${favorability}%` : "—" },
+                  { label: "Dismissed", value: dismissed },
+                ].map((m) => (
+                  <div key={m.label} className="rounded-lg border bg-muted/20 p-3 text-center">
+                    <p className="text-lg font-bold">{m.value}</p>
+                    <p className="text-[10px] text-muted-foreground">{m.label}</p>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {/* Add companies */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">{t("banners.addClients")}</CardTitle>
@@ -1136,36 +1178,70 @@ const AdminBanners = () => {
                 <Input value={contactSearch} onChange={(e) => setContactSearch(e.target.value)} placeholder={t("banners.searchClient")} className="pl-9" />
               </div>
               <div className="max-h-40 overflow-y-auto border rounded-md">
-                {filteredContacts.map((c) => (
-                  <label key={c.id} className="flex items-center gap-3 px-3 py-2 hover:bg-muted cursor-pointer text-sm">
-                    <input
-                      type="checkbox"
-                      checked={selectedContacts.has(c.id)}
-                      onChange={(e) => {
-                        const next = new Set(selectedContacts);
-                        e.target.checked ? next.add(c.id) : next.delete(c.id);
-                        setSelectedContacts(next);
-                      }}
-                      className="rounded"
-                    />
-                    <span className="font-medium">{c.name}</span>
-                    <span className="text-muted-foreground">{c.email}</span>
-                  </label>
-                ))}
-                {filteredContacts.length === 0 && (
+                {filteredContacts
+                  .filter((c) => !assignments.some((a) => a.contact_id === c.id))
+                  .map((c) => (
+                    <label key={c.id} className="flex items-center gap-3 px-3 py-2 hover:bg-muted cursor-pointer text-sm">
+                      <Checkbox
+                        checked={selectedContacts.has(c.id)}
+                        onCheckedChange={(checked) => {
+                          const next = new Set(selectedContacts);
+                          checked ? next.add(c.id) : next.delete(c.id);
+                          setSelectedContacts(next);
+                        }}
+                      />
+                      <span className="font-medium">{c.name}</span>
+                      <span className="text-muted-foreground text-xs">{c.email}</span>
+                    </label>
+                  ))}
+                {filteredContacts.filter((c) => !assignments.some((a) => a.contact_id === c.id)).length === 0 && (
                   <p className="text-center py-4 text-sm text-muted-foreground">{t("banners.noClients")}</p>
                 )}
               </div>
               <Button size="sm" onClick={assignContacts} disabled={selectedContacts.size === 0}>
                 <Plus className="h-4 w-4 mr-1" />
-                {t("banners.assign")} ({selectedContacts.size})
+                Adicionar {selectedContacts.size} empresa{selectedContacts.size !== 1 ? "s" : ""}
               </Button>
             </CardContent>
           </Card>
 
+          {/* Monitoring table */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">{t("banners.currentAssignments")} ({assignments.length})</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm">{t("banners.currentAssignments")} ({assignments.length})</CardTitle>
+                <button
+                  type="button"
+                  onClick={() => setAssignSortDesc(!assignSortDesc)}
+                  className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Views {assignSortDesc ? "↓" : "↑"}
+                </button>
+              </div>
+              {/* Inline filters */}
+              <div className="flex items-center gap-2 pt-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input value={assignSearch} onChange={(e) => setAssignSearch(e.target.value)} placeholder="Buscar empresa..." className="h-8 text-xs pl-8" />
+                </div>
+                <Select value={assignStatusFilter} onValueChange={(v: any) => setAssignStatusFilter(v)}>
+                  <SelectTrigger className="h-8 w-[110px] text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="active">Ativos</SelectItem>
+                    <SelectItem value="dismissed">Dismissed</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={assignVoteFilter} onValueChange={(v: any) => setAssignVoteFilter(v)}>
+                  <SelectTrigger className="h-8 w-[110px] text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos votos</SelectItem>
+                    <SelectItem value="up">Positivo</SelectItem>
+                    <SelectItem value="down">Negativo</SelectItem>
+                    <SelectItem value="none">Sem voto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </CardHeader>
             <CardContent>
               {assignments.length === 0 ? (
@@ -1176,36 +1252,66 @@ const AdminBanners = () => {
                     <TableRow>
                       <TableHead>{t("banners.client")}</TableHead>
                       <TableHead>Views</TableHead>
-                      <TableHead>{t("banners.vote")}</TableHead>
-                      <TableHead className="w-[60px]" />
+                      <TableHead>Voto</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-[50px]" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {assignments.map((a) => (
-                      <TableRow key={a.id}>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium text-sm">{a.contact_name}</p>
-                            <p className="text-xs text-muted-foreground">{a.contact_email}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>{a.views_count}</TableCell>
-                        <TableCell>
-                          {a.vote === "up" ? (
-                            <ThumbsUp className="h-4 w-4 text-emerald-500" />
-                          ) : a.vote === "down" ? (
-                            <ThumbsDown className="h-4 w-4 text-destructive" />
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeAssignment(a.id)}>
-                            <Trash2 className="h-3 w-3 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {assignments
+                      .filter((a) => {
+                        if (assignSearch && !(a.contact_name ?? "").toLowerCase().includes(assignSearch.toLowerCase())) return false;
+                        if (assignStatusFilter === "active" && a.dismissed_at) return false;
+                        if (assignStatusFilter === "dismissed" && !a.dismissed_at) return false;
+                        if (assignVoteFilter === "up" && a.vote !== "up") return false;
+                        if (assignVoteFilter === "down" && a.vote !== "down") return false;
+                        if (assignVoteFilter === "none" && a.vote) return false;
+                        return true;
+                      })
+                      .sort((a, b) => assignSortDesc ? b.views_count - a.views_count : a.views_count - b.views_count)
+                      .map((a) => (
+                        <TableRow key={a.id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium text-sm">{a.contact_name}</p>
+                              <p className="text-xs text-muted-foreground">{a.contact_email}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <span className="text-sm">{a.views_count}</span>
+                              {selectedBanner?.max_views && (
+                                <Progress value={(a.views_count / selectedBanner.max_views) * 100} className="h-1.5 w-16" />
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {a.vote === "up" ? (
+                              <Badge variant="outline" className="text-emerald-600 border-emerald-300 dark:text-emerald-400 dark:border-emerald-700 text-[10px]">
+                                <ThumbsUp className="h-3 w-3 mr-1" /> Positivo
+                              </Badge>
+                            ) : a.vote === "down" ? (
+                              <Badge variant="outline" className="text-destructive border-destructive/30 text-[10px]">
+                                <ThumbsDown className="h-3 w-3 mr-1" /> Negativo
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {a.dismissed_at ? (
+                              <Badge variant="secondary" className="text-[10px]">Dismissed</Badge>
+                            ) : (
+                              <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 text-[10px]">Ativo</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeAssignment(a.id)}>
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                   </TableBody>
                 </Table>
               )}

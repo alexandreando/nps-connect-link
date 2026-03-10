@@ -55,6 +55,16 @@
     update: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>'
   };
 
+  // --- Semantic variant colors (matches BannerPreview.tsx) ---
+  var VARIANT_COLORS = {
+    warning:     { bg: "#FFFBEB", text: "#78350F", border: "#FDE68A" },
+    destructive: { bg: "#FEF2F2", text: "#7F1D1D", border: "#FECACA" },
+    success:     { bg: "#ECFDF5", text: "#064E3B", border: "#A7F3D0" },
+    neutral:     { bg: "#F8FAFC", text: "#0F172A", border: "#E2E8F0" },
+    brand:       { bg: "#EEF2FF", text: "#312E81", border: "#C7D2FE" }
+  };
+  var TYPE_TO_VARIANT = { info: "neutral", warning: "warning", success: "success", promo: "brand", update: "brand" };
+
   // --- Banner Logic ---
   var bannerContainer = null;
 
@@ -86,11 +96,19 @@
     var borderCss = BORDER_CSS[banner.border_style] || "";
     var shadowCss = SHADOW_CSS[banner.shadow_style] || "";
 
+    // Resolve semantic variant colors or fall back to custom
+    var variantKey = TYPE_TO_VARIANT[banner.banner_type || "info"];
+    var vc = variantKey ? VARIANT_COLORS[variantKey] : null;
+    var useBg = vc ? vc.bg : banner.bg_color;
+    var useText = vc ? vc.text : banner.text_color;
+    var useBorder = vc ? "1px solid " + vc.border : "";
+
     div.style.cssText =
-      "padding:18px 48px 18px 20px;font-size:14px;font-weight:500;letter-spacing:0.01em;line-height:1.5;" +
-      "position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;" +
-      "overflow:hidden;box-sizing:border-box;max-width:100vw;" +
-      (banner.bg_color && banner.bg_color.indexOf("linear-gradient") === 0 ? "background:" : "background-color:") + banner.bg_color + ";color:" + banner.text_color + ";" +
+      "padding:12px 48px 12px 20px;font-size:14px;font-weight:500;letter-spacing:0.01em;line-height:1.5;" +
+      "position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;" +
+      "overflow:hidden;box-sizing:border-box;max-width:100vw;border-radius:16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);" +
+      (useBg.indexOf("linear-gradient") === 0 ? "background:" : "background-color:") + useBg + ";color:" + useText + ";" +
+      (useBorder ? "border:" + useBorder + ";" : "") +
       "transform:translateY(-100%);transition:transform 0.3s ease;" +
       borderCss + shadowCss;
 
@@ -101,8 +119,8 @@
     var closeBtn = document.createElement("button");
     closeBtn.innerHTML = "✕";
     closeBtn.style.cssText =
-      "position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;color:" + banner.text_color +
-      ";font-size:16px;padding:4px 6px;border-radius:4px;opacity:0.7;";
+      "position:absolute;top:10px;right:12px;background:none;border:none;cursor:pointer;color:" + useText +
+      ";font-size:14px;padding:4px 6px;border-radius:50%;opacity:0.6;";
     closeBtn.onmouseover = function () { closeBtn.style.opacity = "1"; };
     closeBtn.onmouseout = function () { closeBtn.style.opacity = "0.7"; };
     closeBtn.onclick = function () {
@@ -153,7 +171,7 @@
         link.target = "_blank";
         link.rel = "noopener noreferrer";
         link.textContent = banner.link_label || "Saiba mais";
-        link.style.cssText = "color:" + banner.text_color + ";text-decoration:underline;font-size:13px;opacity:0.9;";
+        link.style.cssText = "color:" + useText + ";text-decoration:underline;font-size:13px;font-weight:600;opacity:0.9;";
         actions.appendChild(link);
       }
 

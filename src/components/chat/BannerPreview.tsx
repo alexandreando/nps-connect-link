@@ -1,4 +1,4 @@
-import { ThumbsUp, ThumbsDown, ExternalLink, X, MessageSquare, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles } from "lucide-react";
+import { ThumbsUp, ThumbsDown, ExternalLink, X, MessageSquare, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles, Hammer, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +17,54 @@ interface BannerPreviewProps {
   position?: string;
   borderStyle?: string;
   shadowStyle?: string;
+  variant?: BannerVariant;
+  isFloating?: boolean;
+  canClose?: boolean;
 }
+
+export type BannerVariant = "warning" | "destructive" | "success" | "neutral" | "brand" | "custom";
+
+const VARIANT_STYLES: Record<Exclude<BannerVariant, "custom">, { bg: string; border: string; text: string; icon: typeof Info }> = {
+  warning: {
+    bg: "bg-amber-50/70 dark:bg-amber-950/40",
+    border: "border-amber-200 dark:border-amber-800",
+    text: "text-amber-900 dark:text-amber-100",
+    icon: Hammer,
+  },
+  destructive: {
+    bg: "bg-red-50/70 dark:bg-red-950/40",
+    border: "border-red-200 dark:border-red-800",
+    text: "text-red-900 dark:text-red-100",
+    icon: ShieldAlert,
+  },
+  success: {
+    bg: "bg-emerald-50/70 dark:bg-emerald-950/40",
+    border: "border-emerald-200 dark:border-emerald-800",
+    text: "text-emerald-900 dark:text-emerald-100",
+    icon: CheckCircle,
+  },
+  neutral: {
+    bg: "bg-slate-50/70 dark:bg-slate-900/40",
+    border: "border-slate-200 dark:border-slate-800",
+    text: "text-slate-900 dark:text-slate-100",
+    icon: Info,
+  },
+  brand: {
+    bg: "bg-indigo-50/70 dark:bg-indigo-950/40",
+    border: "border-indigo-200 dark:border-indigo-800",
+    text: "text-indigo-900 dark:text-indigo-100",
+    icon: Megaphone,
+  },
+};
+
+// Map legacy banner_type to variant
+const TYPE_TO_VARIANT: Record<string, BannerVariant> = {
+  info: "neutral",
+  warning: "warning",
+  success: "success",
+  promo: "brand",
+  update: "brand",
+};
 
 const BANNER_TYPE_ICONS: Record<string, typeof Info> = {
   info: Info,
@@ -25,20 +72,6 @@ const BANNER_TYPE_ICONS: Record<string, typeof Info> = {
   success: CheckCircle,
   promo: Megaphone,
   update: Sparkles,
-};
-
-const BORDER_STYLES: Record<string, string> = {
-  none: "",
-  subtle: "border-b border-white/15",
-  rounded: "rounded-b-xl",
-  pill: "mx-4 mt-2 rounded-3xl",
-};
-
-const SHADOW_STYLES: Record<string, string> = {
-  none: "",
-  soft: "shadow-[0_2px_8px_rgba(0,0,0,0.08)]",
-  medium: "shadow-[0_4px_16px_rgba(0,0,0,0.12)]",
-  strong: "shadow-[0_8px_32px_rgba(0,0,0,0.18)]",
 };
 
 const BannerPreview = ({
@@ -56,15 +89,21 @@ const BannerPreview = ({
   position = "top",
   borderStyle = "none",
   shadowStyle = "none",
+  variant,
+  isFloating = false,
+  canClose = true,
 }: BannerPreviewProps) => {
-  const TypeIcon = BANNER_TYPE_ICONS[bannerType] ?? Info;
+  const resolvedVariant = variant ?? TYPE_TO_VARIANT[bannerType] ?? "neutral";
+  const isCustom = resolvedVariant === "custom";
+  const variantStyle = !isCustom ? VARIANT_STYLES[resolvedVariant] : null;
+  const TypeIcon = variantStyle?.icon ?? BANNER_TYPE_ICONS[bannerType] ?? Info;
 
   const getScheduleBadge = () => {
     if (!startsAt && !expiresAt) return null;
     const now = new Date();
     if (startsAt && new Date(startsAt) > now) {
       return (
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-current opacity-70" style={{ color: textColor }}>
+        <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 border-current opacity-70", variantStyle?.text)} style={isCustom ? { color: textColor } : undefined}>
           Agendado
         </Badge>
       );
@@ -73,7 +112,7 @@ const BannerPreview = ({
       const diff = Math.ceil((new Date(expiresAt).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       if (diff > 0 && diff <= 7) {
         return (
-          <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-current opacity-70" style={{ color: textColor }}>
+          <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 border-current opacity-70", variantStyle?.text)} style={isCustom ? { color: textColor } : undefined}>
             Expira em {diff}d
           </Badge>
         );
@@ -82,33 +121,48 @@ const BannerPreview = ({
     return null;
   };
 
-  const borderClass = BORDER_STYLES[borderStyle] || "";
-  const shadowClass = SHADOW_STYLES[shadowStyle] || "";
-  const isPill = borderStyle === "pill";
+  const floatingMode = isFloating || borderStyle === "pill";
 
   return (
     <div className="w-full max-w-lg mx-auto rounded-xl overflow-hidden shadow-lg border bg-background">
       {/* Banner */}
       <div
         className={cn(
-          "px-5 py-4 text-sm relative flex flex-col items-center justify-center gap-2",
-          "font-medium tracking-[0.01em] leading-relaxed",
-          borderClass,
-          shadowClass
+          "py-3 px-5 text-sm leading-relaxed relative flex flex-col items-center justify-center gap-3",
+          "font-medium tracking-[0.01em] backdrop-blur-md transition-all",
+          floatingMode && "mx-4 mt-2 rounded-2xl",
+          !floatingMode && "rounded-none",
+          isCustom
+            ? "border-b shadow-sm"
+            : cn(
+                variantStyle?.bg,
+                "border",
+                variantStyle?.border,
+                variantStyle?.text,
+                "shadow-sm"
+              )
         )}
-        style={{ ...(bgColor.startsWith("linear-gradient") ? { background: bgColor } : { backgroundColor: bgColor }), color: textColor }}
+        style={isCustom ? {
+          ...(bgColor.startsWith("linear-gradient") ? { background: bgColor } : { backgroundColor: bgColor }),
+          color: textColor,
+        } : undefined}
       >
-        {/* Close button - absolute positioned */}
-        <button
-          className="absolute top-3 right-3 p-1 rounded opacity-70 hover:opacity-100 transition-opacity"
-          style={{ color: textColor }}
-        >
-          <X className="h-4 w-4" />
-        </button>
+        {/* Close button */}
+        {canClose && (
+          <button
+            className={cn(
+              "absolute top-2.5 right-3 p-1 rounded-full opacity-60 hover:opacity-100 transition-opacity",
+              variantStyle?.text
+            )}
+            style={isCustom ? { color: textColor } : undefined}
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
 
-        {/* Main content - centered */}
-        <div className="flex items-center justify-center gap-2.5 w-full pr-8 text-center">
-          <TypeIcon className="h-4 w-4 flex-shrink-0 opacity-90" />
+        {/* Main content */}
+        <div className="flex items-center justify-center gap-3 w-full pr-8" style={{ textAlign: textAlign as any }}>
+          <TypeIcon className="h-4 w-4 flex-shrink-0 opacity-80" />
           {contentHtml ? (
             <span
               dangerouslySetInnerHTML={{ __html: contentHtml }}
@@ -121,13 +175,16 @@ const BannerPreview = ({
           {getScheduleBadge()}
         </div>
 
-        {/* Actions row - centered below content */}
+        {/* Actions */}
         {(linkUrl || hasVoting) && (
-          <div className="flex items-center justify-center gap-3 mt-1">
+          <div className="flex items-center justify-center gap-3">
             {linkUrl && (
               <span
-                className="inline-flex items-center gap-1 text-xs underline opacity-90 hover:opacity-100 cursor-pointer"
-                style={{ color: textColor }}
+                className={cn(
+                  "inline-flex items-center gap-1 text-xs font-semibold underline underline-offset-2 opacity-90 hover:opacity-70 cursor-pointer transition-opacity",
+                  variantStyle?.text
+                )}
+                style={isCustom ? { color: textColor } : undefined}
               >
                 {linkLabel || "Saiba mais"}
                 <ExternalLink className="h-3 w-3" />
@@ -135,10 +192,10 @@ const BannerPreview = ({
             )}
             {hasVoting && (
               <div className="flex items-center gap-1">
-                <span className="p-1 rounded hover:bg-white/10 cursor-pointer" style={{ color: textColor }}>
+                <span className={cn("p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer", variantStyle?.text)} style={isCustom ? { color: textColor } : undefined}>
                   <ThumbsUp className="h-3.5 w-3.5" />
                 </span>
-                <span className="p-1 rounded hover:bg-white/10 cursor-pointer" style={{ color: textColor }}>
+                <span className={cn("p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer", variantStyle?.text)} style={isCustom ? { color: textColor } : undefined}>
                   <ThumbsDown className="h-3.5 w-3.5" />
                 </span>
               </div>
@@ -159,24 +216,26 @@ const BannerPreview = ({
       </div>
 
       {/* Mock page content */}
-      <div className="p-6 space-y-4 min-h-[160px] relative">
+      <div className="p-6 space-y-4 min-h-[140px] relative">
         <div className="h-5 w-3/4 bg-muted rounded" />
         <div className="h-3 w-full bg-muted/60 rounded" />
         <div className="h-3 w-5/6 bg-muted/60 rounded" />
         <div className="flex gap-3 mt-4">
-          <div className="h-16 w-1/3 bg-muted/40 rounded-lg" />
-          <div className="h-16 w-1/3 bg-muted/40 rounded-lg" />
-          <div className="h-16 w-1/3 bg-muted/40 rounded-lg" />
+          <div className="h-14 w-1/3 bg-muted/40 rounded-lg" />
+          <div className="h-14 w-1/3 bg-muted/40 rounded-lg" />
+          <div className="h-14 w-1/3 bg-muted/40 rounded-lg" />
         </div>
-        <div className="h-3 w-2/3 bg-muted/60 rounded" />
 
-        {/* Mock FAB chat widget */}
+        {/* Mock FAB */}
         <div className="absolute bottom-3 right-3">
           <div
-            className="w-10 h-10 rounded-full flex items-center justify-center shadow-lg"
-            style={{ backgroundColor: bgColor }}
+            className={cn(
+              "w-10 h-10 rounded-full flex items-center justify-center shadow-lg",
+              !isCustom && "bg-primary"
+            )}
+            style={isCustom ? { backgroundColor: bgColor.startsWith("linear-gradient") ? "#7C3AED" : bgColor } : undefined}
           >
-            <MessageSquare className="h-5 w-5" style={{ color: textColor }} />
+            <MessageSquare className="h-5 w-5 text-primary-foreground" style={isCustom ? { color: textColor } : undefined} />
           </div>
         </div>
       </div>
@@ -185,3 +244,4 @@ const BannerPreview = ({
 };
 
 export default BannerPreview;
+export { VARIANT_STYLES, TYPE_TO_VARIANT };
