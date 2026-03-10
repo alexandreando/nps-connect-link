@@ -82,7 +82,7 @@ const AutoMessagesTab = () => {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [rules, setRules] = useState<AutoRule[]>([]);
-  const [localEdits, setLocalEdits] = useState<Record<string, { message_content?: string; trigger_minutes?: number | null }>>({});
+  const [localEdits, setLocalEdits] = useState<Record<string, { message_content?: string; trigger_minutes?: number | null; close_resolution_status?: string }>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savingAll, setSavingAll] = useState(false);
   const [loading, setLoading] = useState(true);
