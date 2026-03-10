@@ -47,6 +47,7 @@ interface Banner {
   expires_at: string | null;
   priority: number;
   target_all: boolean;
+  auto_assign_by_rules: boolean;
   max_views: number | null;
   position: string;
   auto_dismiss_seconds: number | null;
