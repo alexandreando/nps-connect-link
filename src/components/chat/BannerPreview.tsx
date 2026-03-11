@@ -147,7 +147,7 @@ const BannerPreview = ({
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto rounded-xl shadow-lg border bg-background overflow-hidden">
+    <div className="w-full max-w-lg mx-auto overflow-hidden">
       {/* Banner */}
       <div
         className={cn(
