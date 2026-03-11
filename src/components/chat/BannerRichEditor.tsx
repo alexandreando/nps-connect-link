@@ -181,7 +181,10 @@ const BannerRichEditor = ({
         className="min-h-[2.5rem] max-h-[4.5rem] overflow-hidden rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground empty:before:pointer-events-none"
         style={{ textAlign, lineHeight: "1.4" }}
       />
-      <p className="text-[10px] text-muted-foreground">Até 2 linhas. Use Enter para quebrar linha.</p>
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] text-muted-foreground">Máx. 80 caracteres por linha (2 linhas). Use Enter para quebrar linha.</p>
+        <CharCounter editorRef={editorRef} />
+      </div>
     </div>
   );
 };
