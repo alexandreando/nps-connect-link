@@ -1051,6 +1051,7 @@ const AdminBanners = () => {
                   <Label className="text-sm">{t("banners.enableVoting")}</Label>
                 </div>
               </div>
+              </>)}
 
               {/* Section 5: Scheduling */}
               <div className="rounded-lg bg-muted/30 p-4 space-y-3">
