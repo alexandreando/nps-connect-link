@@ -348,6 +348,7 @@ const AdminBanners = () => {
         variant: resolvedVariant,
         is_floating: banner.position === "float" || banner.border_style === "pill",
         can_close: true,
+        has_decorations: (banner as any).has_decorations ?? false,
       });
       fetchFieldRules(banner.id);
     } else {
