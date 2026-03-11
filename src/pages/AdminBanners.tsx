@@ -871,7 +871,28 @@ const AdminBanners = () => {
                 </div>
               </div>
 
-              {/* Section 2: Content */}
+              {/* Page type: HTML editor */}
+              {form.outbound_type === "page" && (
+                <div className="rounded-lg bg-muted/30 p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    {t("banners.pageHtmlLabel")}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">{t("banners.contentLabel")} <span className="text-destructive">*</span></Label>
+                    <textarea
+                      value={form.page_html}
+                      onChange={(e) => setForm({ ...form, page_html: e.target.value, content: e.target.value.replace(/<[^>]*>/g, "").slice(0, 100) || form.title })}
+                      placeholder={t("banners.pageHtmlPlaceholder")}
+                      className="w-full min-h-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 font-mono"
+                    />
+                    <p className="text-[10px] text-muted-foreground">HTML com imagem e formatação. Aceita tags como &lt;img&gt;, &lt;h2&gt;, &lt;p&gt;, &lt;a&gt;, etc.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Banner type: Content section */}
+              {form.outbound_type === "banner" && (
               <div className="rounded-lg bg-muted/30 p-4 space-y-3">
                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                   <Edit className="h-4 w-4 text-muted-foreground" />
@@ -888,6 +909,7 @@ const AdminBanners = () => {
                   />
                 </div>
               </div>
+              )
 
               {/* Section 3: Appearance — Variant Selector */}
               <div className="rounded-lg bg-muted/30 p-4 space-y-3">
