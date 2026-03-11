@@ -147,7 +147,7 @@ const BannerPreview = ({
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto overflow-hidden">
+    <div className={cn("mx-auto overflow-hidden", floatingMode ? "w-fit max-w-[calc(80ch+5rem)]" : "w-full max-w-lg")}>
       {/* Banner */}
       <div
         className={cn(
