@@ -28,6 +28,7 @@ import { Progress } from "@/components/ui/progress";
 import BannerPreview, { BannerVariant, VARIANT_STYLES, TYPE_TO_VARIANT } from "@/components/chat/BannerPreview";
 import BannerRichEditor from "@/components/chat/BannerRichEditor";
 import BannerFieldRules from "@/components/chat/BannerFieldRules";
+import { ImageUploadField } from "@/components/ui/image-upload-field";
 import BannerConflictDialog from "@/components/chat/BannerConflictDialog";
 
 type BannerType = "info" | "warning" | "success" | "promo" | "update";
