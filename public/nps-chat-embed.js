@@ -98,6 +98,30 @@
       "transform:translateY(-100%);transition:transform 0.3s ease;" +
       borderCss + shadowCss;
 
+    // Decorative geometric shapes
+    if (banner.has_decorations) {
+      div.style.overflow = "visible";
+      var decoLeft1 = document.createElement("div");
+      decoLeft1.innerHTML = '<svg style="position:absolute;left:-20px;top:-16px;pointer-events:none;opacity:0.12" width="72" height="72" viewBox="0 0 72 72" fill="none"><circle cx="36" cy="36" r="36" fill="' + useText + '"/></svg>';
+      div.appendChild(decoLeft1.firstChild);
+
+      var decoLeft2 = document.createElement("div");
+      decoLeft2.innerHTML = '<svg style="position:absolute;left:12px;bottom:-12px;pointer-events:none;opacity:0.08" width="40" height="40" viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="20" fill="' + useText + '"/></svg>';
+      div.appendChild(decoLeft2.firstChild);
+
+      var decoRight1 = document.createElement("div");
+      decoRight1.innerHTML = '<svg style="position:absolute;right:-12px;top:-20px;pointer-events:none;opacity:0.10" width="20" height="52" viewBox="0 0 20 52" fill="none"><rect x="0" y="0" width="20" height="52" rx="6" fill="' + useText + '"/></svg>';
+      div.appendChild(decoRight1.firstChild);
+
+      var decoRight2 = document.createElement("div");
+      decoRight2.innerHTML = '<svg style="position:absolute;right:20px;top:-12px;pointer-events:none;opacity:0.07" width="14" height="36" viewBox="0 0 14 36" fill="none"><rect x="0" y="0" width="14" height="36" rx="4" fill="' + useText + '"/></svg>';
+      div.appendChild(decoRight2.firstChild);
+
+      var decoDot = document.createElement("div");
+      decoDot.innerHTML = '<svg style="position:absolute;left:-4px;top:50%;transform:translateY(-50%);pointer-events:none;opacity:0.15" width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="' + useText + '"/></svg>';
+      div.appendChild(decoDot.firstChild);
+    }
+
     // Animate in
     setTimeout(function() { div.style.transform = "translateY(0)"; }, 10);
 
