@@ -53,19 +53,7 @@
     update: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>'
   };
 
-  // --- Semantic variant colors (expanded 9 presets + custom) ---
-  var VARIANT_COLORS = {
-    warning:  { bg: "#FFFBEB", text: "#78350F", border: "#FDE68A" },
-    urgent:   { bg: "#DC2626", text: "#FFFFFF", border: "#DC2626" },
-    success:  { bg: "#ECFDF5", text: "#064E3B", border: "#A7F3D0" },
-    neutral:  { bg: "#F8FAFC", text: "#0F172A", border: "#E2E8F0" },
-    premium:  { bg: "#4F46E5", text: "#FFFFFF", border: "#4F46E5" },
-    ocean:    { bg: "linear-gradient(135deg, #3B82F6, #8B5CF6)", text: "#FFFFFF", border: "transparent" },
-    sunset:   { bg: "linear-gradient(135deg, #F97316, #EF4444)", text: "#FFFFFF", border: "transparent" },
-    midnight: { bg: "#0F172A", text: "#F1F5F9", border: "#334155" },
-    neon:     { bg: "linear-gradient(135deg, #EC4899, #06B6D4)", text: "#FFFFFF", border: "transparent" }
-  };
-  var TYPE_TO_VARIANT = { info: "neutral", warning: "warning", success: "success", promo: "premium", update: "premium" };
+  // Colors are now read directly from banner.bg_color and banner.text_color (database source of truth)
 
   // --- Banner Logic ---
   var bannerContainer = null;
