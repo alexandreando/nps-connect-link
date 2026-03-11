@@ -147,17 +147,41 @@ const BannerPreview = ({
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto rounded-xl shadow-lg border bg-background">
+    <div className="w-full max-w-lg mx-auto rounded-xl shadow-lg border bg-background overflow-hidden">
       {/* Banner */}
       <div
         className={cn(
           "py-2.5 px-5 text-sm leading-relaxed relative flex flex-col items-center justify-center gap-1.5",
           "font-medium tracking-[0.01em] backdrop-blur-md transition-all border",
           floatingMode && "mx-4 my-3 rounded-2xl shadow-lg",
-          !floatingMode && "rounded-none shadow-sm"
+          !floatingMode && "rounded-none shadow-sm",
+          hasDecorations && "overflow-visible"
         )}
         style={bannerInlineStyle}
       >
+        {/* Decorative geometric shapes */}
+        {hasDecorations && (
+          <>
+            {/* Left circles */}
+            <svg className="absolute -left-5 -top-4 pointer-events-none opacity-[0.12]" width="72" height="72" viewBox="0 0 72 72" fill="none">
+              <circle cx="36" cy="36" r="36" fill={bannerColor} />
+            </svg>
+            <svg className="absolute left-3 -bottom-3 pointer-events-none opacity-[0.08]" width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <circle cx="20" cy="20" r="20" fill={bannerColor} />
+            </svg>
+            {/* Right rectangles */}
+            <svg className="absolute -right-3 -top-5 pointer-events-none opacity-[0.10]" width="20" height="52" viewBox="0 0 20 52" fill="none">
+              <rect x="0" y="0" width="20" height="52" rx="6" fill={bannerColor} />
+            </svg>
+            <svg className="absolute right-5 -top-3 pointer-events-none opacity-[0.07]" width="14" height="36" viewBox="0 0 14 36" fill="none">
+              <rect x="0" y="0" width="14" height="36" rx="4" fill={bannerColor} />
+            </svg>
+            {/* Small dot accent */}
+            <svg className="absolute -left-1 top-1/2 -translate-y-1/2 pointer-events-none opacity-[0.15]" width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="8" fill={bannerColor} />
+            </svg>
+          </>
+        )}
         {/* Close button */}
         {canClose && (
           <button
