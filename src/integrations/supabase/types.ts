@@ -626,6 +626,8 @@ export type Database = {
           link_label: string | null
           link_url: string | null
           max_views: number | null
+          outbound_type: string
+          page_html: string | null
           position: string
           priority: number
           shadow_style: string
@@ -656,6 +658,8 @@ export type Database = {
           link_label?: string | null
           link_url?: string | null
           max_views?: number | null
+          outbound_type?: string
+          page_html?: string | null
           position?: string
           priority?: number
           shadow_style?: string
@@ -686,6 +690,8 @@ export type Database = {
           link_label?: string | null
           link_url?: string | null
           max_views?: number | null
+          outbound_type?: string
+          page_html?: string | null
           position?: string
           priority?: number
           shadow_style?: string

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 
@@ -22,7 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuthContext } from "@/contexts/AuthContext";
-import { Plus, Edit, Trash2, Users, Eye, ThumbsUp, ThumbsDown, Search, Copy, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles, CalendarIcon, Bell, Palette, Link2, Calendar as CalendarSectionIcon, Target, ChevronDown, Timer, Repeat, BarChart3 } from "lucide-react";
+import { Plus, Edit, Trash2, Users, Eye, ThumbsUp, ThumbsDown, Search, Copy, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles, CalendarIcon, Bell, Palette, Link2, Calendar as CalendarSectionIcon, Target, ChevronDown, Timer, Repeat, BarChart3, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import BannerPreview, { BannerVariant, VARIANT_STYLES, TYPE_TO_VARIANT } from "@/components/chat/BannerPreview";
@@ -31,6 +31,7 @@ import BannerFieldRules from "@/components/chat/BannerFieldRules";
 import BannerConflictDialog from "@/components/chat/BannerConflictDialog";
 
 type BannerType = "info" | "warning" | "success" | "promo" | "update";
+type OutboundType = "banner" | "page";
 
 interface Banner {
   id: string;
@@ -57,6 +58,8 @@ interface Banner {
   display_frequency: string;
   border_style: string;
   shadow_style: string;
+  outbound_type: OutboundType;
+  page_html: string | null;
 }
 
 interface FieldRule {
@@ -258,6 +261,8 @@ const AdminBanners = () => {
     is_floating: false,
     can_close: true,
     has_decorations: false,
+    outbound_type: "banner" as OutboundType,
+    page_html: "",
   };
 
   const [form, setForm] = useState(defaultForm);
@@ -349,6 +354,8 @@ const AdminBanners = () => {
         is_floating: banner.position === "float" || banner.border_style === "pill",
         can_close: true,
         has_decorations: (banner as any).has_decorations ?? false,
+        outbound_type: ((banner as any).outbound_type as OutboundType) ?? "banner",
+        page_html: (banner as any).page_html ?? "",
       });
       fetchFieldRules(banner.id);
     } else {
@@ -389,6 +396,8 @@ const AdminBanners = () => {
       is_floating: banner.position === "float" || banner.border_style === "pill",
       can_close: true,
       has_decorations: (banner as any).has_decorations ?? false,
+      outbound_type: ((banner as any).outbound_type as OutboundType) ?? "banner",
+      page_html: (banner as any).page_html ?? "",
     });
     setFieldRules([]);
     setBannerDialog(true);
@@ -509,6 +518,8 @@ const AdminBanners = () => {
       border_style: form.border_style,
       shadow_style: form.shadow_style,
       has_decorations: form.has_decorations,
+      outbound_type: form.outbound_type,
+      page_html: form.page_html || null,
     };
 
     if (editingBanner) {
@@ -678,6 +689,13 @@ const AdminBanners = () => {
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-medium">{banner.title}</h3>
                           <Badge variant={status.variant}>{status.label}</Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {(banner as any).outbound_type === "page" ? (
+                              <><FileText className="h-3 w-3 mr-1" />Página</>
+                            ) : (
+                              <><Megaphone className="h-3 w-3 mr-1" />Banner</>
+                            )}
+                          </Badge>
                           {banner.target_all && (
                             <Badge variant="outline" className="text-xs">{t("banners.allClients")}</Badge>
                           )}
@@ -810,19 +828,71 @@ const AdminBanners = () => {
                 </Collapsible>
               )}
 
-              {/* Section 1: Title */}
+              {/* Section 1: Type + Title */}
               <div className="rounded-lg bg-muted/30 p-4 space-y-3">
                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                   <Info className="h-4 w-4 text-muted-foreground" />
                   {t("banners.sectionIdentification")}
                 </div>
                 <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">{t("banners.outboundType")}</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, outbound_type: "banner" })}
+                      className={cn(
+                        "flex items-center gap-2 p-3 rounded-lg border text-sm font-medium transition-all",
+                        form.outbound_type === "banner"
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border hover:bg-muted/50"
+                      )}
+                    >
+                      <Megaphone className="h-4 w-4" />
+                      {t("banners.typeBanner")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, outbound_type: "page" })}
+                      className={cn(
+                        "flex items-center gap-2 p-3 rounded-lg border text-sm font-medium transition-all",
+                        form.outbound_type === "page"
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border hover:bg-muted/50"
+                      )}
+                    >
+                      <FileText className="h-4 w-4" />
+                      {t("banners.typePage")}
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">{t("banners.titleLabel")} <span className="text-destructive">*</span></Label>
-                  <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Título interno do banner" />
+                  <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Título interno" />
                 </div>
               </div>
 
-              {/* Section 2: Content */}
+              {/* Page type: HTML editor */}
+              {form.outbound_type === "page" && (
+                <div className="rounded-lg bg-muted/30 p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    {t("banners.pageHtmlLabel")}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">{t("banners.contentLabel")} <span className="text-destructive">*</span></Label>
+                    <textarea
+                      value={form.page_html}
+                      onChange={(e) => setForm({ ...form, page_html: e.target.value, content: e.target.value.replace(/<[^>]*>/g, "").slice(0, 100) || form.title })}
+                      placeholder={t("banners.pageHtmlPlaceholder")}
+                      className="w-full min-h-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 font-mono"
+                    />
+                    <p className="text-[10px] text-muted-foreground">HTML com imagem e formatação. Aceita tags como &lt;img&gt;, &lt;h2&gt;, &lt;p&gt;, &lt;a&gt;, etc.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Banner type: Content section */}
+              {form.outbound_type === "banner" && (
               <div className="rounded-lg bg-muted/30 p-4 space-y-3">
                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                   <Edit className="h-4 w-4 text-muted-foreground" />
@@ -839,7 +909,9 @@ const AdminBanners = () => {
                   />
                 </div>
               </div>
+              )}
 
+              {form.outbound_type === "banner" && (<>
               {/* Section 3: Appearance — Variant Selector */}
               <div className="rounded-lg bg-muted/30 p-4 space-y-3">
                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">
@@ -979,6 +1051,7 @@ const AdminBanners = () => {
                   <Label className="text-sm">{t("banners.enableVoting")}</Label>
                 </div>
               </div>
+              </>)}
 
               {/* Section 5: Scheduling */}
               <div className="rounded-lg bg-muted/30 p-4 space-y-3">
@@ -1108,8 +1181,8 @@ const AdminBanners = () => {
             </div>
           </div>
 
-          {/* Preview panel — collapsible sticky bottom */}
-          {!isMobile && (
+          {/* Preview panel — collapsible sticky bottom (banner only) */}
+          {!isMobile && form.outbound_type === "banner" && (
             <Collapsible defaultOpen className="border-t border-border bg-muted/20">
               <CollapsibleTrigger className="flex items-center gap-2 px-6 py-2 w-full text-left hover:bg-muted/40 transition-colors">
                 <Eye className="h-3.5 w-3.5 text-muted-foreground" />
@@ -1143,8 +1216,8 @@ const AdminBanners = () => {
 
           <DialogFooter className="px-6 py-4 border-t border-border">
             <Button variant="outline" onClick={() => setBannerDialog(false)}>{t("common.cancel")}</Button>
-            <Button onClick={() => saveBanner()} disabled={!form.title || !form.content}>
-              {editingBanner ? "Salvar Alterações" : "Criar Banner"}
+            <Button onClick={() => saveBanner()} disabled={!form.title || (form.outbound_type === "banner" ? !form.content : !form.page_html)}>
+              {editingBanner ? "Salvar Alterações" : (form.outbound_type === "page" ? "Criar Página" : "Criar Banner")}
             </Button>
           </DialogFooter>
         </DialogContent>

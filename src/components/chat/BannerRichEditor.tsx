@@ -19,6 +19,24 @@ const TEXT_COLORS = [
   "#22C55E", "#3B82F6", "#8B5CF6", "#EC4899", "#6B7280",
 ];
 
+const CharCounter = ({ editorRef }: { editorRef: React.RefObject<HTMLDivElement> }) => {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    const el = editorRef.current;
+    if (!el) return;
+    const update = () => setCount(el.textContent?.length ?? 0);
+    update();
+    el.addEventListener("input", update);
+    return () => el.removeEventListener("input", update);
+  }, [editorRef]);
+  const remaining = 160 - count;
+  return (
+    <span className={`text-[10px] font-mono tabular-nums ${remaining < 0 ? "text-destructive font-semibold" : remaining <= 20 ? "text-amber-500" : "text-muted-foreground"}`}>
+      {count}/160
+    </span>
+  );
+};
+
 const BannerRichEditor = ({
   initialHtml,
   textAlign,
@@ -51,6 +69,22 @@ const BannerRichEditor = ({
 
   const handleInput = useCallback(() => {
     if (!editorRef.current) return;
+    const plainText = editorRef.current.textContent ?? "";
+    // Enforce 160 char limit
+    if (plainText.length > 160) {
+      // Truncate text content back to 160
+      const sel = window.getSelection();
+      const range = sel?.getRangeAt(0);
+      editorRef.current.textContent = plainText.slice(0, 160);
+      // Restore cursor to end
+      if (range) {
+        const newRange = document.createRange();
+        newRange.selectNodeContents(editorRef.current);
+        newRange.collapse(false);
+        sel?.removeAllRanges();
+        sel?.addRange(newRange);
+      }
+    }
     const sanitized = sanitizeLinks(editorRef.current.innerHTML);
     onChange(sanitized, editorRef.current.textContent ?? "");
   }, [onChange]);
@@ -165,7 +199,10 @@ const BannerRichEditor = ({
         className="min-h-[2.5rem] max-h-[4.5rem] overflow-hidden rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground empty:before:pointer-events-none"
         style={{ textAlign, lineHeight: "1.4" }}
       />
-      <p className="text-[10px] text-muted-foreground">Até 2 linhas. Use Enter para quebrar linha.</p>
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] text-muted-foreground">Máx. 80 caracteres por linha (2 linhas). Use Enter para quebrar linha.</p>
+        <CharCounter editorRef={editorRef} />
+      </div>
     </div>
   );
 };

@@ -1177,14 +1177,14 @@ export default {
   "broadcasts.new": "Nova Mensagem em Massa",
   "broadcasts.empty": "Nenhuma mensagem em massa criada",
 
-  // Banners
-  "banners.title": "Banners",
-  "banners.subtitle": "Gerencie banners e notificações exibidos para seus clientes",
+  // Outbound (Banners + Pages)
+  "banners.title": "Outbound",
+  "banners.subtitle": "Gerencie banners e páginas exibidos para seus clientes",
   "banners.create": "Criar Banner",
   "banners.edit": "Editar Banner",
-  "banners.noBanners": "Nenhum banner cadastrado",
-  "banners.emptyDescription": "Crie banners para comunicar avisos, promoções e atualizações aos seus clientes.",
-  "banners.createFirst": "Criar primeiro banner",
+  "banners.noBanners": "Nenhum item cadastrado",
+  "banners.emptyDescription": "Crie banners ou páginas para comunicar avisos, promoções e atualizações aos seus clientes.",
+  "banners.createFirst": "Criar primeiro item",
   "banners.active": "Ativo",
   "banners.inactive": "Inativo",
   "banners.clients": "clientes",
@@ -1207,8 +1207,8 @@ export default {
   "banners.client": "Cliente",
   "banners.vote": "Voto",
   "banners.duplicate": "Duplicar",
-  "banners.confirmDelete": "Excluir banner?",
-  "banners.confirmDeleteDesc": "Esta ação removerá o banner e todas as suas atribuições permanentemente.",
+  "banners.confirmDelete": "Excluir item?",
+  "banners.confirmDeleteDesc": "Esta ação removerá o item e todas as suas atribuições permanentemente.",
   "banners.typeLabel": "Tipo",
   "banners.sectionIdentification": "Identificação",
   "banners.sectionContent": "Conteúdo",
@@ -1221,6 +1221,11 @@ export default {
   "banners.priority": "Prioridade",
   "banners.maxViews": "Máx. exibições",
   "banners.targetAll": "Exibir para todos os clientes",
+  "banners.outboundType": "Tipo",
+  "banners.typeBanner": "Banner",
+  "banners.typePage": "Página",
+  "banners.pageHtmlLabel": "Conteúdo HTML da Página",
+  "banners.pageHtmlPlaceholder": "Crie o conteúdo visual da página...",
 
   // Company Details Sheet
   "companyDetails.integration": "Integração",

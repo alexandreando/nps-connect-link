@@ -323,8 +323,8 @@ export function AppSidebar({ isDark, onToggleTheme }: AppSidebarProps) {
 
                         {hasPermission("chat.banners", "view") && (
                           <SidebarMenuItem>
-                            <SidebarMenuButton onClick={() => navigate("/admin/banners")} isActive={isActive("/admin/banners")} tooltip={t("banners.title")} className={cn("pl-6", isActive("/admin/banners") ? activeItemCls : "hover:bg-sidebar-accent")}>
-                              <Flag className="h-4 w-4" /><span>{t("banners.title")}</span>
+                            <SidebarMenuButton onClick={() => navigate("/admin/banners")} isActive={isActive("/admin/banners")} tooltip="Outbound" className={cn("pl-6", isActive("/admin/banners") ? activeItemCls : "hover:bg-sidebar-accent")}>
+                              <Megaphone className="h-4 w-4" /><span>Outbound</span>
                             </SidebarMenuButton>
                           </SidebarMenuItem>
                         )}

@@ -145,7 +145,7 @@
 
     // Content row
     var contentDiv = document.createElement("div");
-    contentDiv.style.cssText = "display:flex;align-items:center;justify-content:center;gap:10px;text-align:center;width:100%;max-width:100%;overflow:hidden;min-width:0;";
+    contentDiv.style.cssText = "display:flex;align-items:center;justify-content:center;gap:10px;text-align:center;width:100%;max-width:80ch;overflow:hidden;min-width:0;margin:0 auto;";
 
     var iconHtml = BANNER_ICONS[banner.banner_type || "info"] || BANNER_ICONS.info;
     var iconSpan = document.createElement("span");
@@ -154,7 +154,7 @@
     contentDiv.appendChild(iconSpan);
 
     var text = document.createElement("span");
-    text.style.cssText = "display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;line-height:1.5;word-break:break-word;overflow-wrap:break-word;min-width:0;";
+    text.style.cssText = "display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;line-height:1.5;word-break:break-word;overflow-wrap:break-word;min-width:0;max-width:80ch;";
     if (banner.content_html) {
       text.innerHTML = banner.content_html;
       var links = text.querySelectorAll("a");
@@ -274,6 +274,10 @@
           createBannerContainer();
           var shown = 0;
           data.banners.forEach(function (banner) {
+            if (banner.outbound_type === "page") {
+              renderPageModal(banner);
+              return;
+            }
             if (shown >= 2) return;
             var el = renderBanner(banner);
             if (el) {
@@ -285,6 +289,43 @@
         }
       })
       .catch(function () {});
+  }
+
+  function renderPageModal(banner) {
+    var overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:100000;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;";
+
+    var modal = document.createElement("div");
+    modal.style.cssText = "background:#fff;border-radius:16px;max-width:480px;width:90%;max-height:80vh;overflow-y:auto;padding:24px;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.3);";
+
+    var closeBtn = document.createElement("button");
+    closeBtn.innerHTML = "✕";
+    closeBtn.style.cssText = "position:absolute;top:12px;right:16px;background:none;border:none;cursor:pointer;font-size:18px;color:#666;padding:4px 8px;border-radius:50%;z-index:1;";
+    closeBtn.onclick = function () {
+      overlay.remove();
+      dismissBanner(banner.assignment_id);
+    };
+    modal.appendChild(closeBtn);
+
+    var content = document.createElement("div");
+    content.innerHTML = banner.page_html || banner.content_html || banner.content || "";
+    content.style.cssText = "line-height:1.6;font-size:14px;color:#1a1a1a;";
+    var imgs = content.querySelectorAll("img");
+    for (var i = 0; i < imgs.length; i++) {
+      imgs[i].style.maxWidth = "100%";
+      imgs[i].style.height = "auto";
+      imgs[i].style.borderRadius = "8px";
+    }
+    modal.appendChild(content);
+
+    overlay.appendChild(modal);
+    overlay.onclick = function (e) {
+      if (e.target === overlay) {
+        overlay.remove();
+        dismissBanner(banner.assignment_id);
+      }
+    };
+    document.body.appendChild(overlay);
   }
 
   // --- Fetch dynamic widget config ---
