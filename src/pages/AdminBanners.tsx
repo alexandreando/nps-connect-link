@@ -261,6 +261,8 @@ const AdminBanners = () => {
     is_floating: false,
     can_close: true,
     has_decorations: false,
+    outbound_type: "banner" as OutboundType,
+    page_html: "",
   };
 
   const [form, setForm] = useState(defaultForm);
