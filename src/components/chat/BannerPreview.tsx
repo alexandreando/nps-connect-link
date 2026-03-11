@@ -99,7 +99,8 @@ const BannerPreview = ({
   const isCustom = resolvedVariant === "custom";
   const variantStyle = !isCustom ? VARIANT_STYLES[resolvedVariant] : null;
   const TypeIcon = variantStyle?.icon ?? Info;
-  const bannerColor = isCustom ? textColor : (variantStyle?.inlineStyle.color as string ?? "#0F172A");
+  // Always use props as source of truth for colors (they come from form.bg_color/text_color)
+  const bannerColor = textColor || (isCustom ? "#FFFFFF" : (variantStyle?.inlineStyle.color as string ?? "#0F172A"));
 
   const getScheduleBadge = () => {
     if (!startsAt && !expiresAt) return null;
