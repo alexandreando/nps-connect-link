@@ -909,8 +909,9 @@ const AdminBanners = () => {
                   />
                 </div>
               </div>
-              )
+              )}
 
+              {form.outbound_type === "banner" && (<>
               {/* Section 3: Appearance — Variant Selector */}
               <div className="rounded-lg bg-muted/30 p-4 space-y-3">
                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">
