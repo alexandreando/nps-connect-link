@@ -74,7 +74,7 @@ const SuspenseFallback = () => (
 );
 
 const App = () => (
-  <ThemeProvider attribute="class" defaultTheme="light">
+  <ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light" enableSystem={false}>
   <QueryClientProvider client={queryClient}>
     <LanguageProvider>
     <TooltipProvider>
