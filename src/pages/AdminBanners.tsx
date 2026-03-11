@@ -853,7 +853,16 @@ const AdminBanners = () => {
                         <button
                           key={v.value}
                           type="button"
-                          onClick={() => setForm({ ...form, variant: v.value })}
+                          onClick={() => {
+                            if (v.value !== "custom") {
+                              const vs = VARIANT_STYLES[v.value];
+                              const bg = (vs.inlineStyle.background as string) ?? (vs.inlineStyle.backgroundColor as string) ?? form.bg_color;
+                              const tc = (vs.inlineStyle.color as string) ?? form.text_color;
+                              setForm({ ...form, variant: v.value, bg_color: bg, text_color: tc });
+                            } else {
+                              setForm({ ...form, variant: v.value });
+                            }
+                          }}
                           className={cn(
                             "flex flex-col items-center gap-1.5 p-2 rounded-lg border text-center transition-all",
                             isSelected

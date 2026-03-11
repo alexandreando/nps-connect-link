@@ -86,19 +86,15 @@
     var borderCss = BORDER_CSS[banner.border_style] || "";
     var shadowCss = SHADOW_CSS[banner.shadow_style] || "";
 
-    // Resolve semantic variant colors or fall back to custom
-    var variantKey = TYPE_TO_VARIANT[banner.banner_type || "info"];
-    var vc = variantKey ? VARIANT_COLORS[variantKey] : null;
-    var useBg = vc ? vc.bg : banner.bg_color;
-    var useText = vc ? vc.text : banner.text_color;
-    var useBorder = vc ? (vc.border !== "transparent" ? "1px solid " + vc.border : "") : "";
+    // Use bg_color and text_color directly from database
+    var useBg = banner.bg_color || "#3B82F6";
+    var useText = banner.text_color || "#FFFFFF";
 
     div.style.cssText =
       "padding:12px 48px 12px 20px;font-size:14px;font-weight:500;letter-spacing:0.01em;line-height:1.5;" +
       "position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;" +
       "overflow:hidden;box-sizing:border-box;max-width:100vw;border-radius:16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);" +
       (useBg.indexOf("linear-gradient") === 0 ? "background:" : "background-color:") + useBg + ";color:" + useText + ";" +
-      (useBorder ? "border:" + useBorder + ";" : "") +
       "transform:translateY(-100%);transition:transform 0.3s ease;" +
       borderCss + shadowCss;
 
