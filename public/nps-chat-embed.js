@@ -293,32 +293,38 @@
 
   function renderPageModal(banner) {
     var overlay = document.createElement("div");
-    overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:100000;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;";
+    overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);z-index:100000;display:flex;align-items:center;justify-content:center;";
 
-    var modal = document.createElement("div");
-    modal.style.cssText = "background:#fff;border-radius:16px;max-width:480px;width:90%;max-height:80vh;overflow-y:auto;padding:24px;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.3);";
+    var wrapper = document.createElement("div");
+    wrapper.style.cssText = "position:relative;max-width:600px;width:90%;";
 
     var closeBtn = document.createElement("button");
     closeBtn.innerHTML = "✕";
-    closeBtn.style.cssText = "position:absolute;top:12px;right:16px;background:none;border:none;cursor:pointer;font-size:18px;color:#666;padding:4px 8px;border-radius:50%;z-index:1;";
-    closeBtn.onclick = function () {
+    closeBtn.style.cssText = "position:absolute;top:-12px;right:-12px;width:32px;height:32px;background:rgba(0,0,0,0.5);border:none;cursor:pointer;font-size:14px;color:#fff;border-radius:50%;z-index:1;display:flex;align-items:center;justify-content:center;transition:background 0.2s;";
+    closeBtn.onmouseenter = function () { closeBtn.style.background = "rgba(0,0,0,0.7)"; };
+    closeBtn.onmouseleave = function () { closeBtn.style.background = "rgba(0,0,0,0.5)"; };
+    closeBtn.onclick = function (e) {
+      e.stopPropagation();
       overlay.remove();
       dismissBanner(banner.assignment_id);
     };
-    modal.appendChild(closeBtn);
+    wrapper.appendChild(closeBtn);
 
-    var content = document.createElement("div");
-    content.innerHTML = banner.page_html || banner.content_html || banner.content || "";
-    content.style.cssText = "line-height:1.6;font-size:14px;color:#1a1a1a;";
-    var imgs = content.querySelectorAll("img");
-    for (var i = 0; i < imgs.length; i++) {
-      imgs[i].style.maxWidth = "100%";
-      imgs[i].style.height = "auto";
-      imgs[i].style.borderRadius = "8px";
+    var img = document.createElement("img");
+    img.src = banner.page_html || "";
+    img.style.cssText = "max-width:100%;max-height:80vh;object-fit:contain;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);display:block;margin:0 auto;";
+    if (banner.link_url) {
+      img.style.cursor = "pointer";
+      img.onclick = function (e) {
+        e.stopPropagation();
+        window.open(banner.link_url, "_blank");
+        overlay.remove();
+        dismissBanner(banner.assignment_id);
+      };
     }
-    modal.appendChild(content);
+    wrapper.appendChild(img);
 
-    overlay.appendChild(modal);
+    overlay.appendChild(wrapper);
     overlay.onclick = function (e) {
       if (e.target === overlay) {
         overlay.remove();
