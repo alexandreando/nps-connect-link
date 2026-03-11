@@ -689,6 +689,13 @@ const AdminBanners = () => {
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-medium">{banner.title}</h3>
                           <Badge variant={status.variant}>{status.label}</Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {(banner as any).outbound_type === "page" ? (
+                              <><FileText className="h-3 w-3 mr-1" />Página</>
+                            ) : (
+                              <><Megaphone className="h-3 w-3 mr-1" />Banner</>
+                            )}
+                          </Badge>
                           {banner.target_all && (
                             <Badge variant="outline" className="text-xs">{t("banners.allClients")}</Badge>
                           )}
