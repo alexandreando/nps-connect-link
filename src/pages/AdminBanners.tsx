@@ -306,10 +306,21 @@ const AdminBanners = () => {
     setFieldRules(((data as unknown) as FieldRule[]) ?? []);
   }, []);
 
+  const resolveVariantFromColors = (bgColor: string, textColor: string): BannerVariant => {
+    for (const [key, style] of Object.entries(VARIANT_STYLES)) {
+      const s = style.inlineStyle;
+      const sBg = (s.background as string) ?? (s.backgroundColor as string) ?? "";
+      if (sBg === bgColor && (s.color as string) === textColor) {
+        return key as BannerVariant;
+      }
+    }
+    return "custom";
+  };
+
   const openBannerDialog = (banner?: Banner) => {
     if (banner) {
       setEditingBanner(banner);
-      const resolvedVariant = (TYPE_TO_VARIANT[banner.banner_type] ?? "neutral") as BannerVariant;
+      const resolvedVariant = resolveVariantFromColors(banner.bg_color, banner.text_color);
       setForm({
         title: banner.title,
         content: banner.content,
@@ -348,7 +359,7 @@ const AdminBanners = () => {
 
   const duplicateBanner = (banner: Banner) => {
     setEditingBanner(null);
-    const resolvedVariant = (TYPE_TO_VARIANT[banner.banner_type] ?? "neutral") as BannerVariant;
+    const resolvedVariant = resolveVariantFromColors(banner.bg_color, banner.text_color);
     setForm({
       title: banner.title + " (cópia)",
       content: banner.content,
@@ -842,7 +853,16 @@ const AdminBanners = () => {
                         <button
                           key={v.value}
                           type="button"
-                          onClick={() => setForm({ ...form, variant: v.value })}
+                          onClick={() => {
+                            if (v.value !== "custom") {
+                              const vs = VARIANT_STYLES[v.value];
+                              const bg = (vs.inlineStyle.background as string) ?? (vs.inlineStyle.backgroundColor as string) ?? form.bg_color;
+                              const tc = (vs.inlineStyle.color as string) ?? form.text_color;
+                              setForm({ ...form, variant: v.value, bg_color: bg, text_color: tc });
+                            } else {
+                              setForm({ ...form, variant: v.value });
+                            }
+                          }}
                           className={cn(
                             "flex flex-col items-center gap-1.5 p-2 rounded-lg border text-center transition-all",
                             isSelected

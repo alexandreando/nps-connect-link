@@ -99,7 +99,8 @@ const BannerPreview = ({
   const isCustom = resolvedVariant === "custom";
   const variantStyle = !isCustom ? VARIANT_STYLES[resolvedVariant] : null;
   const TypeIcon = variantStyle?.icon ?? Info;
-  const bannerColor = isCustom ? textColor : (variantStyle?.inlineStyle.color as string ?? "#0F172A");
+  // Always use props as source of truth for colors (they come from form.bg_color/text_color)
+  const bannerColor = textColor || (isCustom ? "#FFFFFF" : (variantStyle?.inlineStyle.color as string ?? "#0F172A"));
 
   const getScheduleBadge = () => {
     if (!startsAt && !expiresAt) return null;
@@ -126,13 +127,12 @@ const BannerPreview = ({
 
   const floatingMode = isFloating || borderStyle === "pill";
 
-  const bannerInlineStyle: React.CSSProperties = isCustom
-    ? {
-        ...(bgColor.startsWith("linear-gradient") ? { background: bgColor } : { backgroundColor: bgColor }),
-        color: textColor,
-        borderColor: "transparent"
-      }
-    : { ...variantStyle?.inlineStyle };
+  // Always use bgColor/textColor props as the source of truth
+  const bannerInlineStyle: React.CSSProperties = {
+    ...(bgColor.startsWith("linear-gradient") ? { background: bgColor } : { backgroundColor: bgColor }),
+    color: textColor || variantStyle?.inlineStyle.color as string || "#0F172A",
+    borderColor: variantStyle?.inlineStyle.borderColor as string || "transparent"
+  };
 
   return (
     <div className="w-full max-w-lg mx-auto rounded-xl overflow-hidden shadow-lg border bg-background">
