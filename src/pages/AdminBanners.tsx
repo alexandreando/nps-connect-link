@@ -828,15 +828,46 @@ const AdminBanners = () => {
                 </Collapsible>
               )}
 
-              {/* Section 1: Title */}
+              {/* Section 1: Type + Title */}
               <div className="rounded-lg bg-muted/30 p-4 space-y-3">
                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                   <Info className="h-4 w-4 text-muted-foreground" />
                   {t("banners.sectionIdentification")}
                 </div>
                 <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">{t("banners.outboundType")}</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, outbound_type: "banner" })}
+                      className={cn(
+                        "flex items-center gap-2 p-3 rounded-lg border text-sm font-medium transition-all",
+                        form.outbound_type === "banner"
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border hover:bg-muted/50"
+                      )}
+                    >
+                      <Megaphone className="h-4 w-4" />
+                      {t("banners.typeBanner")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, outbound_type: "page" })}
+                      className={cn(
+                        "flex items-center gap-2 p-3 rounded-lg border text-sm font-medium transition-all",
+                        form.outbound_type === "page"
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border hover:bg-muted/50"
+                      )}
+                    >
+                      <FileText className="h-4 w-4" />
+                      {t("banners.typePage")}
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">{t("banners.titleLabel")} <span className="text-destructive">*</span></Label>
-                  <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Título interno do banner" />
+                  <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Título interno" />
                 </div>
               </div>
 
