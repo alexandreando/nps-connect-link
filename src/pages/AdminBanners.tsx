@@ -804,26 +804,28 @@ const AdminBanners = () => {
                       <ChevronDown className="h-4 w-4" />
                     </Button>
                   </CollapsibleTrigger>
-                  <CollapsibleContent className="pt-3">
-                    <BannerPreview
-                      content={form.content}
-                      contentHtml={form.content_html || undefined}
-                      textAlign={form.text_align}
-                      bgColor={form.bg_color}
-                      textColor={form.text_color}
-                      linkUrl={form.link_url || undefined}
-                      linkLabel={form.link_label || undefined}
-                      hasVoting={form.has_voting}
-                      bannerType={form.banner_type}
-                      startsAt={form.starts_at?.toISOString()}
-                      expiresAt={form.expires_at?.toISOString()}
-                      position={form.position}
-                      borderStyle={form.border_style}
-                      shadowStyle={form.shadow_style}
-                      variant={form.variant}
-                      isFloating={form.is_floating}
-                      canClose={form.can_close}
-                    />
+              <CollapsibleContent className="pt-3">
+                    <div className="bg-white rounded-lg p-3">
+                      <BannerPreview
+                        content={form.content}
+                        contentHtml={form.content_html || undefined}
+                        textAlign={form.text_align}
+                        bgColor={form.bg_color}
+                        textColor={form.text_color}
+                        linkUrl={form.link_url || undefined}
+                        linkLabel={form.link_label || undefined}
+                        hasVoting={form.has_voting}
+                        bannerType={form.banner_type}
+                        startsAt={form.starts_at?.toISOString()}
+                        expiresAt={form.expires_at?.toISOString()}
+                        position={form.position}
+                        borderStyle={form.border_style}
+                        shadowStyle={form.shadow_style}
+                        variant={form.variant}
+                        isFloating={form.is_floating}
+                        canClose={form.can_close}
+                      />
+                    </div>
                   </CollapsibleContent>
                 </Collapsible>
               )}
