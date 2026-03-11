@@ -34,39 +34,48 @@ interface VariantStyle {
 const VARIANT_STYLES: Record<Exclude<BannerVariant, "custom">, VariantStyle> = {
   warning: {
     inlineStyle: { backgroundColor: "#FFFBEB", borderColor: "#FDE68A", color: "#78350F" },
-    icon: Hammer
+    icon: Hammer,
+    decorations: false
   },
   urgent: {
     inlineStyle: { backgroundColor: "#DC2626", borderColor: "#B91C1C", color: "#FFFFFF" },
-    icon: ShieldAlert
+    icon: ShieldAlert,
+    decorations: false
   },
   success: {
     inlineStyle: { backgroundColor: "#ECFDF5", borderColor: "#A7F3D0", color: "#064E3B" },
-    icon: CheckCircle
+    icon: CheckCircle,
+    decorations: false
   },
   neutral: {
     inlineStyle: { backgroundColor: "#F8FAFC", borderColor: "#E2E8F0", color: "#0F172A" },
-    icon: Info
+    icon: Info,
+    decorations: false
   },
   premium: {
     inlineStyle: { backgroundColor: "#4F46E5", borderColor: "#4338CA", color: "#FFFFFF" },
-    icon: Megaphone
+    icon: Megaphone,
+    decorations: true
   },
   ocean: {
     inlineStyle: { background: "linear-gradient(135deg, #3B82F6, #8B5CF6)", borderColor: "transparent", color: "#FFFFFF" },
-    icon: Droplets
+    icon: Droplets,
+    decorations: true
   },
   sunset: {
     inlineStyle: { background: "linear-gradient(135deg, #F97316, #EF4444)", borderColor: "transparent", color: "#FFFFFF" },
-    icon: Flame
+    icon: Flame,
+    decorations: true
   },
   midnight: {
     inlineStyle: { backgroundColor: "#0F172A", borderColor: "#334155", color: "#F1F5F9" },
-    icon: Moon
+    icon: Moon,
+    decorations: true
   },
   neon: {
     inlineStyle: { background: "linear-gradient(135deg, #EC4899, #06B6D4)", borderColor: "transparent", color: "#FFFFFF" },
-    icon: Zap
+    icon: Zap,
+    decorations: true
   }
 };
 
