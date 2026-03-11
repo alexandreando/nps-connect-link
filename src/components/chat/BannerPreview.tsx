@@ -20,6 +20,7 @@ interface BannerPreviewProps {
   variant?: BannerVariant;
   isFloating?: boolean;
   canClose?: boolean;
+  hasDecorations?: boolean;
 }
 
 export type BannerVariant = "warning" | "urgent" | "success" | "neutral" | "premium" | "ocean" | "sunset" | "midnight" | "neon" | "custom";
