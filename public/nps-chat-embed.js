@@ -92,7 +92,7 @@
 
     div.style.cssText =
       "padding:12px 48px 12px 20px;font-size:14px;font-weight:500;letter-spacing:0.01em;line-height:1.5;" +
-      "position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;" +
+      "position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;" +
       "overflow:hidden;box-sizing:border-box;max-width:100vw;border-radius:16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);" +
       (useBg.indexOf("linear-gradient") === 0 ? "background:" : "background-color:") + useBg + ";color:" + useText + ";" +
       "transform:translateY(-100%);transition:transform 0.3s ease;" +
