@@ -359,7 +359,7 @@ const AdminBanners = () => {
 
   const duplicateBanner = (banner: Banner) => {
     setEditingBanner(null);
-    const resolvedVariant = (TYPE_TO_VARIANT[banner.banner_type] ?? "neutral") as BannerVariant;
+    const resolvedVariant = resolveVariantFromColors(banner.bg_color, banner.text_color);
     setForm({
       title: banner.title + " (cópia)",
       content: banner.content,
