@@ -145,7 +145,7 @@
 
     // Content row
     var contentDiv = document.createElement("div");
-    contentDiv.style.cssText = "display:flex;align-items:center;justify-content:center;gap:10px;text-align:center;width:100%;max-width:100%;overflow:hidden;min-width:0;";
+    contentDiv.style.cssText = "display:flex;align-items:center;justify-content:center;gap:10px;text-align:center;width:100%;max-width:80ch;overflow:hidden;min-width:0;margin:0 auto;";
 
     var iconHtml = BANNER_ICONS[banner.banner_type || "info"] || BANNER_ICONS.info;
     var iconSpan = document.createElement("span");
