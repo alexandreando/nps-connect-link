@@ -171,7 +171,7 @@
     var hasActions = banner.link_url || banner.has_voting;
     if (hasActions) {
       var actions = document.createElement("div");
-      actions.style.cssText = "display:flex;align-items:center;justify-content:center;gap:12px;margin-top:2px;";
+      actions.style.cssText = "display:flex;align-items:center;justify-content:center;gap:8px;";
 
       if (banner.link_url) {
         var link = document.createElement("a");
