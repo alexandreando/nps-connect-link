@@ -135,15 +135,14 @@ const BannerPreview = ({
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto rounded-xl overflow-hidden shadow-lg border bg-background">
+    <div className="w-full max-w-lg mx-auto rounded-xl shadow-lg border bg-background">
       {/* Banner */}
       <div
         className={cn(
-          "py-3 px-5 text-sm leading-relaxed relative flex flex-col items-center justify-center gap-3",
+          "py-2.5 px-5 text-sm leading-relaxed relative flex flex-col items-center justify-center gap-1.5",
           "font-medium tracking-[0.01em] backdrop-blur-md transition-all border",
-          floatingMode && "mx-4 mt-2 rounded-2xl",
-          !floatingMode && "rounded-none",
-          "shadow-sm"
+          floatingMode && "mx-4 my-3 rounded-2xl shadow-lg",
+          !floatingMode && "rounded-none shadow-sm"
         )}
         style={bannerInlineStyle}
       >
