@@ -51,6 +51,22 @@ const BannerRichEditor = ({
 
   const handleInput = useCallback(() => {
     if (!editorRef.current) return;
+    const plainText = editorRef.current.textContent ?? "";
+    // Enforce 160 char limit
+    if (plainText.length > 160) {
+      // Truncate text content back to 160
+      const sel = window.getSelection();
+      const range = sel?.getRangeAt(0);
+      editorRef.current.textContent = plainText.slice(0, 160);
+      // Restore cursor to end
+      if (range) {
+        const newRange = document.createRange();
+        newRange.selectNodeContents(editorRef.current);
+        newRange.collapse(false);
+        sel?.removeAllRanges();
+        sel?.addRange(newRange);
+      }
+    }
     const sanitized = sanitizeLinks(editorRef.current.innerHTML);
     onChange(sanitized, editorRef.current.textContent ?? "");
   }, [onChange]);
