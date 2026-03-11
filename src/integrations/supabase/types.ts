@@ -619,6 +619,7 @@ export type Database = {
           created_at: string | null
           display_frequency: string
           expires_at: string | null
+          has_decorations: boolean | null
           has_voting: boolean | null
           id: string
           is_active: boolean | null
@@ -648,6 +649,7 @@ export type Database = {
           created_at?: string | null
           display_frequency?: string
           expires_at?: string | null
+          has_decorations?: boolean | null
           has_voting?: boolean | null
           id?: string
           is_active?: boolean | null
@@ -677,6 +679,7 @@ export type Database = {
           created_at?: string | null
           display_frequency?: string
           expires_at?: string | null
+          has_decorations?: boolean | null
           has_voting?: boolean | null
           id?: string
           is_active?: boolean | null
