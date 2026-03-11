@@ -1181,8 +1181,8 @@ const AdminBanners = () => {
             </div>
           </div>
 
-          {/* Preview panel — collapsible sticky bottom */}
-          {!isMobile && (
+          {/* Preview panel — collapsible sticky bottom (banner only) */}
+          {!isMobile && form.outbound_type === "banner" && (
             <Collapsible defaultOpen className="border-t border-border bg-muted/20">
               <CollapsibleTrigger className="flex items-center gap-2 px-6 py-2 w-full text-left hover:bg-muted/40 transition-colors">
                 <Eye className="h-3.5 w-3.5 text-muted-foreground" />
