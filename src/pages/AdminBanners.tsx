@@ -257,6 +257,7 @@ const AdminBanners = () => {
     variant: "neutral" as BannerVariant,
     is_floating: false,
     can_close: true,
+    has_decorations: false,
   };
 
   const [form, setForm] = useState(defaultForm);
@@ -347,6 +348,7 @@ const AdminBanners = () => {
         variant: resolvedVariant,
         is_floating: banner.position === "float" || banner.border_style === "pill",
         can_close: true,
+        has_decorations: (banner as any).has_decorations ?? false,
       });
       fetchFieldRules(banner.id);
     } else {
@@ -386,6 +388,7 @@ const AdminBanners = () => {
       variant: resolvedVariant,
       is_floating: banner.position === "float" || banner.border_style === "pill",
       can_close: true,
+      has_decorations: (banner as any).has_decorations ?? false,
     });
     setFieldRules([]);
     setBannerDialog(true);
@@ -505,6 +508,7 @@ const AdminBanners = () => {
       display_frequency: form.display_frequency,
       border_style: form.border_style,
       shadow_style: form.shadow_style,
+      has_decorations: form.has_decorations,
     };
 
     if (editingBanner) {
@@ -858,9 +862,9 @@ const AdminBanners = () => {
                               const vs = VARIANT_STYLES[v.value];
                               const bg = (vs.inlineStyle.background as string) ?? (vs.inlineStyle.backgroundColor as string) ?? form.bg_color;
                               const tc = (vs.inlineStyle.color as string) ?? form.text_color;
-                              setForm({ ...form, variant: v.value, bg_color: bg, text_color: tc });
+                              setForm({ ...form, variant: v.value, bg_color: bg, text_color: tc, has_decorations: vs.decorations });
                             } else {
-                              setForm({ ...form, variant: v.value });
+                              setForm({ ...form, variant: v.value, has_decorations: false });
                             }
                           }}
                           className={cn(
@@ -939,7 +943,7 @@ const AdminBanners = () => {
                 </ScrollArea>
 
                 <div className="space-y-3 pt-2 border-t border-border/50">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div className="flex items-center gap-3">
                       <Switch checked={form.is_floating} onCheckedChange={(v) => setForm({ ...form, is_floating: v, position: v ? "float" : "top", border_style: v ? "pill" : "none" })} />
                       <Label className="text-sm">Flutuante</Label>
@@ -947,6 +951,10 @@ const AdminBanners = () => {
                     <div className="flex items-center gap-3">
                       <Switch checked={form.can_close} onCheckedChange={(v) => setForm({ ...form, can_close: v })} />
                       <Label className="text-sm">Botão fechar</Label>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Switch checked={form.has_decorations} onCheckedChange={(v) => setForm({ ...form, has_decorations: v })} />
+                      <Label className="text-sm">Formas decorativas</Label>
                     </div>
                   </div>
                 </div>
@@ -1100,30 +1108,37 @@ const AdminBanners = () => {
             </div>
           </div>
 
-          {/* Preview panel — sticky bottom */}
+          {/* Preview panel — collapsible sticky bottom */}
           {!isMobile && (
-            <div className="border-t border-border bg-muted/20 px-6 py-3">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wider mb-2 block">Preview</Label>
-              <BannerPreview
-                content={form.content}
-                contentHtml={form.content_html || undefined}
-                textAlign={form.text_align}
-                bgColor={form.bg_color}
-                textColor={form.text_color}
-                linkUrl={form.link_url || undefined}
-                linkLabel={form.link_label || undefined}
-                hasVoting={form.has_voting}
-                bannerType={VARIANT_TO_TYPE[form.variant] ?? "info"}
-                startsAt={form.starts_at?.toISOString()}
-                expiresAt={form.expires_at?.toISOString()}
-                position={form.position}
-                borderStyle={form.border_style}
-                shadowStyle={form.shadow_style}
-                variant={form.variant}
-                isFloating={form.is_floating}
-                canClose={form.can_close}
-              />
-            </div>
+            <Collapsible defaultOpen className="border-t border-border bg-muted/20">
+              <CollapsibleTrigger className="flex items-center gap-2 px-6 py-2 w-full text-left hover:bg-muted/40 transition-colors">
+                <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Preview</span>
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-auto transition-transform [[data-state=open]_&]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="px-6 pb-3">
+                <BannerPreview
+                  content={form.content}
+                  contentHtml={form.content_html || undefined}
+                  textAlign={form.text_align}
+                  bgColor={form.bg_color}
+                  textColor={form.text_color}
+                  linkUrl={form.link_url || undefined}
+                  linkLabel={form.link_label || undefined}
+                  hasVoting={form.has_voting}
+                  bannerType={VARIANT_TO_TYPE[form.variant] ?? "info"}
+                  startsAt={form.starts_at?.toISOString()}
+                  expiresAt={form.expires_at?.toISOString()}
+                  position={form.position}
+                  borderStyle={form.border_style}
+                  shadowStyle={form.shadow_style}
+                  variant={form.variant}
+                  isFloating={form.is_floating}
+                  canClose={form.can_close}
+                  hasDecorations={form.has_decorations}
+                />
+              </CollapsibleContent>
+            </Collapsible>
           )}
 
           <DialogFooter className="px-6 py-4 border-t border-border">
