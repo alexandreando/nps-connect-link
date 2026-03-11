@@ -257,6 +257,7 @@ const AdminBanners = () => {
     variant: "neutral" as BannerVariant,
     is_floating: false,
     can_close: true,
+    has_decorations: false,
   };
 
   const [form, setForm] = useState(defaultForm);
