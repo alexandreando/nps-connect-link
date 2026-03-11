@@ -1108,30 +1108,37 @@ const AdminBanners = () => {
             </div>
           </div>
 
-          {/* Preview panel — sticky bottom */}
+          {/* Preview panel — collapsible sticky bottom */}
           {!isMobile && (
-            <div className="border-t border-border bg-muted/20 px-6 py-3">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wider mb-2 block">Preview</Label>
-              <BannerPreview
-                content={form.content}
-                contentHtml={form.content_html || undefined}
-                textAlign={form.text_align}
-                bgColor={form.bg_color}
-                textColor={form.text_color}
-                linkUrl={form.link_url || undefined}
-                linkLabel={form.link_label || undefined}
-                hasVoting={form.has_voting}
-                bannerType={VARIANT_TO_TYPE[form.variant] ?? "info"}
-                startsAt={form.starts_at?.toISOString()}
-                expiresAt={form.expires_at?.toISOString()}
-                position={form.position}
-                borderStyle={form.border_style}
-                shadowStyle={form.shadow_style}
-                variant={form.variant}
-                isFloating={form.is_floating}
-                canClose={form.can_close}
-              />
-            </div>
+            <Collapsible defaultOpen className="border-t border-border bg-muted/20">
+              <CollapsibleTrigger className="flex items-center gap-2 px-6 py-2 w-full text-left hover:bg-muted/40 transition-colors">
+                <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Preview</span>
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-auto transition-transform [[data-state=open]_&]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="px-6 pb-3">
+                <BannerPreview
+                  content={form.content}
+                  contentHtml={form.content_html || undefined}
+                  textAlign={form.text_align}
+                  bgColor={form.bg_color}
+                  textColor={form.text_color}
+                  linkUrl={form.link_url || undefined}
+                  linkLabel={form.link_label || undefined}
+                  hasVoting={form.has_voting}
+                  bannerType={VARIANT_TO_TYPE[form.variant] ?? "info"}
+                  startsAt={form.starts_at?.toISOString()}
+                  expiresAt={form.expires_at?.toISOString()}
+                  position={form.position}
+                  borderStyle={form.border_style}
+                  shadowStyle={form.shadow_style}
+                  variant={form.variant}
+                  isFloating={form.is_floating}
+                  canClose={form.can_close}
+                  hasDecorations={form.has_decorations}
+                />
+              </CollapsibleContent>
+            </Collapsible>
           )}
 
           <DialogFooter className="px-6 py-4 border-t border-border">
