@@ -943,7 +943,7 @@ const AdminBanners = () => {
                 </ScrollArea>
 
                 <div className="space-y-3 pt-2 border-t border-border/50">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div className="flex items-center gap-3">
                       <Switch checked={form.is_floating} onCheckedChange={(v) => setForm({ ...form, is_floating: v, position: v ? "float" : "top", border_style: v ? "pill" : "none" })} />
                       <Label className="text-sm">Flutuante</Label>
@@ -951,6 +951,10 @@ const AdminBanners = () => {
                     <div className="flex items-center gap-3">
                       <Switch checked={form.can_close} onCheckedChange={(v) => setForm({ ...form, can_close: v })} />
                       <Label className="text-sm">Botão fechar</Label>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Switch checked={form.has_decorations} onCheckedChange={(v) => setForm({ ...form, has_decorations: v })} />
+                      <Label className="text-sm">Formas decorativas</Label>
                     </div>
                   </div>
                 </div>
