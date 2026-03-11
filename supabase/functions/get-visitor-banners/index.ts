@@ -70,6 +70,7 @@ function buildBannerResult(banner: any, assignment: any) {
     display_frequency: banner.display_frequency ?? "always",
     border_style: banner.border_style ?? "none",
     shadow_style: banner.shadow_style ?? "none",
+    has_decorations: banner.has_decorations ?? false,
   };
 }
 
