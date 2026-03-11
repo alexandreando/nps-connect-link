@@ -862,9 +862,9 @@ const AdminBanners = () => {
                               const vs = VARIANT_STYLES[v.value];
                               const bg = (vs.inlineStyle.background as string) ?? (vs.inlineStyle.backgroundColor as string) ?? form.bg_color;
                               const tc = (vs.inlineStyle.color as string) ?? form.text_color;
-                              setForm({ ...form, variant: v.value, bg_color: bg, text_color: tc });
+                              setForm({ ...form, variant: v.value, bg_color: bg, text_color: tc, has_decorations: vs.decorations });
                             } else {
-                              setForm({ ...form, variant: v.value });
+                              setForm({ ...form, variant: v.value, has_decorations: false });
                             }
                           }}
                           className={cn(
