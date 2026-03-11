@@ -147,7 +147,7 @@ const BannerPreview = ({
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto rounded-xl shadow-lg border bg-background overflow-hidden">
+    <div className="w-full max-w-lg mx-auto overflow-hidden">
       {/* Banner */}
       <div
         className={cn(
@@ -231,24 +231,6 @@ const BannerPreview = ({
             )}
           </div>
         )}
-      </div>
-
-      {/* Mock navbar */}
-      <div className="bg-muted/50 border-b px-4 py-2 flex items-center gap-3">
-        <div className="h-4 w-4 rounded bg-muted-foreground/20" />
-        <div className="h-3 w-24 bg-muted-foreground/20 rounded" />
-        <div className="ml-auto flex gap-2">
-          <div className="h-3 w-12 bg-muted-foreground/15 rounded" />
-          <div className="h-3 w-12 bg-muted-foreground/15 rounded" />
-          <div className="h-3 w-12 bg-muted-foreground/15 rounded" />
-        </div>
-      </div>
-
-      {/* Mock page content */}
-      <div className="px-6 py-4 space-y-3">
-        <div className="h-3 w-3/4 bg-muted-foreground/10 rounded" />
-        <div className="h-3 w-full bg-muted-foreground/10 rounded" />
-        <div className="h-3 w-5/6 bg-muted-foreground/10 rounded" />
       </div>
     </div>
   );
