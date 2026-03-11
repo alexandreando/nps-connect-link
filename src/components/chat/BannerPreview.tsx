@@ -104,7 +104,8 @@ const BannerPreview = ({
   shadowStyle = "none",
   variant,
   isFloating = false,
-  canClose = true
+  canClose = true,
+  hasDecorations = false
 }: BannerPreviewProps) => {
   const resolvedVariant = variant ?? TYPE_TO_VARIANT[bannerType] ?? "neutral";
   const isCustom = resolvedVariant === "custom";
