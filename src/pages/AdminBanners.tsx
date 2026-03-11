@@ -354,6 +354,8 @@ const AdminBanners = () => {
         is_floating: banner.position === "float" || banner.border_style === "pill",
         can_close: true,
         has_decorations: (banner as any).has_decorations ?? false,
+        outbound_type: ((banner as any).outbound_type as OutboundType) ?? "banner",
+        page_html: (banner as any).page_html ?? "",
       });
       fetchFieldRules(banner.id);
     } else {
