@@ -518,6 +518,8 @@ const AdminBanners = () => {
       border_style: form.border_style,
       shadow_style: form.shadow_style,
       has_decorations: form.has_decorations,
+      outbound_type: form.outbound_type,
+      page_html: form.page_html || null,
     };
 
     if (editingBanner) {
