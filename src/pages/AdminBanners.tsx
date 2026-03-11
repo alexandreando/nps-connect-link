@@ -508,6 +508,7 @@ const AdminBanners = () => {
       display_frequency: form.display_frequency,
       border_style: form.border_style,
       shadow_style: form.shadow_style,
+      has_decorations: form.has_decorations,
     };
 
     if (editingBanner) {
