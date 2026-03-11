@@ -31,6 +31,7 @@ import BannerFieldRules from "@/components/chat/BannerFieldRules";
 import BannerConflictDialog from "@/components/chat/BannerConflictDialog";
 
 type BannerType = "info" | "warning" | "success" | "promo" | "update";
+type OutboundType = "banner" | "page";
 
 interface Banner {
   id: string;
@@ -57,6 +58,8 @@ interface Banner {
   display_frequency: string;
   border_style: string;
   shadow_style: string;
+  outbound_type: OutboundType;
+  page_html: string | null;
 }
 
 interface FieldRule {
