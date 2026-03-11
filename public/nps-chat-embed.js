@@ -154,7 +154,7 @@
     contentDiv.appendChild(iconSpan);
 
     var text = document.createElement("span");
-    text.style.cssText = "display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;line-height:1.5;word-break:break-word;overflow-wrap:break-word;min-width:0;";
+    text.style.cssText = "display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;line-height:1.5;word-break:break-word;overflow-wrap:break-word;min-width:0;max-width:80ch;";
     if (banner.content_html) {
       text.innerHTML = banner.content_html;
       var links = text.querySelectorAll("a");

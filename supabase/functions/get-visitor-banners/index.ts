@@ -71,6 +71,8 @@ function buildBannerResult(banner: any, assignment: any) {
     border_style: banner.border_style ?? "none",
     shadow_style: banner.shadow_style ?? "none",
     has_decorations: banner.has_decorations ?? false,
+    outbound_type: banner.outbound_type ?? "banner",
+    page_html: banner.page_html ?? null,
   };
 }
 

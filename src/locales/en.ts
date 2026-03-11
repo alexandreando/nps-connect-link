@@ -1156,14 +1156,14 @@ export default {
   "broadcasts.new": "New Mass Message",
   "broadcasts.empty": "No mass messages created",
 
-  // Banners
-  "banners.title": "Banners",
-  "banners.subtitle": "Manage banners and notifications displayed to your clients",
+  // Outbound (Banners + Pages)
+  "banners.title": "Outbound",
+  "banners.subtitle": "Manage banners and pages displayed to your clients",
   "banners.create": "Create Banner",
   "banners.edit": "Edit Banner",
-  "banners.noBanners": "No banners registered",
-  "banners.emptyDescription": "Create banners to communicate alerts, promotions and updates to your clients.",
-  "banners.createFirst": "Create first banner",
+  "banners.noBanners": "No items registered",
+  "banners.emptyDescription": "Create banners or pages to communicate alerts, promotions and updates to your clients.",
+  "banners.createFirst": "Create first item",
   "banners.active": "Active",
   "banners.inactive": "Inactive",
   "banners.clients": "clients",
@@ -1186,8 +1186,8 @@ export default {
   "banners.client": "Client",
   "banners.vote": "Vote",
   "banners.duplicate": "Duplicate",
-  "banners.confirmDelete": "Delete banner?",
-  "banners.confirmDeleteDesc": "This action will permanently remove the banner and all its assignments.",
+  "banners.confirmDelete": "Delete item?",
+  "banners.confirmDeleteDesc": "This action will permanently remove the item and all its assignments.",
   "banners.typeLabel": "Type",
   "banners.sectionIdentification": "Identification",
   "banners.sectionContent": "Content",
@@ -1200,6 +1200,11 @@ export default {
   "banners.priority": "Priority",
   "banners.maxViews": "Max views",
   "banners.targetAll": "Show to all clients",
+  "banners.outboundType": "Type",
+  "banners.typeBanner": "Banner",
+  "banners.typePage": "Page",
+  "banners.pageHtmlLabel": "Page HTML Content",
+  "banners.pageHtmlPlaceholder": "Create the visual page content...",
 
   // Company Details Sheet
   "companyDetails.integration": "Integration",

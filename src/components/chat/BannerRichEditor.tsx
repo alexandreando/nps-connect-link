@@ -19,6 +19,24 @@ const TEXT_COLORS = [
   "#22C55E", "#3B82F6", "#8B5CF6", "#EC4899", "#6B7280",
 ];
 
+const CharCounter = ({ editorRef }: { editorRef: React.RefObject<HTMLDivElement> }) => {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    const el = editorRef.current;
+    if (!el) return;
+    const update = () => setCount(el.textContent?.length ?? 0);
+    update();
+    el.addEventListener("input", update);
+    return () => el.removeEventListener("input", update);
+  }, [editorRef]);
+  const remaining = 160 - count;
+  return (
+    <span className={`text-[10px] font-mono tabular-nums ${remaining < 0 ? "text-destructive font-semibold" : remaining <= 20 ? "text-amber-500" : "text-muted-foreground"}`}>
+      {count}/160
+    </span>
+  );
+};
+
 const BannerRichEditor = ({
   initialHtml,
   textAlign,

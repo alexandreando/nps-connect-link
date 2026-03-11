@@ -198,11 +198,11 @@ const BannerPreview = ({
           {contentHtml ? (
             <span
               dangerouslySetInnerHTML={{ __html: contentHtml }}
-              className="flex-1 min-w-0 overflow-hidden line-clamp-3 [&_a]:break-all"
-              style={{ lineHeight: "1.5", wordBreak: "break-word", overflowWrap: "break-word" }}
+              className="flex-1 min-w-0 overflow-hidden line-clamp-2 [&_a]:break-all"
+              style={{ lineHeight: "1.5", wordBreak: "break-word", overflowWrap: "break-word", maxWidth: "80ch" }}
             />
           ) : (
-            <span className="flex-1 min-w-0 overflow-hidden">{content || "Texto do banner aqui..."}</span>
+            <span className="flex-1 min-w-0 overflow-hidden line-clamp-2" style={{ maxWidth: "80ch" }}>{content || "Texto do banner aqui..."}</span>
           )}
           {getScheduleBadge()}
         </div>
