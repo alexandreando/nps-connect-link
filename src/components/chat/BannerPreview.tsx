@@ -28,6 +28,7 @@ export type BannerVariant = "warning" | "urgent" | "success" | "neutral" | "prem
 interface VariantStyle {
   inlineStyle: React.CSSProperties;
   icon: typeof Info;
+  decorations: boolean;
 }
 
 const VARIANT_STYLES: Record<Exclude<BannerVariant, "custom">, VariantStyle> = {
