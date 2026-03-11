@@ -28,6 +28,7 @@ import { Progress } from "@/components/ui/progress";
 import BannerPreview, { BannerVariant, VARIANT_STYLES, TYPE_TO_VARIANT } from "@/components/chat/BannerPreview";
 import BannerRichEditor from "@/components/chat/BannerRichEditor";
 import BannerFieldRules from "@/components/chat/BannerFieldRules";
+import { ImageUploadField } from "@/components/ui/image-upload-field";
 import BannerConflictDialog from "@/components/chat/BannerConflictDialog";
 
 type BannerType = "info" | "warning" | "success" | "promo" | "update";
@@ -873,22 +874,29 @@ const AdminBanners = () => {
                 </div>
               </div>
 
-              {/* Page type: HTML editor */}
+              {/* Page type: Image upload + link */}
               {form.outbound_type === "page" && (
                 <div className="rounded-lg bg-muted/30 p-4 space-y-3">
-                  <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    {t("banners.pageHtmlLabel")}
-                  </div>
+                  <ImageUploadField
+                    value={form.page_html}
+                    onChange={(url) => setForm({ ...form, page_html: url, content: form.title })}
+                    label="Imagem da página"
+                    bucket="help-images"
+                    folder="outbound-pages"
+                    dimensions="Recomendado: 600×800px"
+                    maxSizeMB={2}
+                    accept=".png,.jpg,.jpeg,.gif,.webp"
+                    hint="Esta imagem será exibida centralizada na tela do visitante"
+                    previewHeight="h-40"
+                  />
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">{t("banners.contentLabel")} <span className="text-destructive">*</span></Label>
-                    <textarea
-                      value={form.page_html}
-                      onChange={(e) => setForm({ ...form, page_html: e.target.value, content: e.target.value.replace(/<[^>]*>/g, "").slice(0, 100) || form.title })}
-                      placeholder={t("banners.pageHtmlPlaceholder")}
-                      className="w-full min-h-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 font-mono"
+                    <Label className="text-xs text-muted-foreground">Link de redirecionamento (opcional)</Label>
+                    <Input
+                      value={form.link_url || ""}
+                      onChange={e => setForm({ ...form, link_url: e.target.value })}
+                      placeholder="https://exemplo.com/oferta"
                     />
-                    <p className="text-[10px] text-muted-foreground">HTML com imagem e formatação. Aceita tags como &lt;img&gt;, &lt;h2&gt;, &lt;p&gt;, &lt;a&gt;, etc.</p>
+                    <p className="text-[10px] text-muted-foreground">Ao clicar na imagem, o visitante será redirecionado para este link</p>
                   </div>
                 </div>
               )}
