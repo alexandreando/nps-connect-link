@@ -306,10 +306,21 @@ const AdminBanners = () => {
     setFieldRules(((data as unknown) as FieldRule[]) ?? []);
   }, []);
 
+  const resolveVariantFromColors = (bgColor: string, textColor: string): BannerVariant => {
+    for (const [key, style] of Object.entries(VARIANT_STYLES)) {
+      const s = style.inlineStyle;
+      const sBg = (s.background as string) ?? (s.backgroundColor as string) ?? "";
+      if (sBg === bgColor && (s.color as string) === textColor) {
+        return key as BannerVariant;
+      }
+    }
+    return "custom";
+  };
+
   const openBannerDialog = (banner?: Banner) => {
     if (banner) {
       setEditingBanner(banner);
-      const resolvedVariant = (TYPE_TO_VARIANT[banner.banner_type] ?? "neutral") as BannerVariant;
+      const resolvedVariant = resolveVariantFromColors(banner.bg_color, banner.text_color);
       setForm({
         title: banner.title,
         content: banner.content,
