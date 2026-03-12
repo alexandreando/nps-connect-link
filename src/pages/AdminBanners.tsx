@@ -898,6 +898,18 @@ const AdminBanners = () => {
                     />
                     <p className="text-[10px] text-muted-foreground">Ao clicar na imagem, o visitante será redirecionado para este link</p>
                   </div>
+
+                  {/* Preview do modal Page */}
+                  {form.page_html && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Preview do modal</Label>
+                      <div className="relative bg-black/60 rounded-lg p-6 flex items-center justify-center min-h-[200px]">
+                        <img src={form.page_html} alt="Preview" className="max-h-48 rounded-xl shadow-lg object-contain" />
+                        <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/50 flex items-center justify-center text-white text-xs cursor-default">✕</div>
+                        <p className="absolute bottom-1 text-[9px] text-white/60">Preview do modal</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
