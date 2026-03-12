@@ -641,7 +641,7 @@ const AdminBanners = () => {
         <PageHeader title={t("banners.title")} subtitle={t("banners.subtitle")}>
           <Button onClick={() => openBannerDialog()}>
             <Plus className="h-4 w-4 mr-2" />
-            {t("banners.create")}
+            Novo Outbound
           </Button>
         </PageHeader>
 
