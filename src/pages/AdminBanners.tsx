@@ -641,7 +641,7 @@ const AdminBanners = () => {
         <PageHeader title={t("banners.title")} subtitle={t("banners.subtitle")}>
           <Button onClick={() => openBannerDialog()}>
             <Plus className="h-4 w-4 mr-2" />
-            {t("banners.create")}
+            Novo Outbound
           </Button>
         </PageHeader>
 
@@ -1241,7 +1241,7 @@ const AdminBanners = () => {
           <DialogFooter className="px-6 py-4 border-t border-border">
             <Button variant="outline" onClick={() => setBannerDialog(false)}>{t("common.cancel")}</Button>
             <Button onClick={() => saveBanner()} disabled={!form.title || (form.outbound_type === "banner" ? !form.content : !form.page_html)}>
-              {editingBanner ? "Salvar Alterações" : (form.outbound_type === "page" ? "Criar Página" : "Criar Banner")}
+              {editingBanner ? "Salvar Alterações" : (form.outbound_type === "page" ? "Criar Página" : "Novo Outbound")}
             </Button>
           </DialogFooter>
         </DialogContent>
