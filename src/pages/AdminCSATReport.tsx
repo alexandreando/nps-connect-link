@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Star, ThumbsUp, ThumbsDown, BarChart3, Download, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, ThumbsUp, ThumbsDown, BarChart3, Download, MessageSquare, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ const AdminCSATReport = () => {
   const { t } = useLanguage();
 
   const [filters, setFilters] = useState<CSATReportFilters>({
-    period: "month", scores: [], attendantId: null, teamId: null, tagId: null,
+    period: "month", scores: [], attendantIds: [], teamIds: [], tagIds: [],
     contactId: null, companyContactId: null,
     dateFrom: null, dateTo: null, sortBy: "date", sortDir: "desc", page: 0,
   });
@@ -44,15 +44,19 @@ const AdminCSATReport = () => {
       supabase.from("contacts").select("id, name").eq("is_company", true).order("name"),
       supabase.from("company_contacts").select("id, name, company_id").order("name"),
     ]).then(([attRes, teamRes, tagRes, compRes, ccRes]) => {
-      setAttendantOptions((attRes.data ?? []).map((a) => ({ id: a.id, name: a.display_name })));
-      setTeamOptions((teamRes.data ?? []).map((t) => ({ id: t.id, name: t.name })));
-      setTagOptions((tagRes.data ?? []).map((t) => ({ id: t.id, name: t.name })));
-      setCompanyOptions((compRes.data ?? []).map((c) => ({ id: c.id, name: c.name })));
-      setContactOptions((ccRes.data ?? []).map((c) => ({ id: c.id, name: c.name, companyId: c.company_id })));
+      setAttendantOptions((attRes.data ?? []).map(a => ({ id: a.id, name: a.display_name })));
+      setTeamOptions((teamRes.data ?? []).map(t => ({ id: t.id, name: t.name })));
+      setTagOptions((tagRes.data ?? []).map(t => ({ id: t.id, name: t.name })));
+      setCompanyOptions((compRes.data ?? []).map(c => ({ id: c.id, name: c.name })));
+      setContactOptions((ccRes.data ?? []).map(c => ({ id: c.id, name: c.name, companyId: c.company_id })));
     });
   }, []);
 
   const totalPages = Math.ceil(totalCount / pageSize);
+
+  const hasActiveFilters = filters.attendantIds.length > 0 || filters.teamIds.length > 0 || filters.tagIds.length > 0 || filters.scores.length > 0 || !!filters.contactId || !!filters.companyContactId || !!filters.dateFrom || !!filters.dateTo;
+
+  const clearFilters = () => setFilters(f => ({ ...f, attendantIds: [], teamIds: [], tagIds: [], scores: [], contactId: null, companyContactId: null, dateFrom: null, dateTo: null, page: 0 }));
 
   const scoreColor = (score: number) => {
     if (score >= 4) return "text-green-600 bg-green-50 border-green-200";
@@ -62,32 +66,29 @@ const AdminCSATReport = () => {
 
   const renderStars = (score: number) => (
     <div className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map((s) => (
+      {[1, 2, 3, 4, 5].map(s => (
         <Star key={s} className={`h-3 w-3 ${s <= score ? (score >= 4 ? "fill-green-500 text-green-500" : score === 3 ? "fill-amber-500 text-amber-500" : "fill-red-500 text-red-500") : "text-muted-foreground/30"}`} />
       ))}
     </div>
   );
 
   const toggleScore = (score: number) => {
-    setFilters((f) => ({ ...f, page: 0, scores: f.scores.includes(score) ? f.scores.filter((s) => s !== score) : [...f.scores, score] }));
+    setFilters(f => ({ ...f, page: 0, scores: f.scores.includes(score) ? f.scores.filter(s => s !== score) : [...f.scores, score] }));
   };
 
   const handleExportCSV = () => {
     if (records.length === 0) return;
     const headers = ["Cliente", "Atendente", "Nota", "Comentário", "Duração (min)", "Tags", "Data"];
-    const rows = records.map((r) => [r.visitorName, r.attendantName, r.csatScore, (r.csatComment ?? "").replace(/"/g, '""'), r.durationMinutes ?? "", r.tags.map((t) => t.name).join("; "), new Date(r.closedAt).toLocaleDateString("pt-BR")]);
-    const csv = [headers.join(","), ...rows.map((r) => r.map((v) => `"${v}"`).join(","))].join("\n");
+    const rows = records.map(r => [r.visitorName, r.attendantName, r.csatScore, (r.csatComment ?? "").replace(/"/g, '""'), r.durationMinutes ?? "", r.tags.map(t => t.name).join("; "), new Date(r.closedAt).toLocaleDateString("pt-BR")]);
+    const csv = [headers.join(","), ...rows.map(r => r.map(v => `"${v}"`).join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url; link.download = `csat-report-${new Date().toISOString().slice(0, 10)}.csv`; link.click();
-    URL.revokeObjectURL(url);
+    const link = document.createElement("a"); link.href = url; link.download = `csat-report-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(url);
   };
 
   return (
     <>
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <PageHeader title={t("csat.report.title")} subtitle={t("csat.report.subtitle")} />
           <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={records.length === 0}>
@@ -95,10 +96,9 @@ const AdminCSATReport = () => {
           </Button>
         </div>
 
-        {/* Filters */}
         <div className="space-y-2">
           <FilterBar>
-            <Select value={filters.period} onValueChange={(v) => setFilters((f) => ({ ...f, period: v as any, page: 0 }))}>
+            <Select value={filters.period} onValueChange={(v) => setFilters(f => ({ ...f, period: v as any, page: 0 }))}>
               <SelectTrigger className="w-[120px] h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="today">{t("chat.gerencial.today")}</SelectItem>
@@ -114,62 +114,66 @@ const AdminCSATReport = () => {
             )}
             <SearchableMultiSelect
               label={t("chat.gerencial.filter_by_attendant")}
-              options={attendantOptions.map((a) => ({ value: a.id, label: a.name }))}
-              selected={filters.attendantId ? [filters.attendantId] : []}
-              onChange={(v) => setFilters((f) => ({ ...f, attendantId: v[0] ?? null, page: 0 }))}
+              options={attendantOptions.map(a => ({ value: a.id, label: a.name }))}
+              selected={filters.attendantIds}
+              onChange={(v) => setFilters(f => ({ ...f, attendantIds: v, page: 0 }))}
               placeholder={t("chat.gerencial.filter_by_attendant")}
             />
             {teamOptions.length > 0 && (
               <SearchableMultiSelect
                 label={t("csat.report.team")}
-                options={teamOptions.map((t) => ({ value: t.id, label: t.name }))}
-                selected={filters.teamId ? [filters.teamId] : []}
-                onChange={(v) => setFilters((f) => ({ ...f, teamId: v[0] ?? null, page: 0 }))}
+                options={teamOptions.map(t => ({ value: t.id, label: t.name }))}
+                selected={filters.teamIds}
+                onChange={(v) => setFilters(f => ({ ...f, teamIds: v, page: 0 }))}
                 placeholder={t("csat.report.team")}
               />
             )}
             {tagOptions.length > 0 && (
               <SearchableMultiSelect
                 label="Tag"
-                options={tagOptions.map((t) => ({ value: t.id, label: t.name }))}
-                selected={filters.tagId ? [filters.tagId] : []}
-                onChange={(v) => setFilters((f) => ({ ...f, tagId: v[0] ?? null, page: 0 }))}
+                options={tagOptions.map(t => ({ value: t.id, label: t.name }))}
+                selected={filters.tagIds}
+                onChange={(v) => setFilters(f => ({ ...f, tagIds: v, page: 0 }))}
                 placeholder="Tag"
               />
             )}
-            <Input type="date" className="w-[140px] h-9" value={filters.dateFrom ?? ""} onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value || null, page: 0 }))} placeholder="De" />
-            <Input type="date" className="w-[140px] h-9" value={filters.dateTo ?? ""} onChange={(e) => setFilters((f) => ({ ...f, dateTo: e.target.value || null, page: 0 }))} placeholder="Até" />
+            <Input type="date" className="w-[140px] h-9" value={filters.dateFrom ?? ""} onChange={(e) => setFilters(f => ({ ...f, dateFrom: e.target.value || null, page: 0 }))} placeholder="De" />
+            <Input type="date" className="w-[140px] h-9" value={filters.dateTo ?? ""} onChange={(e) => setFilters(f => ({ ...f, dateTo: e.target.value || null, page: 0 }))} placeholder="Até" />
             {companyOptions.length > 0 && (
               <SearchableMultiSelect
                 label="Empresa"
-                options={companyOptions.map((c) => ({ value: c.id, label: c.name }))}
+                options={companyOptions.map(c => ({ value: c.id, label: c.name }))}
                 selected={filters.contactId ? [filters.contactId] : []}
-                onChange={(v) => setFilters((f) => ({ ...f, contactId: v[0] ?? null, companyContactId: null, page: 0 }))}
+                onChange={(v) => setFilters(f => ({ ...f, contactId: v[0] ?? null, companyContactId: null, page: 0 }))}
                 placeholder="Empresa"
               />
             )}
             {contactOptions.length > 0 && (
               <SearchableMultiSelect
                 label="Contato"
-                options={(filters.contactId ? contactOptions.filter(c => c.companyId === filters.contactId) : contactOptions).map((c) => ({ value: c.id, label: c.name }))}
+                options={(filters.contactId ? contactOptions.filter(c => c.companyId === filters.contactId) : contactOptions).map(c => ({ value: c.id, label: c.name }))}
                 selected={filters.companyContactId ? [filters.companyContactId] : []}
-                onChange={(v) => setFilters((f) => ({ ...f, companyContactId: v[0] ?? null, page: 0 }))}
+                onChange={(v) => setFilters(f => ({ ...f, companyContactId: v[0] ?? null, page: 0 }))}
                 placeholder="Contato"
               />
             )}
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" className="h-9 text-[11px] text-muted-foreground" onClick={clearFilters}>
+                <X className="h-3 w-3 mr-1" />Limpar
+              </Button>
+            )}
           </FilterBar>
 
-          {/* Score chips */}
           <div className="flex items-center gap-2 px-4">
             <span className="text-[11px] text-muted-foreground">{t("csat.report.filter_score")}:</span>
-            {[1, 2, 3, 4, 5].map((score) => (
+            {[1, 2, 3, 4, 5].map(score => (
               <button key={score} onClick={() => toggleScore(score)}
                 className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium border transition-colors ${filters.scores.includes(score) ? scoreColor(score) : "text-muted-foreground border-border bg-background"}`}>
                 <Star className={`h-2.5 w-2.5 ${filters.scores.includes(score) ? "" : "text-muted-foreground/50"}`} />{score}
               </button>
             ))}
             {filters.scores.length > 0 && (
-              <button onClick={() => setFilters((f) => ({ ...f, scores: [], page: 0 }))} className="text-[10px] text-muted-foreground underline">{t("csat.report.clear")}</button>
+              <button onClick={() => setFilters(f => ({ ...f, scores: [], page: 0 }))} className="text-[10px] text-muted-foreground underline">{t("csat.report.clear")}</button>
             )}
           </div>
         </div>
@@ -178,7 +182,6 @@ const AdminCSATReport = () => {
           <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
         ) : (
           <>
-            {/* KPI Cards */}
             <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
               <MetricCard title={t("csat.report.avg_csat")} value={stats.avgCsat != null ? `${stats.avgCsat}/5` : "—"} icon={Star} iconColor="text-yellow-500" iconBgColor="bg-yellow-500/10" />
               <MetricCard title={t("csat.report.total_evaluations")} value={stats.totalEvaluations} icon={BarChart3} iconColor="text-blue-500" iconBgColor="bg-blue-500/10" />
@@ -186,7 +189,6 @@ const AdminCSATReport = () => {
               <MetricCard title={t("csat.report.negative")} value={stats.negativePercent != null ? `${stats.negativePercent}%` : "—"} icon={ThumbsDown} iconColor="text-red-500" iconBgColor="bg-red-500/10" />
             </div>
 
-            {/* Charts */}
             <div className="grid gap-4 lg:grid-cols-2">
               <ChartCard title={t("csat.report.csat_by_day")} isEmpty={stats.csatByDay.length === 0} emptyText={t("chat.gerencial.no_data")}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -200,12 +202,12 @@ const AdminCSATReport = () => {
                 </ResponsiveContainer>
               </ChartCard>
 
-              <ChartCard title={t("csat.report.score_distribution")} isEmpty={!stats.scoreDistribution.some((d) => d.count > 0)} emptyText={t("chat.gerencial.no_data")}>
+              <ChartCard title={t("csat.report.score_distribution")} isEmpty={!stats.scoreDistribution.some(d => d.count > 0)} emptyText={t("chat.gerencial.no_data")}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={stats.scoreDistribution} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                    <YAxis dataKey="score" type="category" tickFormatter={(s) => `★ ${s}`} tick={{ fontSize: 11 }} />
+                    <YAxis dataKey="score" type="category" tickFormatter={s => `★ ${s}`} tick={{ fontSize: 11 }} />
                     <RechartsTooltip />
                     <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="hsl(var(--primary))" />
                   </BarChart>
@@ -213,14 +215,13 @@ const AdminCSATReport = () => {
               </ChartCard>
             </div>
 
-            {/* Results Table */}
             <div>
               <SectionLabel>{t("csat.report.results")} ({totalCount})</SectionLabel>
               <Card className="rounded-xl border border-white/[0.06] bg-card shadow-sm">
                 <div className="px-4 pt-4 pb-2 flex items-center justify-end">
                   <Select value={`${filters.sortBy}-${filters.sortDir}`} onValueChange={(v) => {
                     const [sortBy, sortDir] = v.split("-") as [CSATReportFilters["sortBy"], CSATReportFilters["sortDir"]];
-                    setFilters((f) => ({ ...f, sortBy, sortDir, page: 0 }));
+                    setFilters(f => ({ ...f, sortBy, sortDir, page: 0 }));
                   }}>
                     <SelectTrigger className="w-[180px] h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -250,7 +251,7 @@ const AdminCSATReport = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {records.map((record) => (
+                          {records.map(record => (
                             <TableRow key={record.roomId}>
                               <TableCell className="text-[13px] font-medium">{record.visitorName}</TableCell>
                               <TableCell className="text-[13px]">{record.attendantName}</TableCell>
@@ -273,7 +274,7 @@ const AdminCSATReport = () => {
                               </TableCell>
                               <TableCell>
                                 <div className="flex flex-wrap gap-1">
-                                  {record.tags.map((tag) => (
+                                  {record.tags.map(tag => (
                                     <Badge key={tag.id} variant="secondary" className="text-[10px]" style={{ borderColor: tag.color ?? undefined }}>{tag.name}</Badge>
                                   ))}
                                 </div>
@@ -293,8 +294,8 @@ const AdminCSATReport = () => {
                         <div className="flex items-center justify-between mt-4">
                           <span className="text-[11px] text-muted-foreground">{t("csat.report.page")} {filters.page + 1} / {totalPages}</span>
                           <div className="flex gap-1">
-                            <Button size="sm" variant="ghost" disabled={filters.page === 0} onClick={() => setFilters((f) => ({ ...f, page: f.page - 1 }))}><ChevronLeft className="h-4 w-4" /></Button>
-                            <Button size="sm" variant="ghost" disabled={filters.page >= totalPages - 1} onClick={() => setFilters((f) => ({ ...f, page: f.page + 1 }))}><ChevronRight className="h-4 w-4" /></Button>
+                            <Button size="sm" variant="ghost" disabled={filters.page === 0} onClick={() => setFilters(f => ({ ...f, page: f.page - 1 }))}><ChevronLeft className="h-4 w-4" /></Button>
+                            <Button size="sm" variant="ghost" disabled={filters.page >= totalPages - 1} onClick={() => setFilters(f => ({ ...f, page: f.page + 1 }))}><ChevronRight className="h-4 w-4" /></Button>
                           </div>
                         </div>
                       )}
