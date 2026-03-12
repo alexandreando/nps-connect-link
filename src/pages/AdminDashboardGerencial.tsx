@@ -4,13 +4,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SearchableMultiSelect } from "@/components/ui/searchable-multi-select";
 
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useDashboardStats, type DashboardFilters } from "@/hooks/useDashboardStats";
 import { useAttendants } from "@/hooks/useAttendants";
 import { supabase } from "@/integrations/supabase/client";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { MessageSquare, CalendarDays, Star, CheckCircle, Clock, AlertTriangle, Zap, Tag, RefreshCw, Radio } from "lucide-react";
+import { MessageSquare, CalendarDays, Star, CheckCircle, Clock, AlertTriangle, Zap, RefreshCw, Radio, X } from "lucide-react";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { MetricCard } from "@/components/ui/metric-card";
@@ -25,6 +26,7 @@ const AdminDashboardGerencial = () => {
   const { stats, loading, refetch, realtimeEnabled, toggleRealtime } = useDashboardStats(filters);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [tags, setTags] = useState<{ id: string; name: string }[]>([]);
+  const [teams, setTeams] = useState<{ id: string; name: string }[]>([]);
   const [companyOptions, setCompanyOptions] = useState<{ id: string; name: string }[]>([]);
   const [contactOptions, setContactOptions] = useState<{ id: string; name: string; companyId: string }[]>([]);
 
@@ -34,13 +36,19 @@ const AdminDashboardGerencial = () => {
       supabase.from("chat_tags").select("id, name").order("name"),
       supabase.from("contacts").select("id, name").eq("is_company", true).order("name"),
       supabase.from("company_contacts").select("id, name, company_id").order("name"),
-    ]).then(([catRes, tagRes, compRes, ccRes]) => {
+      supabase.from("chat_teams").select("id, name").order("name"),
+    ]).then(([catRes, tagRes, compRes, ccRes, teamRes]) => {
       setCategories(catRes.data ?? []);
       setTags(tagRes.data ?? []);
       setCompanyOptions((compRes.data ?? []).map((c) => ({ id: c.id, name: c.name })));
       setContactOptions((ccRes.data ?? []).map((c) => ({ id: c.id, name: c.name, companyId: c.company_id })));
+      setTeams((teamRes.data ?? []).map(t => ({ id: t.id, name: t.name })));
     });
   }, []);
+
+  const hasActiveFilters = (filters.attendantIds?.length ?? 0) > 0 || (filters.teamIds?.length ?? 0) > 0 || (filters.tagIds?.length ?? 0) > 0 || !!filters.categoryId || !!filters.contactId || !!filters.companyContactId;
+
+  const clearFilters = () => setFilters({ period: filters.period });
 
   const resolutionColor = (status: string) => {
     switch (status) {
@@ -76,7 +84,6 @@ const AdminDashboardGerencial = () => {
         </div>
       </div>
 
-      {/* Filters */}
       <FilterBar>
         <Select value={filters.period} onValueChange={(v) => setFilters((f) => ({ ...f, period: v as DashboardFilters["period"] }))}>
           <SelectTrigger className="w-[140px] h-9"><SelectValue placeholder={t("chat.gerencial.period")} /></SelectTrigger>
@@ -86,48 +93,56 @@ const AdminDashboardGerencial = () => {
             <SelectItem value="month">{t("chat.gerencial.month_period")}</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={filters.attendantId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, attendantId: v === "all" ? null : v }))}>
-          <SelectTrigger className="w-[190px] h-9"><SelectValue placeholder={t("chat.gerencial.filter_by_attendant")} /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("filter.all_attendants")}</SelectItem>
-            {attendants.map((a) => <SelectItem key={a.id} value={a.id}>{a.display_name}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <SearchableMultiSelect
+          label={t("chat.gerencial.filter_by_attendant")}
+          options={attendants.map(a => ({ value: a.id, label: a.display_name }))}
+          selected={filters.attendantIds ?? []}
+          onChange={(v) => setFilters(f => ({ ...f, attendantIds: v }))}
+        />
+        {teams.length > 0 && (
+          <SearchableMultiSelect
+            label="Time"
+            options={teams.map(t => ({ value: t.id, label: t.name }))}
+            selected={filters.teamIds ?? []}
+            onChange={(v) => setFilters(f => ({ ...f, teamIds: v }))}
+          />
+        )}
         {categories.length > 0 && (
-          <Select value={filters.categoryId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, categoryId: v === "all" ? null : v }))}>
-            <SelectTrigger className="w-[190px] h-9"><SelectValue placeholder={t("chat.gerencial.filter_by_category")} /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("filter.all_categories")}</SelectItem>
-              {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <SearchableMultiSelect
+            label={t("chat.gerencial.filter_by_category")}
+            options={categories.map(c => ({ value: c.id, label: c.name }))}
+            selected={filters.categoryId ? [filters.categoryId] : []}
+            onChange={(v) => setFilters(f => ({ ...f, categoryId: v[0] ?? null }))}
+          />
         )}
         {tags.length > 0 && (
-          <Select value={filters.tagId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, tagId: v === "all" ? null : v }))}>
-            <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder="Tag" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("filter.all_tags")}</SelectItem>
-              {tags.map((tag) => <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <SearchableMultiSelect
+            label="Tag"
+            options={tags.map(tag => ({ value: tag.id, label: tag.name }))}
+            selected={filters.tagIds ?? []}
+            onChange={(v) => setFilters(f => ({ ...f, tagIds: v }))}
+          />
         )}
         {companyOptions.length > 0 && (
-          <Select value={filters.contactId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, contactId: v === "all" ? null : v, companyContactId: null }))}>
-            <SelectTrigger className="w-[170px] h-9"><SelectValue placeholder="Empresa" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas Empresas</SelectItem>
-              {companyOptions.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <SearchableMultiSelect
+            label="Empresa"
+            options={companyOptions.map(c => ({ value: c.id, label: c.name }))}
+            selected={filters.contactId ? [filters.contactId] : []}
+            onChange={(v) => setFilters(f => ({ ...f, contactId: v[0] ?? null, companyContactId: null }))}
+          />
         )}
         {contactOptions.length > 0 && (
-          <Select value={filters.companyContactId ?? "all"} onValueChange={(v) => setFilters((f) => ({ ...f, companyContactId: v === "all" ? null : v }))}>
-            <SelectTrigger className="w-[170px] h-9"><SelectValue placeholder="Contato" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos Contatos</SelectItem>
-              {(filters.contactId ? contactOptions.filter(c => c.companyId === filters.contactId) : contactOptions).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <SearchableMultiSelect
+            label="Contato"
+            options={(filters.contactId ? contactOptions.filter(c => c.companyId === filters.contactId) : contactOptions).map(c => ({ value: c.id, label: c.name }))}
+            selected={filters.companyContactId ? [filters.companyContactId] : []}
+            onChange={(v) => setFilters(f => ({ ...f, companyContactId: v[0] ?? null }))}
+          />
+        )}
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" className="h-9 text-[11px] text-muted-foreground" onClick={clearFilters}>
+            <X className="h-3 w-3 mr-1" />Limpar
+          </Button>
         )}
       </FilterBar>
 
@@ -135,7 +150,6 @@ const AdminDashboardGerencial = () => {
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
       ) : (
         <>
-          {/* KPI Cards */}
           <div>
             <SectionLabel>Métricas do Período</SectionLabel>
             <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
@@ -145,7 +159,6 @@ const AdminDashboardGerencial = () => {
             </div>
           </div>
 
-          {/* Charts */}
           <div className="grid gap-4 lg:grid-cols-2">
             <ChartCard title={t("chat.gerencial.conversations_per_day")} isEmpty={stats.chartData.length === 0} emptyText={t("chat.gerencial.no_data")}>
               <ResponsiveContainer width="100%" height="100%">
@@ -195,10 +208,8 @@ const AdminDashboardGerencial = () => {
                 ))}
               </div>
             </ChartCard>
-
           </div>
 
-          {/* Attendant Performance Table */}
           {stats.attendantPerformance.length > 0 && (
             <div>
               <SectionLabel>{t("chat.gerencial.attendant_performance")}</SectionLabel>
