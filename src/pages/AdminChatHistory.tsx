@@ -219,6 +219,7 @@ const AdminChatHistory = () => {
           <div className="flex items-center gap-3 bg-muted/30 rounded-xl px-4 py-2">
             <span className="text-[13px] font-medium">{selectedIds.size} selecionado(s)</span>
             <Button size="sm" variant="outline" onClick={() => handleBulkAction("resolved")}><CheckCircle2 className="h-4 w-4 mr-1" />Marcar como Resolvido</Button>
+            <Button size="sm" variant="outline" onClick={() => handleBulkAction("inactive")}><Archive className="h-4 w-4 mr-1" />Inativar</Button>
             <Button size="sm" variant="outline" onClick={() => handleBulkAction("archived")}><Archive className="h-4 w-4 mr-1" />Arquivar</Button>
             <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>Limpar seleção</Button>
           </div>
