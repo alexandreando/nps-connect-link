@@ -70,6 +70,7 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastTypingBroadcast = useRef<number>(0);
   const prevRoomIdRef = useRef<string | null | undefined>(undefined);
+  const valueRef = useRef(value);
   const macrosPopupRef = useRef<HTMLDivElement>(null);
   const articlesPopupRef = useRef<HTMLDivElement>(null);
   const slashPosRef = useRef<number>(-1);
