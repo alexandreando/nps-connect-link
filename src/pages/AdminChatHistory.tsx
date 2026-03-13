@@ -411,6 +411,7 @@ const AdminChatHistory = () => {
                               <DropdownMenuContent align="end">
                                 {room.resolution_status === "pending" && <DropdownMenuItem onClick={() => handleReopenChat(room.id)}><RotateCcw className="h-4 w-4 mr-2" />Reabrir</DropdownMenuItem>}
                                 {room.resolution_status !== "resolved" && <DropdownMenuItem onClick={() => handleIndividualAction(room.id, "resolved")}><CheckCircle2 className="h-4 w-4 mr-2" />Marcar como Resolvido</DropdownMenuItem>}
+                                {room.resolution_status !== "inactive" && <DropdownMenuItem onClick={() => handleIndividualAction(room.id, "inactive")}><Archive className="h-4 w-4 mr-2" />Inativar</DropdownMenuItem>}
                                 {room.resolution_status !== "archived" && <DropdownMenuItem onClick={() => handleIndividualAction(room.id, "archived")}><Archive className="h-4 w-4 mr-2" />Arquivar</DropdownMenuItem>}
                               </DropdownMenuContent>
                             </DropdownMenu>

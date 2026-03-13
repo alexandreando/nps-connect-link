@@ -177,7 +177,8 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
     if (prevId !== undefined && prevId !== roomId) {
       // Save draft for previous room
       if (prevId) {
-        const currentVal = value.trim() ? value : "";
+        const rawVal = textareaRef.current?.value ?? "";
+        const currentVal = rawVal.trim() ? rawVal : "";
         if (currentVal) draftsMap.set(prevId, currentVal);
         else draftsMap.delete(prevId);
       }

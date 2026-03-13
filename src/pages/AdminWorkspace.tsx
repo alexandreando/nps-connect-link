@@ -375,7 +375,7 @@ const AdminWorkspace = () => {
     }).eq("id", closingRoomId);
     clearDraft(closingRoomId);
     setClosingRoomId(null);
-    const msgs: Record<string, string> = { resolved: "Conversa encerrada como resolvida", pending: "Conversa encerrada com pendência", archived: "Conversa arquivada" };
+    const msgs: Record<string, string> = { resolved: "Conversa encerrada como resolvida", pending: "Conversa encerrada com pendência", inactive: "Conversa inativada", archived: "Conversa arquivada" };
     toast.success(msgs[resolutionStatus] ?? "Conversa encerrada");
   };
 

@@ -23,7 +23,7 @@ const statusOptions = [
 export function CloseRoomDialog({ open, onOpenChange, onConfirm, roomId }: CloseRoomDialogProps) {
   const [note, setNote] = useState("");
   const [closing, setClosing] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState<"resolved" | "pending" | "archived">("resolved");
+  const [selectedStatus, setSelectedStatus] = useState<"resolved" | "pending" | "inactive" | "archived">("resolved");
 
   const handleConfirm = async () => {
     setClosing(true);
