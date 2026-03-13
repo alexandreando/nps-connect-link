@@ -362,7 +362,7 @@ const AdminWorkspace = () => {
     setCloseDialogOpen(true);
   };
 
-  const handleConfirmClose = async (resolutionStatus: "resolved" | "pending" | "archived", note?: string) => {
+  const handleConfirmClose = async (resolutionStatus: "resolved" | "pending" | "inactive" | "archived", note?: string) => {
     if (!closingRoomId || !user) return;
     if (note) {
       await supabase.from("chat_messages").insert({
@@ -375,7 +375,7 @@ const AdminWorkspace = () => {
     }).eq("id", closingRoomId);
     clearDraft(closingRoomId);
     setClosingRoomId(null);
-    const msgs: Record<string, string> = { resolved: "Conversa encerrada como resolvida", pending: "Conversa encerrada com pendência", archived: "Conversa arquivada" };
+    const msgs: Record<string, string> = { resolved: "Conversa encerrada como resolvida", pending: "Conversa encerrada com pendência", inactive: "Conversa inativada", archived: "Conversa arquivada" };
     toast.success(msgs[resolutionStatus] ?? "Conversa encerrada");
   };
 

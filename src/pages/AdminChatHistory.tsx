@@ -104,7 +104,8 @@ const AdminChatHistory = () => {
       case "resolved": return <Badge className="bg-green-100 text-green-800">{t("chat.history.resolved")}</Badge>;
       case "escalated": return <Badge className="bg-red-100 text-red-800">{t("chat.history.escalated")}</Badge>;
       case "pending": return <Badge className="bg-orange-100 text-orange-800">{t("chat.history.pending_status")}</Badge>;
-      case "archived": return <Badge className="bg-muted text-muted-foreground">Arquivado</Badge>;
+      case "inactive": return <Badge className="bg-muted text-muted-foreground">Inativo</Badge>;
+      case "archived": return <Badge className="bg-blue-100 text-blue-800">Arquivado</Badge>;
       default: return <Badge variant="secondary">{status ?? "—"}</Badge>;
     }
   };
@@ -132,17 +133,19 @@ const AdminChatHistory = () => {
     toast.success("Chat reaberto e atribuído a você!"); refetch();
   };
 
-  const handleBulkAction = async (action: "resolved" | "archived") => {
+  const handleBulkAction = async (action: "resolved" | "inactive" | "archived") => {
     if (selectedIds.size === 0) return;
     const ids = Array.from(selectedIds);
     await supabase.from("chat_rooms").update({ resolution_status: action }).in("id", ids);
-    toast.success(`${ids.length} chat(s) ${action === "resolved" ? "marcado(s) como resolvido(s)" : "arquivado(s)"}`);
+    const labels: Record<string, string> = { resolved: "marcado(s) como resolvido(s)", inactive: "inativado(s)", archived: "arquivado(s)" };
+    toast.success(`${ids.length} chat(s) ${labels[action]}`);
     setSelectedIds(new Set()); refetch();
   };
 
-  const handleIndividualAction = async (roomId: string, action: "resolved" | "archived") => {
+  const handleIndividualAction = async (roomId: string, action: "resolved" | "inactive" | "archived") => {
     await supabase.from("chat_rooms").update({ resolution_status: action }).eq("id", roomId);
-    toast.success(action === "resolved" ? "Marcado como resolvido" : "Arquivado"); refetch();
+    const labels: Record<string, string> = { resolved: "Marcado como resolvido", inactive: "Inativado", archived: "Arquivado" };
+    toast.success(labels[action]); refetch();
   };
 
   const toggleSelect = (id: string) => { setSelectedIds(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; }); };
@@ -216,6 +219,7 @@ const AdminChatHistory = () => {
           <div className="flex items-center gap-3 bg-muted/30 rounded-xl px-4 py-2">
             <span className="text-[13px] font-medium">{selectedIds.size} selecionado(s)</span>
             <Button size="sm" variant="outline" onClick={() => handleBulkAction("resolved")}><CheckCircle2 className="h-4 w-4 mr-1" />Marcar como Resolvido</Button>
+            <Button size="sm" variant="outline" onClick={() => handleBulkAction("inactive")}><Archive className="h-4 w-4 mr-1" />Inativar</Button>
             <Button size="sm" variant="outline" onClick={() => handleBulkAction("archived")}><Archive className="h-4 w-4 mr-1" />Arquivar</Button>
             <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>Limpar seleção</Button>
           </div>
@@ -242,6 +246,7 @@ const AdminChatHistory = () => {
               { value: "resolved", label: t("chat.history.resolved") },
               { value: "pending", label: t("chat.history.pending_status") },
               { value: "escalated", label: t("chat.history.escalated") },
+              { value: "inactive", label: "Inativo" },
               { value: "archived", label: "Arquivado" },
             ]}
             selected={resolutionStatuses}
@@ -406,6 +411,7 @@ const AdminChatHistory = () => {
                               <DropdownMenuContent align="end">
                                 {room.resolution_status === "pending" && <DropdownMenuItem onClick={() => handleReopenChat(room.id)}><RotateCcw className="h-4 w-4 mr-2" />Reabrir</DropdownMenuItem>}
                                 {room.resolution_status !== "resolved" && <DropdownMenuItem onClick={() => handleIndividualAction(room.id, "resolved")}><CheckCircle2 className="h-4 w-4 mr-2" />Marcar como Resolvido</DropdownMenuItem>}
+                                {room.resolution_status !== "inactive" && <DropdownMenuItem onClick={() => handleIndividualAction(room.id, "inactive")}><Archive className="h-4 w-4 mr-2" />Inativar</DropdownMenuItem>}
                                 {room.resolution_status !== "archived" && <DropdownMenuItem onClick={() => handleIndividualAction(room.id, "archived")}><Archive className="h-4 w-4 mr-2" />Arquivar</DropdownMenuItem>}
                               </DropdownMenuContent>
                             </DropdownMenu>

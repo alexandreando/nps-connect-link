@@ -55,6 +55,8 @@ const AdminDashboardGerencial = () => {
       case "resolved": return "bg-green-100 text-green-800";
       case "pending": return "bg-orange-100 text-orange-800";
       case "escalated": return "bg-red-100 text-red-800";
+      case "inactive": return "bg-muted text-muted-foreground";
+      case "archived": return "bg-blue-100 text-blue-800";
       default: return "";
     }
   };
@@ -201,7 +203,7 @@ const AdminDashboardGerencial = () => {
                 {stats.resolutionDistribution.map((item) => (
                   <div key={item.status} className="flex items-center gap-2">
                     <Badge className={resolutionColor(item.status)}>
-                      {item.status === "resolved" ? t("chat.history.resolved") : item.status === "escalated" ? t("chat.history.escalated") : t("chat.history.pending_status")}
+                      {item.status === "resolved" ? t("chat.history.resolved") : item.status === "escalated" ? t("chat.history.escalated") : item.status === "inactive" ? "Inativo" : item.status === "archived" ? "Arquivado" : t("chat.history.pending_status")}
                     </Badge>
                     <span className="text-2xl font-semibold tabular-nums">{item.count}</span>
                   </div>

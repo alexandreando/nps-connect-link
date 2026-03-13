@@ -9,20 +9,21 @@ import { cn } from "@/lib/utils";
 interface CloseRoomDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (resolutionStatus: "resolved" | "pending" | "archived", note?: string) => void;
+  onConfirm: (resolutionStatus: "resolved" | "pending" | "inactive" | "archived", note?: string) => void;
   roomId?: string | null;
 }
 
 const statusOptions = [
   { value: "resolved" as const, label: "Resolvido", icon: CheckCircle2, color: "bg-green-600 hover:bg-green-700 text-white", activeRing: "ring-green-500" },
   { value: "pending" as const, label: "Com pendência", icon: AlertTriangle, color: "bg-yellow-500 hover:bg-yellow-600 text-white", activeRing: "ring-yellow-500" },
-  { value: "archived" as const, label: "Arquivar", icon: Archive, color: "bg-muted hover:bg-muted/80 text-foreground", activeRing: "ring-border" },
+  { value: "inactive" as const, label: "Inativar", icon: Archive, color: "bg-muted hover:bg-muted/80 text-foreground", activeRing: "ring-border" },
+  { value: "archived" as const, label: "Arquivar", icon: Archive, color: "bg-blue-100 hover:bg-blue-200 text-blue-800", activeRing: "ring-blue-400" },
 ];
 
 export function CloseRoomDialog({ open, onOpenChange, onConfirm, roomId }: CloseRoomDialogProps) {
   const [note, setNote] = useState("");
   const [closing, setClosing] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState<"resolved" | "pending" | "archived">("resolved");
+  const [selectedStatus, setSelectedStatus] = useState<"resolved" | "pending" | "inactive" | "archived">("resolved");
 
   const handleConfirm = async () => {
     setClosing(true);

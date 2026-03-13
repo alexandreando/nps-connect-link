@@ -1125,7 +1125,8 @@ const ChatWidget = () => {
 
   const statusLabel = (status: string, resolutionStatus?: string) => {
     if (status === "closed" && resolutionStatus === "pending") return "Pendente";
-    if (status === "closed" && resolutionStatus === "archived") return "Encerrado";
+    if (status === "closed" && resolutionStatus === "inactive") return "Encerrado";
+    if (status === "closed" && resolutionStatus === "archived") return "Arquivado";
     switch (status) {
       case "waiting": return "Aguardando";
       case "active": return "Em andamento";
@@ -1384,9 +1385,10 @@ const ChatWidget = () => {
                 historyRooms.map((room) => {
                   const isActive = room.status === "waiting" || room.status === "active";
                   const isPending = room.status === "closed" && room.resolution_status === "pending";
+                  const isInactive = room.status === "closed" && room.resolution_status === "inactive";
                   const isArchived = room.status === "closed" && room.resolution_status === "archived";
-                  const statusColor = isActive ? primaryColor : isPending ? "#f59e0b" : isArchived ? "#6b7280" : "#22c55e";
-                  const StatusIcon = isActive ? Clock : isPending ? Clock : isArchived ? Archive : CheckCircle2;
+                  const statusColor = isActive ? primaryColor : isPending ? "#f59e0b" : isInactive ? "#6b7280" : isArchived ? "#3b82f6" : "#22c55e";
+                  const StatusIcon = isActive ? Clock : isPending ? Clock : (isInactive || isArchived) ? Archive : CheckCircle2;
                   const previewText = room.last_message
                     ? (room.last_message_sender === "visitor" ? "Você: " : "") + (room.last_message.length > 50 ? room.last_message.slice(0, 50) + "…" : room.last_message)
                     : null;
