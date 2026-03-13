@@ -172,17 +172,23 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
     textareaRef.current?.focus();
   }, []);
 
+  // Keep valueRef in sync so cleanup always has latest text
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
+
+  // Helper: persist or clear draft for a room
+  const persistDraft = useCallback((rid: string, text: string) => {
+    if (text.trim()) draftsMap.set(rid, text);
+    else draftsMap.delete(rid);
+  }, []);
+
   // Draft persistence per room — using module-level Map
   useEffect(() => {
     const prevId = prevRoomIdRef.current;
     if (prevId !== undefined && prevId !== roomId) {
-      // Save draft for previous room
-      if (prevId) {
-        const rawVal = textareaRef.current?.value ?? "";
-        const currentVal = rawVal.trim() ? rawVal : "";
-        if (currentVal) draftsMap.set(prevId, currentVal);
-        else draftsMap.delete(prevId);
-      }
+      // Save draft for previous room using ref (always fresh)
+      if (prevId) persistDraft(prevId, valueRef.current);
       // Restore draft for new room
       const draft = roomId ? (draftsMap.get(roomId) ?? "") : "";
       setValue(draft);
@@ -191,21 +197,15 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
       setArticlesOpen(false);
     }
     prevRoomIdRef.current = roomId;
-  }, [roomId]);
+  }, [roomId, persistDraft]);
 
-  // Also save draft on unmount
+  // Also save draft on unmount using valueRef
   useEffect(() => {
     return () => {
       const currentRoomId = prevRoomIdRef.current;
-      if (currentRoomId) {
-        // We can't access `value` state here reliably, but the textarea has it
-        const el = textareaRef.current;
-        const txt = el?.value ?? "";
-        if (txt.trim()) draftsMap.set(currentRoomId, txt);
-        else draftsMap.delete(currentRoomId);
-      }
+      if (currentRoomId) persistDraft(currentRoomId, valueRef.current);
     };
-  }, []);
+  }, [persistDraft]);
 
   // Click-outside to close macros/articles popups
   useEffect(() => {
