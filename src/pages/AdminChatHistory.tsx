@@ -245,6 +245,7 @@ const AdminChatHistory = () => {
               { value: "resolved", label: t("chat.history.resolved") },
               { value: "pending", label: t("chat.history.pending_status") },
               { value: "escalated", label: t("chat.history.escalated") },
+              { value: "inactive", label: "Inativo" },
               { value: "archived", label: "Arquivado" },
             ]}
             selected={resolutionStatuses}
