@@ -3140,6 +3140,17 @@ export type Database = {
         Returns: boolean
       }
       is_master: { Args: { _user_id: string }; Returns: boolean }
+      search_help_articles: {
+        Args: { p_limit?: number; p_query: string; p_tenant_id: string }
+        Returns: {
+          body_snippet: string
+          id: string
+          relevance: number
+          slug: string
+          subtitle: string
+          title: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "attendant" | "master"

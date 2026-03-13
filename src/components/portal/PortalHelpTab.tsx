@@ -13,6 +13,7 @@ interface HelpArticle {
   title: string;
   subtitle: string | null;
   slug: string;
+  body_snippet?: string | null;
 }
 
 export default function PortalHelpTab({ tenantId }: PortalHelpTabProps) {
@@ -40,9 +41,32 @@ export default function PortalHelpTab({ tenantId }: PortalHelpTabProps) {
     fetchData();
   }, [tenantId]);
 
-  const filtered = search
-    ? articles.filter((a) => a.title.toLowerCase().includes(search.toLowerCase()))
-    : articles;
+  // Debounced search via RPC
+  useEffect(() => {
+    if (!search.trim()) return;
+    const timer = setTimeout(async () => {
+      const { data } = await supabase.rpc("search_help_articles", {
+        p_tenant_id: tenantId,
+        p_query: search.trim(),
+        p_limit: 20,
+      });
+      if (data) setArticles(data as HelpArticle[]);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search, tenantId]);
+
+  // Reset to default list when search is cleared
+  useEffect(() => {
+    if (search.trim()) return;
+    supabase
+      .from("help_articles")
+      .select("id, title, subtitle, slug")
+      .eq("tenant_id", tenantId)
+      .eq("status", "published")
+      .order("updated_at", { ascending: false })
+      .limit(20)
+      .then(({ data }) => { if (data) setArticles(data); });
+  }, [search, tenantId]);
 
   if (loading) {
     return (
@@ -66,7 +90,7 @@ export default function PortalHelpTab({ tenantId }: PortalHelpTabProps) {
         />
       </div>
 
-      {filtered.length === 0 ? (
+      {articles.length === 0 ? (
         <div className="text-center py-12">
           <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-3 opacity-50" />
           <p className="text-muted-foreground">
@@ -75,7 +99,7 @@ export default function PortalHelpTab({ tenantId }: PortalHelpTabProps) {
         </div>
       ) : (
         <div className="space-y-2">
-          {filtered.map((article) => (
+          {articles.map((article) => (
             <a
               key={article.id}
               href={`${helpBase}/a/${article.slug}`}
@@ -88,6 +112,11 @@ export default function PortalHelpTab({ tenantId }: PortalHelpTabProps) {
                     <p className="text-sm font-medium truncate">{article.title}</p>
                     {article.subtitle && (
                       <p className="text-xs text-muted-foreground line-clamp-1">{article.subtitle}</p>
+                    )}
+                    {article.body_snippet && (
+                      <p className="text-xs text-muted-foreground/70 line-clamp-1 mt-0.5">
+                        ...{article.body_snippet.trim()}...
+                      </p>
                     )}
                   </div>
                   <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />

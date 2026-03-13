@@ -13,6 +13,14 @@ import { EmojiPicker } from "@/components/chat/EmojiPicker";
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 
+// Module-level draft storage — survives component unmount, clears on F5
+const draftsMap = new Map<string, string>();
+
+/** Clear stored draft for a specific room (call when room is closed) */
+export function clearDraft(roomId: string) {
+  draftsMap.delete(roomId);
+}
+
 interface Macro {
   id: string;
   title: string;
@@ -27,6 +35,7 @@ interface HelpArticle {
   title: string;
   subtitle: string | null;
   slug: string;
+  body_snippet?: string | null;
 }
 
 interface ChatInputProps {
@@ -51,6 +60,7 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
   const [uploading, setUploading] = useState(false);
   const [macros, setMacros] = useState<Macro[]>([]);
   const [macrosOpen, setMacrosOpen] = useState(false);
+  const [macroFilter, setMacroFilter] = useState("");
   const [articlesOpen, setArticlesOpen] = useState(false);
   const [articles, setArticles] = useState<HelpArticle[]>([]);
   const [articlesLoaded, setArticlesLoaded] = useState(false);
@@ -59,10 +69,10 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastTypingBroadcast = useRef<number>(0);
-  const draftsRef = useRef<Map<string, string>>(new Map());
   const prevRoomIdRef = useRef<string | null | undefined>(undefined);
   const macrosPopupRef = useRef<HTMLDivElement>(null);
   const articlesPopupRef = useRef<HTMLDivElement>(null);
+  const slashPosRef = useRef<number>(-1);
 
   useEffect(() => {
     const fetchMacros = async () => {
@@ -100,6 +110,16 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
     setArticlesLoaded(true);
   }, [tenantId, articlesLoaded]);
 
+  const searchArticles = useCallback(async (query: string) => {
+    if (!tenantId || !query.trim()) return;
+    const { data } = await supabase.rpc("search_help_articles", {
+      p_tenant_id: tenantId,
+      p_query: query.trim(),
+      p_limit: 10,
+    });
+    if (data) setArticles(data as HelpArticle[]);
+  }, [tenantId]);
+
   const handleOpenArticles = () => {
     loadArticles();
     setArticleFilter("");
@@ -120,12 +140,20 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
     onSend(article.title, false, metadata, "help_article");
   };
 
-  const filteredArticles = articleFilter
-    ? articles.filter(a =>
-        a.title.toLowerCase().includes(articleFilter.toLowerCase()) ||
-        (a.subtitle && a.subtitle.toLowerCase().includes(articleFilter.toLowerCase()))
-      )
-    : articles;
+  // Debounced article search
+  useEffect(() => {
+    if (!articlesOpen) return;
+    if (!articleFilter.trim()) {
+      // Reset to full list
+      setArticlesLoaded(false);
+      loadArticles();
+      return;
+    }
+    const timer = setTimeout(() => searchArticles(articleFilter), 300);
+    return () => clearTimeout(timer);
+  }, [articleFilter, articlesOpen]);
+
+  const filteredArticles = articles;
 
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current;
@@ -143,20 +171,39 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
     textareaRef.current?.focus();
   }, []);
 
-  // Draft persistence per room
+  // Draft persistence per room — using module-level Map
   useEffect(() => {
     const prevId = prevRoomIdRef.current;
     if (prevId !== undefined && prevId !== roomId) {
       // Save draft for previous room
-      if (prevId) draftsRef.current.set(prevId, value);
+      if (prevId) {
+        const currentVal = value.trim() ? value : "";
+        if (currentVal) draftsMap.set(prevId, currentVal);
+        else draftsMap.delete(prevId);
+      }
       // Restore draft for new room
-      const draft = roomId ? (draftsRef.current.get(roomId) ?? "") : "";
+      const draft = roomId ? (draftsMap.get(roomId) ?? "") : "";
       setValue(draft);
       setMacrosOpen(false);
+      setMacroFilter("");
       setArticlesOpen(false);
     }
     prevRoomIdRef.current = roomId;
   }, [roomId]);
+
+  // Also save draft on unmount
+  useEffect(() => {
+    return () => {
+      const currentRoomId = prevRoomIdRef.current;
+      if (currentRoomId) {
+        // We can't access `value` state here reliably, but the textarea has it
+        const el = textareaRef.current;
+        const txt = el?.value ?? "";
+        if (txt.trim()) draftsMap.set(currentRoomId, txt);
+        else draftsMap.delete(currentRoomId);
+      }
+    };
+  }, []);
 
   // Click-outside to close macros/articles popups
   useEffect(() => {
@@ -226,6 +273,8 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
     const content = value.trim() || metadata?.file_name || "";
     await onSend(content, isInternal, metadata);
     setValue("");
+    // Clear draft for this room after sending
+    if (roomId) draftsMap.delete(roomId);
     clearFile();
     setSending(false);
     setTimeout(() => textareaRef.current?.focus(), 0);
@@ -330,17 +379,58 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
       }).catch(() => {});
     }
 
-    if (v.startsWith("/") && macros.length > 0) {
+    // Detect slash command anywhere in text (at cursor position)
+    const cursorPos = e.target.selectionStart ?? v.length;
+    const textBeforeCursor = v.slice(0, cursorPos);
+    const slashMatch = textBeforeCursor.match(/(?:^|\n|\s)(\/\S*)$/);
+
+    if (slashMatch && macros.length > 0) {
+      const matchedPart = slashMatch[1]; // e.g. "/hel"
+      const slashPos = cursorPos - matchedPart.length;
+      slashPosRef.current = slashPos;
+      setMacroFilter(matchedPart.slice(1).toLowerCase()); // remove leading "/"
       setMacrosOpen(true);
     } else {
       setMacrosOpen(false);
+      setMacroFilter("");
+      slashPosRef.current = -1;
     }
   };
 
   const handleSelectMacro = (macro: Macro) => {
-    setValue(macro.content);
+    const el = textareaRef.current;
+    const cursorPos = el?.selectionStart ?? value.length;
+    const slashPos = slashPosRef.current;
+
+    if (slashPos >= 0) {
+      // Insert at cursor, replacing the /command
+      const before = value.slice(0, slashPos);
+      const after = value.slice(cursorPos);
+      
+      // Add line breaks if needed
+      const prefix = before.length > 0 && !before.endsWith("\n") ? "\n" : "";
+      const suffix = after.length > 0 && !after.startsWith("\n") ? "\n" : "";
+      
+      const newValue = before + prefix + macro.content + suffix + after;
+      setValue(newValue);
+      
+      // Position cursor after inserted content
+      const newCursorPos = (before + prefix + macro.content + suffix).length;
+      setTimeout(() => {
+        if (el) {
+          el.focus();
+          el.setSelectionRange(newCursorPos, newCursorPos);
+        }
+      }, 0);
+    } else {
+      // Fallback: append
+      setValue(value + macro.content);
+      setTimeout(() => el?.focus(), 0);
+    }
+
     setMacrosOpen(false);
-    setTimeout(() => textareaRef.current?.focus(), 0);
+    setMacroFilter("");
+    slashPosRef.current = -1;
   };
 
   const handlePaste = (e: React.ClipboardEvent) => {
@@ -380,6 +470,11 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
 
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); };
 
+  // Filter macros by the current slash command text
+  const filteredMacros = macroFilter
+    ? macros.filter(m => m.title.toLowerCase().includes(macroFilter) || (m.shortcut && m.shortcut.toLowerCase().includes(macroFilter)))
+    : macros;
+
   return (
     <div className="border-t p-3 space-y-2 min-w-0" onDrop={handleDrop} onDragOver={handleDragOver}>
       {isInternal && (
@@ -406,38 +501,32 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
         </div>
       )}
 
-      {macrosOpen && macros.length > 0 && (() => {
-        const filterText = value.startsWith("/") ? value.slice(1).toLowerCase() : "";
-        const filtered = filterText
-          ? macros.filter(m => m.title.toLowerCase().includes(filterText) || (m.shortcut && m.shortcut.toLowerCase().includes(filterText)))
-          : macros;
-        return (
-          <div className="rounded-md border bg-popover shadow-md max-h-48 overflow-auto" ref={(el) => { (commandListRef as any).current = el; (macrosPopupRef as any).current = el; }}>
-            <div className="flex justify-end p-1">
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => setMacrosOpen(false)}><X className="h-3 w-3" /></Button>
-            </div>
-            <Command shouldFilter={false}>
-              <CommandList>
-                <CommandEmpty className="text-xs p-2">Nenhuma macro encontrada</CommandEmpty>
-                <CommandGroup>
-                  {filtered.map((macro, idx) => (
-                    <CommandItem key={macro.id} onSelect={() => handleSelectMacro(macro)} className="text-xs cursor-pointer" data-selected={idx === 0 ? "true" : "false"}>
-                      <div className="flex items-center gap-2 w-full">
-                        <Zap className="h-3 w-3 text-primary shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <span className="font-medium">{macro.title}</span>
-                          {macro.shortcut && <span className="ml-1 text-muted-foreground">/{macro.shortcut}</span>}
-                          <p className="text-muted-foreground truncate text-[10px]">{macro.content.slice(0, 60)}</p>
-                        </div>
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
+      {macrosOpen && filteredMacros.length > 0 && (
+        <div className="rounded-md border bg-popover shadow-md max-h-48 overflow-auto" ref={(el) => { (commandListRef as any).current = el; (macrosPopupRef as any).current = el; }}>
+          <div className="flex justify-end p-1">
+            <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => setMacrosOpen(false)}><X className="h-3 w-3" /></Button>
           </div>
-        );
-      })()}
+          <Command shouldFilter={false}>
+            <CommandList>
+              <CommandEmpty className="text-xs p-2">Nenhuma macro encontrada</CommandEmpty>
+              <CommandGroup>
+                {filteredMacros.map((macro, idx) => (
+                  <CommandItem key={macro.id} onSelect={() => handleSelectMacro(macro)} className="text-xs cursor-pointer" data-selected={idx === 0 ? "true" : "false"}>
+                    <div className="flex items-center gap-2 w-full">
+                      <Zap className="h-3 w-3 text-primary shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium">{macro.title}</span>
+                        {macro.shortcut && <span className="ml-1 text-muted-foreground">/{macro.shortcut}</span>}
+                        <p className="text-muted-foreground truncate text-[10px]">{macro.content.slice(0, 60)}</p>
+                      </div>
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </div>
+      )}
 
       {/* Articles popup */}
       {articlesOpen && (
@@ -521,9 +610,23 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
               variant="ghost"
               className="shrink-0 h-9 w-9"
               onClick={() => {
-                setValue("/");
-                setMacrosOpen(true);
-                setTimeout(() => textareaRef.current?.focus(), 0);
+                // Insert "/" at cursor position
+                const el = textareaRef.current;
+                if (el) {
+                  const start = el.selectionStart;
+                  const newVal = value.slice(0, start) + "/" + value.slice(start);
+                  setValue(newVal);
+                  slashPosRef.current = start;
+                  setMacroFilter("");
+                  setMacrosOpen(true);
+                  setTimeout(() => {
+                    el.focus();
+                    el.setSelectionRange(start + 1, start + 1);
+                  }, 0);
+                } else {
+                  setValue(value + "/");
+                  setMacrosOpen(true);
+                }
               }}
               title="Macros (digite /)"
             >

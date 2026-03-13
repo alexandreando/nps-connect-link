@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ChatRoomList } from "@/components/chat/ChatRoomList";
 import { ChatMessageList } from "@/components/chat/ChatMessageList";
-import { ChatInput } from "@/components/chat/ChatInput";
+import { ChatInput, clearDraft } from "@/components/chat/ChatInput";
 import { VisitorInfoPanel, type WorkspaceDisplaySettings } from "@/components/chat/VisitorInfoPanel";
 import { CloseRoomDialog } from "@/components/chat/CloseRoomDialog";
 import { ReassignDialog } from "@/components/chat/ReassignDialog";
@@ -373,6 +373,7 @@ const AdminWorkspace = () => {
     await supabase.from("chat_rooms").update({
       status: "closed", resolution_status: resolutionStatus, closed_at: new Date().toISOString(),
     }).eq("id", closingRoomId);
+    clearDraft(closingRoomId);
     setClosingRoomId(null);
     const msgs: Record<string, string> = { resolved: "Conversa encerrada como resolvida", pending: "Conversa encerrada com pendência", archived: "Conversa arquivada" };
     toast.success(msgs[resolutionStatus] ?? "Conversa encerrada");
