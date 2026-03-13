@@ -36,6 +36,21 @@ interface SearchResult {
   title: string;
   subtitle: string | null;
   slug: string;
+  body_snippet?: string | null;
+  relevance?: number;
+}
+
+function highlightTerm(text: string, term: string) {
+  if (!term.trim()) return text;
+  const idx = text.toLowerCase().indexOf(term.toLowerCase());
+  if (idx === -1) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-yellow-200 text-inherit rounded-sm px-0.5">{text.slice(idx, idx + term.length)}</mark>
+      {text.slice(idx + term.length)}
+    </>
+  );
 }
 
 export default function HelpPublicHome() {
@@ -97,17 +112,16 @@ export default function HelpPublicHome() {
     setLoading(false);
   };
 
+  // Debounced search using RPC
   useEffect(() => {
     if (!search.trim() || !tenantId) { setSearchResults([]); return; }
     const timer = setTimeout(async () => {
-      const { data } = await supabase
-        .from("help_articles")
-        .select("id, title, subtitle, slug")
-        .eq("tenant_id", tenantId!)
-        .eq("status", "published")
-        .or(`title.ilike.%${search}%,subtitle.ilike.%${search}%`)
-        .limit(10);
-      setSearchResults(data ?? []);
+      const { data } = await supabase.rpc("search_help_articles", {
+        p_tenant_id: tenantId!,
+        p_query: search.trim(),
+        p_limit: 10,
+      });
+      setSearchResults((data as SearchResult[]) ?? []);
     }, 300);
     return () => clearTimeout(timer);
   }, [search, tenantId]);
@@ -198,9 +212,16 @@ export default function HelpPublicHome() {
                   onMouseLeave={e => (e.currentTarget.style.backgroundColor = "#ffffff")}
                 >
                   <FileText className="h-4 w-4 flex-shrink-0" style={{ color: "#94a3b8" }} />
-                  <div className="text-left">
-                    <p className="font-medium text-sm" style={{ color: "#1e293b" }}>{r.title}</p>
-                    {r.subtitle && <p className="text-xs mt-0.5" style={{ color: "#64748b" }}>{r.subtitle}</p>}
+                  <div className="text-left min-w-0 flex-1">
+                    <p className="font-medium text-sm" style={{ color: "#1e293b" }}>
+                      {highlightTerm(r.title, search)}
+                    </p>
+                    {r.subtitle && <p className="text-xs mt-0.5" style={{ color: "#64748b" }}>{highlightTerm(r.subtitle, search)}</p>}
+                    {r.body_snippet && (
+                      <p className="text-xs mt-1 line-clamp-1" style={{ color: "#94a3b8" }}>
+                        ...{highlightTerm(r.body_snippet.trim(), search)}...
+                      </p>
+                    )}
                   </div>
                 </Link>
               ))}
