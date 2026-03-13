@@ -362,7 +362,7 @@ const AdminWorkspace = () => {
     setCloseDialogOpen(true);
   };
 
-  const handleConfirmClose = async (resolutionStatus: "resolved" | "pending" | "archived", note?: string) => {
+  const handleConfirmClose = async (resolutionStatus: "resolved" | "pending" | "inactive" | "archived", note?: string) => {
     if (!closingRoomId || !user) return;
     if (note) {
       await supabase.from("chat_messages").insert({
