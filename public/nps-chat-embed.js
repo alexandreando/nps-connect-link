@@ -478,7 +478,7 @@
     iframe.style.cssText =
       "position:fixed;bottom:20px;" +
       (position === "left" ? "left:20px" : "right:20px") +
-      ";width:80px;height:80px;border:none;z-index:99998;background:transparent;";
+      ";width:80px;height:80px;border:none;z-index:999;background:transparent;";
     iframe.allow = "clipboard-write";
     document.body.appendChild(iframe);
     chatIframe = iframe;
