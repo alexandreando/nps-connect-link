@@ -347,7 +347,7 @@ const AutoMessagesTab = () => {
                   value={(() => {
                     const edit = localEdits[rule.id];
                     if (edit && edit.close_resolution_status !== undefined) return edit.close_resolution_status;
-                    return rule.close_resolution_status ?? "archived";
+                    return rule.close_resolution_status ?? "inactive";
                   })()}
                   onValueChange={(v) => setLocalEdit(rule.id, "close_resolution_status", v)}
                 >
@@ -357,7 +357,7 @@ const AutoMessagesTab = () => {
                   <SelectContent>
                     <SelectItem value="pending">Pendente</SelectItem>
                     <SelectItem value="resolved">Resolvida</SelectItem>
-                    <SelectItem value="archived">Arquivada</SelectItem>
+                    <SelectItem value="inactive">Inativada</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-[11px] text-muted-foreground">Define o status da conversa quando encerrada automaticamente.</p>

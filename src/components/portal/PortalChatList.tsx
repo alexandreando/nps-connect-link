@@ -75,6 +75,8 @@ const PortalChatList = ({ rooms, activeRoom, onNewChat, onResumeChat, onReopenCh
       case "resolved": return <Badge className="bg-green-100 text-green-800">Resolvido</Badge>;
       case "escalated": return <Badge className="bg-red-100 text-red-800">Escalado</Badge>;
       case "pending": return <Badge className="bg-orange-100 text-orange-800">Pendente</Badge>;
+      case "inactive": return <Badge className="bg-muted text-muted-foreground">Inativo</Badge>;
+      case "archived": return <Badge className="bg-blue-100 text-blue-800">Arquivado</Badge>;
       default: return null;
     }
   };

@@ -108,7 +108,8 @@ export function ReadOnlyChatDialog({ roomId, visitorName, open, onOpenChange, re
     switch (status) {
       case "resolved": return <Badge className="bg-green-100 text-green-800 text-[10px]">Resolvido</Badge>;
       case "pending": return <Badge className="bg-orange-100 text-orange-800 text-[10px]">Pendente</Badge>;
-      case "archived": return <Badge className="bg-muted text-muted-foreground text-[10px]">Arquivado</Badge>;
+      case "inactive": return <Badge className="bg-muted text-muted-foreground text-[10px]">Inativo</Badge>;
+      case "archived": return <Badge className="bg-blue-100 text-blue-800 text-[10px]">Arquivado</Badge>;
       case "escalated": return <Badge className="bg-red-100 text-red-800 text-[10px]">Escalado</Badge>;
       default: return null;
     }
