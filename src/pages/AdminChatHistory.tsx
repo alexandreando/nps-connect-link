@@ -133,17 +133,19 @@ const AdminChatHistory = () => {
     toast.success("Chat reaberto e atribuído a você!"); refetch();
   };
 
-  const handleBulkAction = async (action: "resolved" | "archived") => {
+  const handleBulkAction = async (action: "resolved" | "inactive" | "archived") => {
     if (selectedIds.size === 0) return;
     const ids = Array.from(selectedIds);
     await supabase.from("chat_rooms").update({ resolution_status: action }).in("id", ids);
-    toast.success(`${ids.length} chat(s) ${action === "resolved" ? "marcado(s) como resolvido(s)" : "arquivado(s)"}`);
+    const labels: Record<string, string> = { resolved: "marcado(s) como resolvido(s)", inactive: "inativado(s)", archived: "arquivado(s)" };
+    toast.success(`${ids.length} chat(s) ${labels[action]}`);
     setSelectedIds(new Set()); refetch();
   };
 
-  const handleIndividualAction = async (roomId: string, action: "resolved" | "archived") => {
+  const handleIndividualAction = async (roomId: string, action: "resolved" | "inactive" | "archived") => {
     await supabase.from("chat_rooms").update({ resolution_status: action }).eq("id", roomId);
-    toast.success(action === "resolved" ? "Marcado como resolvido" : "Arquivado"); refetch();
+    const labels: Record<string, string> = { resolved: "Marcado como resolvido", inactive: "Inativado", archived: "Arquivado" };
+    toast.success(labels[action]); refetch();
   };
 
   const toggleSelect = (id: string) => { setSelectedIds(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; }); };
