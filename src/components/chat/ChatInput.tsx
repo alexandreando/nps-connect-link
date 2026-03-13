@@ -371,6 +371,8 @@ export function ChatInput({ onSend, roomId, senderName }: ChatInputProps) {
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const v = e.target.value;
     setValue(v);
+    // Persist draft immediately on every keystroke
+    if (roomId) persistDraft(roomId, v);
 
     if (roomId && senderName && Date.now() - lastTypingBroadcast.current > 2000) {
       lastTypingBroadcast.current = Date.now();

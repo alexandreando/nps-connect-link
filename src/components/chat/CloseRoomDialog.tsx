@@ -44,7 +44,7 @@ export function CloseRoomDialog({ open, onOpenChange, onConfirm, roomId }: Close
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Como encerrar esta conversa?</DialogTitle>
           <DialogDescription>
@@ -54,7 +54,7 @@ export function CloseRoomDialog({ open, onOpenChange, onConfirm, roomId }: Close
 
         <div className="space-y-4">
           {/* Status selection */}
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {statusOptions.map((opt) => {
               const Icon = opt.icon;
               const isActive = selectedStatus === opt.value;
@@ -63,14 +63,14 @@ export function CloseRoomDialog({ open, onOpenChange, onConfirm, roomId }: Close
                   key={opt.value}
                   variant="outline"
                   className={cn(
-                    "flex-1 gap-1.5 h-10 text-xs font-medium transition-all",
+                    "min-w-0 gap-1.5 h-10 text-xs font-medium transition-all",
                     isActive && `ring-2 ${opt.activeRing} ${opt.color}`
                   )}
                   onClick={() => setSelectedStatus(opt.value)}
                   disabled={closing}
                 >
-                  <Icon className="h-3.5 w-3.5" />
-                  {opt.label}
+                  <Icon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{opt.label}</span>
                 </Button>
               );
             })}
